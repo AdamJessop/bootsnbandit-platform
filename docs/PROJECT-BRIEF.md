@@ -64,3 +64,9 @@ Sentinal exposes **no path-ignore config key** (`sentinal config list` has no ig
 
 - **Exempt from companion-test expectations** (boilerplate/config/reference, do NOT write tests for): `design-src/**`, `*.config.*` (next/vitest/postcss/eslint), `src/app/**/layout.tsx`, route-group `page.tsx` placeholders, `next-env.d.ts`, `src/components/ui/**` (generated shadcn).
 - These produce a harmless non-blocking file-checker warning; ignore it. Real logic in `src/lib/services/**`, `src/lib/**` etc. DOES get companion tests (TDD).
+
+## Build progress (orchestration log)
+- Waves 1-3 VERIFIED (6/12): P1 scaffold `9a21fc3`, P2 data `1fc68d8`, P3 design `b4116e3`, P4 auth `44b6e9a`, P5 email `0cb04bd`, P6 domain `01be1fb`. Security hardening: IDOR authz `37580a7`, fail-closed/PII `e621eae`. Full suite 127/127, build green.
+- Wave 4 IN FLIGHT (P7 public site, P8 enquire/inkling/review, P9 admin calendar/front-desk, P10 admin CRM/sessions/reports, P11 admin CMS/studio/PWA) — 5 parallel agents, disjoint dirs; shared admin components owned: P9 CalendarGrid+BookingDrawer, P10 CustomerTimeline+DataTable+ChartWrapper, P11 ImageUploader. Each verifies own slice (tsc/lint/build+own tests); orchestrator runs consolidated full-suite check after all 5 land.
+- NEXT after Wave 4: consolidated integration verify (full npm test may have inter-phase races — clean + re-run); then Wave 5 = P12 (per-artist iCal feed endpoint `/api/calendar/<token>.ics`, Google Calendar stub, CRM cron automations: reminders T-48/24h, aftercare, review T+4d, loyalty; review-capture already in P8). Then sentinal spec-verify of the master plan.
+- Postgres: docker compose, host port 5435. Tailwind v4 tokens in src/app/globals.css. Admin role: AdminRole "owner"|"artist"; DB Role OWNER|ARTIST.
