@@ -30,3 +30,38 @@ Sticky nav (`.nav`, blur, 72px) + optional crimson `.ticker` (34px, marquee). Br
 
 ## Still to fetch from design project (lower priority, fetch when building P7/P8):
 `pages-book.jsx` (Enquire form + body map + artist/style/placement/budget + mood board), `pages-ai.jsx` (Inkling: Style Matcher questionnaire + Mood Board), `pages-aftercare.jsx` (aftercare stages + FAQ accordion), `pages-studio.jsx` (location/hours/map/vouchers), `pages-passport.jsx` (Bandit Pass detail/tiers), `moodboard.jsx`. These can be pulled in-session via DesignSync get_file → persisted → python extract (cheap) when their phase starts.
+
+---
+
+# Algorithms, flows & seed content (from book/ai/aftercare/studio/passport JSX)
+
+## Inkling Style Matcher — deterministic scoring (port to P8 `lib/services/match.ts`)
+5 questions → ranked artists. Question option→style maps:
+- **VIBES** (weight ×3): trad→[Neo-traditional,Lettering]; fine→[Fine-line,Dotwork & Geometric]; dark→[Blackwork,Japanese]; play→[Anime & New-school,Colour]; real→[Realism,Colour]; geo→[Dotwork & Geometric,Blackwork].
+- **SUBJECTS** (×2): animal→[Neo-traditional,Realism,Japanese]; floral→[Fine-line,Neo-traditional,Colour]; portrait→[Realism]; words→[Lettering]; pattern→[Dotwork & Geometric,Blackwork]; anime→[Anime & New-school]; unsure→[].
+- **COLOURS** (×1.5): bw(Black & grey)→[Blackwork,Realism,Dotwork & Geometric,Fine-line,Lettering]; bold→[Colour,Neo-traditional,Anime & New-school,Japanese]; touch→[Neo-traditional,Japanese,Colour].
+- **placement** (PLACEMENTS list) and **exp** (first/few/heavy) also collected.
+
+Scoring: build style-weight map from the three weighted maps. For each artist: `raw = sum(styleWeight[s] for s in artist.styles)`; `matched = artist.styles ∩ weightedStyles`; books bonus `open +1.2 / limited +0.4`; if `exp==='first'` and artist has special 'First tattoos' or style 'Fine-line' then `+1.5`. Sort desc by raw. `max = top.raw || 1`. Display `pct = round(clamp(38, 98, raw/max*92 + (i===0?6:0) - i*1.5))`. Show top 4 (rank 0 = "Best fit" gold tag, shows matched styles "Strong in X, Y"), each → Enquire / Profile. In real app the match result + answers should be stored on the created Enquiry (source=inkling).
+
+## Enquiry flow (book) — 5 steps (port to P8 public Enquire)
+Steps: **Artist** (pick one or "No preference — match me") → **Your idea** (styles up to 3 chips; subject textarea; placement select from PLACEMENTS; rough size: Small/Medium/Large/Not sure yet) → **Mood board** (capture references; embedded MoodBoard) → **Consultation** (general availability: Weekends only / Weekday evenings / Weekday daytimes / Flexible; optional day chips Mon–Sun; then pick a free **15-minute consult** slot from a month calendar — working days Tue–Sat, CONSULT_TIMES 10:00,10:45,11:30,13:15,14:00,15:30,16:15; day status open/limited/full) → **Details** (name, phone, email, notes; summary aside) → success ("Enquiry sent", consult TBC/confirmed, N references attached). No deposit, no payment. Creates Enquiry (+ optional consult Booking type=consult). Real app: availability/slots come from artist AvailabilityRule + existing Bookings + Leave.
+
+## Aftercare healing stages — seed `AftercareStage` (5, ordered) + the emailed aftercare link content
+0. **Day 1–2 · Fresh & wrapped** (crimson) — care: keep wrap on as advised; first wash lukewarm + fragrance-free soap; pat dry never rub. feel: tender, warm, swollen; plasma weeping normal.
+1. **Day 3–6 · Settling in** (gold) — thin balm 2–3×/day; loose clothing; short showers, no soaking. feel: tightness as it dries; may look duller.
+2. **Day 7–14 · The itchy peel** (teal) — do NOT pick/scratch; tap if itchy, keep moisturising; skip gym sweat & tight straps. feel: flaky, itchy, scabby; colour settling.
+3. **Day 15–30 · Almost there** (moss) — moisturise once/day; no pools/saunas/baths; milky sheen normal. feel: surface healed, deeper layers finishing.
+4. **Day 30+ · Healed** (gold) — SPF 30+ in sun forever; moisturise; book free touch-up if needed. feel: fully healed.
+Aftercare page also has Do (wash gently/moisturise thinly/protect from sun) & Don't (no pick/scratch, no soaking 2–3wk, no tight clothing), a "something not right?" help card (free touch-ups within 3 months), and the FAQ accordion (FAQS from data.jsx). Healing tracker lets user enter "days since" → highlights stage.
+
+## Bandit Pass loyalty — seed `LoyaltyConfig` + perks ladder (P11 config, P7 passport page)
+Card = **8 stamps** (one per piece). Tier label e.g. "Level 2 · Outlaw". Perks ladder (unlock at N stamps):
+- **2** — Birthday treat: 10% off in your birthday month.
+- **4** — Early flash access: claim flash 24h before public drop.
+- **6** — Priority booking: skip the waitlist on open books.
+- **8** — Free small tattoo: a palm-size piece on the house.
+Passport page shows: the card (Mark stamps, holder name, "since" year, X/8), next-reward progress, mini-stats (Pieces / Artists / £ Saved), perks ladder grid, and "Your collection" of past pieces (title, artist, date) + "your next piece" CTA.
+
+## Studio page seed content (P7)
+Est. 2016, Worksop. About: started with two friends/two machines above a barber's; now 7 artists on Newcastle Avenue. Founders section = the two Co-owners (Sarah & Cal) with bios. Values: Spotless & licensed (single-use needles, hospital-grade sterilisation, council-licensed); No daft questions; Always custom (never copy another's tattoo); Free touch-ups (within 3 months). Visit: 67 Newcastle Avenue, Worksop, S80 1LX; Tue–Sat 10am–6pm (closed Sun/Mon); phone 01909 000 000; Google Maps embed; Facebook link. Contact form (name, email/phone, message). Gift vouchers band (any amount, never expires).
