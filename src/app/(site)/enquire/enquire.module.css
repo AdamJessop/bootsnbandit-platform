@@ -1,0 +1,335 @@
+/* Scoped styling for the Enquire wizard + Inkling + review islands. Co-located
+   to the Phase-8 lane so it doesn't touch the shared site.css. Reuses the
+   heritage CSS custom properties defined globally. */
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--space-8, 32px);
+}
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-termina);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  background: var(--bg-card, #1a1614);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+.step.active {
+  color: var(--text-primary, #f4efe9);
+  border-color: var(--bb-crimson, #c92f4d);
+}
+.step.done {
+  color: var(--bb-gold, #cfa05a);
+  border-color: var(--bb-gold, #cfa05a);
+}
+.stepNum {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+}
+
+.panel {
+  background: var(--bg-card, #1a1614);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: var(--radius-md, 14px);
+  padding: 28px;
+}
+.panelTitle {
+  font-family: var(--font-display, "Cinzel"), serif;
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+.panelSub {
+  color: var(--text-muted);
+  margin: 0 0 22px;
+  font-size: 14px;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.choice {
+  text-align: left;
+  background: var(--bg-base, #120f0d);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: var(--radius-sm, 10px);
+  padding: 14px 16px;
+  color: var(--text-primary, #f4efe9);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  min-height: 44px;
+}
+.choice:hover {
+  border-color: var(--bb-gold, #cfa05a);
+}
+.choice.on {
+  border-color: var(--bb-crimson, #c92f4d);
+  box-shadow: inset 0 0 0 1px var(--bb-crimson, #c92f4d);
+}
+.choiceName {
+  display: block;
+  font-weight: 600;
+}
+.choiceMeta {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 780px) {
+  .cols {
+    grid-template-columns: 1fr;
+  }
+}
+.aside {
+  background: var(--bg-card, #1a1614);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: var(--radius-md, 14px);
+  padding: 20px;
+  font-size: 14px;
+}
+.aside dt {
+  font-family: var(--font-termina);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+.aside dd {
+  margin: 2px 0 0;
+}
+
+/* mood board capture */
+.moodGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.moodTile {
+  position: relative;
+  aspect-ratio: 1/1;
+  border-radius: var(--radius-sm, 10px);
+  overflow: hidden;
+  border: 1px solid var(--border-default, #2a2420);
+}
+.moodTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.moodRemove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 0;
+  color: #fff;
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  line-height: 1;
+}
+.moodEmpty {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+/* consult calendar */
+.calHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 10px;
+}
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.calDay {
+  aspect-ratio: 1/1;
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: 8px;
+  background: var(--bg-base, #120f0d);
+  color: var(--text-primary, #f4efe9);
+  cursor: pointer;
+  font-size: 13px;
+  position: relative;
+}
+.calDay:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.calDay.on {
+  border-color: var(--bb-crimson, #c92f4d);
+  box-shadow: inset 0 0 0 1px var(--bb-crimson, #c92f4d);
+}
+.calDay .dot {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+}
+.dotOpen {
+  background: var(--bb-teal, #36b0a8);
+}
+.dotLimited {
+  background: var(--bb-gold, #cfa05a);
+}
+.slotRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* tabs (inkling) */
+.tabs {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--bg-card, #1a1614);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 10px 20px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+}
+.tab.on {
+  background: var(--bb-crimson, #c92f4d);
+  color: #fff;
+}
+
+/* match result cards */
+.matchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.matchCard {
+  background: var(--bg-card, #1a1614);
+  border: 1px solid var(--border-default, #2a2420);
+  border-radius: var(--radius-md, 14px);
+  padding: 20px;
+}
+.matchCard.best {
+  border-color: var(--bb-gold, #cfa05a);
+}
+.bestTag {
+  display: inline-block;
+  font-family: var(--font-termina);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--bb-gold, #cfa05a);
+  margin-bottom: 8px;
+}
+.pct {
+  font-family: var(--font-display, "Cinzel"), serif;
+  font-size: 30px;
+  color: var(--bb-crimson, #c92f4d);
+}
+.matchActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* review */
+.starPick {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 20px;
+}
+.starBtn {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--border-default, #4a423c);
+  padding: 4px;
+}
+.starBtn.on {
+  color: var(--bb-gold, #cfa05a);
+}
+.starBtn svg {
+  width: 34px;
+  height: 34px;
+}
+
+/* success / thank-you orb */
+.successWrap {
+  text-align: center;
+  padding: 40px 20px;
+}
+.orb {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 18px;
+  background: var(--bb-teal, #36b0a8);
+  color: #06201e;
+}
+.orb svg {
+  width: 38px;
+  height: 38px;
+}
+
+.error {
+  color: var(--bb-crimson, #c92f4d);
+  font-size: 14px;
+  margin-top: 12px;
+}
