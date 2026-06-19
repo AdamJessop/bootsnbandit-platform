@@ -4,7 +4,13 @@ import {
   listAvailabilityRules,
   setAvailabilityRules,
 } from "@/lib/services/availability";
-import { handleApiError, json, parseBody, parseQuery } from "../_lib/http";
+import {
+  ApiError,
+  handleApiError,
+  json,
+  parseBody,
+  parseQuery,
+} from "../_lib/http";
 
 /**
  * /api/availability (admin) — read + replace an artist's weekly pattern.
@@ -14,8 +20,12 @@ const getSchema = z.object({ artistId: z.string().min(1) });
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const { artistId } = parseQuery(req.url, getSchema);
+    // Owner-or-self: artists may only touch their own pattern.
+    if (user.role !== "OWNER" && user.artistId !== artistId) {
+      throw new ApiError(403, "Forbidden");
+    }
     const rules = await listAvailabilityRules(artistId);
     return json({ rules });
   } catch (err) {
@@ -37,8 +47,12 @@ const putSchema = z.object({
 
 export async function PUT(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const { artistId, rules } = await parseBody(req, putSchema);
+    // Owner-or-self: artists may only touch their own pattern.
+    if (user.role !== "OWNER" && user.artistId !== artistId) {
+      throw new ApiError(403, "Forbidden");
+    }
     const saved = await setAvailabilityRules(artistId, rules);
     return json({ rules: saved });
   } catch (err) {

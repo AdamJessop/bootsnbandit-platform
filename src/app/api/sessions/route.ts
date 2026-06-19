@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { completeSession } from "@/lib/services/sessions";
-import { handleApiError, json, parseBody } from "../_lib/http";
+import { ApiError, handleApiError, json, parseBody } from "../_lib/http";
 
 /**
  * POST /api/sessions (admin) — complete a session.
@@ -18,8 +19,18 @@ const schema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const input = await parseBody(req, schema);
+    // Owner-or-self: an artist may only complete their own bookings.
+    if (user.role !== "OWNER") {
+      const booking = await prisma.booking.findUniqueOrThrow({
+        where: { id: input.bookingId },
+        select: { artistId: true },
+      });
+      if (booking.artistId !== user.artistId) {
+        throw new ApiError(403, "Forbidden");
+      }
+    }
     const result = await completeSession(input);
     return json(result, 201);
   } catch (err) {

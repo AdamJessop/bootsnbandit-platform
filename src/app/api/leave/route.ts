@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { createLeave, listLeave } from "@/lib/services/leave";
-import { handleApiError, json, parseBody, parseQuery } from "../_lib/http";
+import {
+  ApiError,
+  handleApiError,
+  json,
+  parseBody,
+  parseQuery,
+} from "../_lib/http";
 
 /**
  * /api/leave (admin) — declare + list artist leave. Approved leave blocks
@@ -18,9 +24,16 @@ const createSchema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const input = await parseBody(req, createSchema);
-    const leave = await createLeave(input);
+    // Owner-or-self: artists may only declare their own leave.
+    if (user.role !== "OWNER" && user.artistId !== input.artistId) {
+      throw new ApiError(403, "Forbidden");
+    }
+    // Non-owners cannot self-approve leave; force the pending default.
+    const data =
+      user.role === "OWNER" ? input : { ...input, status: "pending" as const };
+    const leave = await createLeave(data);
     return json({ leave }, 201);
   } catch (err) {
     return handleApiError(err);
@@ -36,8 +49,12 @@ const listSchema = z.object({
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const query = parseQuery(req.url, listSchema);
+    // Owner-or-self: artists may only list their own leave.
+    if (user.role !== "OWNER" && user.artistId !== query.artistId) {
+      throw new ApiError(403, "Forbidden");
+    }
     const leave = await listLeave(query);
     return json({ leave });
   } catch (err) {

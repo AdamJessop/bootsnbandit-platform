@@ -5,7 +5,13 @@ import {
   listBookings,
   type CreateBookingInput,
 } from "@/lib/services/bookings";
-import { handleApiError, json, parseBody, parseQuery } from "../_lib/http";
+import {
+  ApiError,
+  handleApiError,
+  json,
+  parseBody,
+  parseQuery,
+} from "../_lib/http";
 
 /**
  * /api/bookings (admin). Requires a signed-in staff user.
@@ -34,8 +40,12 @@ const createSchema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const input = await parseBody(req, createSchema);
+    // Owner-or-self: artists may only create bookings for themselves.
+    if (user.role !== "OWNER" && input.artistId !== user.artistId) {
+      throw new ApiError(403, "Forbidden");
+    }
     const booking = await createBooking(input as CreateBookingInput);
     return json({ booking }, 201);
   } catch (err) {
@@ -57,8 +67,12 @@ const listSchema = z.object({
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const query = parseQuery(req.url, listSchema);
+    // Non-owners are always self-scoped: ignore any requested artistId.
+    if (user.role !== "OWNER") {
+      query.artistId = user.artistId ?? undefined;
+    }
     const bookings = await listBookings(query);
     return json({ bookings });
   } catch (err) {

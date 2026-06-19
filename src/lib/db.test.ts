@@ -27,10 +27,12 @@ describe("db singleton", () => {
     expect(() => createPrismaClient()).toThrow(/DATABASE_URL is not set/);
   });
 
-  it("createPrismaClient surfaces a clear error when the pg adapter is absent", async () => {
+  it("createPrismaClient constructs a client when the pg adapter is present", async () => {
     process.env.DATABASE_URL = "postgresql://u:p@localhost:5435/db";
     const { createPrismaClient } = await import("./db");
-    // @prisma/adapter-pg is not installed in Phase 2; expect the guidance error.
-    expect(() => createPrismaClient()).toThrow(/@prisma\/adapter-pg/);
+    // @prisma/adapter-pg is now installed; construction succeeds (no connect).
+    const client = createPrismaClient();
+    expect(client).toBeDefined();
+    expect(typeof client.$connect).toBe("function");
   });
 });

@@ -11,6 +11,16 @@ vi.mock("@/lib/auth", () => ({
   getCurrentUser: vi.fn(async () => null),
 }));
 
+const { requireRole } = await import("@/lib/auth");
+const asArtist = (artistId: string | null) =>
+  vi.mocked(requireRole).mockResolvedValueOnce({
+    id: "a1",
+    email: "artist@x",
+    role: "ARTIST" as const,
+    displayName: "Artist",
+    artistId,
+  });
+
 const { GET, PUT } = await import("./route");
 
 describe("/api/availability (admin)", () => {
@@ -50,5 +60,27 @@ describe("/api/availability (admin)", () => {
   it("GET 400s without artistId", async () => {
     const res = await GET(new Request("http://x/api/availability"));
     expect(res.status).toBe(400);
+  });
+
+  it("403s when an artist reads another artist's availability (GET)", async () => {
+    asArtist("other-artist");
+    const res = await GET(
+      new Request("http://x/api/availability?artistId=victim-artist"),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("403s when an artist replaces another artist's rules (PUT)", async () => {
+    asArtist("other-artist");
+    const res = await PUT(
+      new Request("http://x/api/availability", {
+        method: "PUT",
+        body: JSON.stringify({
+          artistId: "victim-artist",
+          rules: [{ weekday: 2, startTime: "10:00", endTime: "18:00" }],
+        }),
+      }),
+    );
+    expect(res.status).toBe(403);
   });
 });
