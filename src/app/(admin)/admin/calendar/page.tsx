@@ -70,7 +70,12 @@ export default async function CalendarPage({
       </h1>
       <CalendarClient
         canSwitchArtist={user.role === "OWNER"}
-        artists={artists.map((a) => ({ id: a.id, name: a.name }))}
+        artists={artists.map((a) => ({
+          id: a.id,
+          name: a.name,
+          hourlyRatePence: a.hourlyRatePence,
+          dayRatePence: a.dayRatePence,
+        }))}
         activeArtistId={activeArtistId}
         view={view}
         anchorISO={anchor.toISOString()}

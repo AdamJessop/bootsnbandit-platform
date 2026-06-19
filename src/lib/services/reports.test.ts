@@ -11,6 +11,7 @@ describe("reports.reportOverview (DB fixture)", () => {
     sessions: [] as string[],
     artists: [] as string[],
     chairs: [] as string[],
+    users: [] as string[],
   };
 
   afterAll(async () => {
@@ -26,6 +27,8 @@ describe("reports.reportOverview (DB fixture)", () => {
       await db().artist.deleteMany({ where: { id: { in: cleanup.artists } } });
     if (cleanup.chairs.length)
       await db().chair.deleteMany({ where: { id: { in: cleanup.chairs } } });
+    if (cleanup.users.length)
+      await db().user.deleteMany({ where: { id: { in: cleanup.users } } });
     await closeTestDb();
   });
 
@@ -34,9 +37,17 @@ describe("reports.reportOverview (DB fixture)", () => {
 
     const tag = uid();
     const artist = await db().artist.create({
-      data: { slug: `rep-${tag}`, name: `Rep ${tag}`, role: "Resident" },
+      data: {
+        slug: `rep-${tag}`,
+        name: `Rep ${tag}`,
+        status: "RESIDENT",
+        user: {
+          create: { email: `rep-${tag}@example.test`, displayName: `Rep ${tag}` },
+        },
+      },
     });
     cleanup.artists.push(artist.id);
+    cleanup.users.push(artist.userId);
     const customer = await db().customer.create({
       data: { name: `Rep cust ${tag}` },
     });

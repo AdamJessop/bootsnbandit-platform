@@ -32,6 +32,7 @@ describe("/api/enquiries", () => {
   const enquiries: string[] = [];
   const customers: string[] = [];
   const artists: string[] = [];
+  const users: string[] = [];
 
   afterAll(async () => {
     if (enquiries.length)
@@ -40,6 +41,8 @@ describe("/api/enquiries", () => {
       await db().customer.deleteMany({ where: { id: { in: customers } } });
     if (artists.length)
       await db().artist.deleteMany({ where: { id: { in: artists } } });
+    if (users.length)
+      await db().user.deleteMany({ where: { id: { in: users } } });
     await closeTestDb();
   });
 
@@ -85,12 +88,27 @@ describe("/api/enquiries", () => {
     const d = db();
     const slug = uid("art");
     const artistA = await d.artist.create({
-      data: { slug: `${slug}-a`, name: "Artist A", role: "artist" },
+      data: {
+        slug: `${slug}-a`,
+        name: "Artist A",
+        status: "RESIDENT",
+        user: {
+          create: { email: `${slug}-a@example.test`, displayName: "Artist A" },
+        },
+      },
     });
     const artistB = await d.artist.create({
-      data: { slug: `${slug}-b`, name: "Artist B", role: "artist" },
+      data: {
+        slug: `${slug}-b`,
+        name: "Artist B",
+        status: "RESIDENT",
+        user: {
+          create: { email: `${slug}-b@example.test`, displayName: "Artist B" },
+        },
+      },
     });
     artists.push(artistA.id, artistB.id);
+    users.push(artistA.userId, artistB.userId);
     const eqA = await d.enquiry.create({
       data: { contactName: `Lead A ${uid()}`, preferredArtistId: artistA.id },
     });

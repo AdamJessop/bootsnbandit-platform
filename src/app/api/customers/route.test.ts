@@ -27,6 +27,7 @@ describe("/api/customers (admin)", () => {
   const db = () => testDb();
   const customers: string[] = [];
   const artists: string[] = [];
+  const users: string[] = [];
   const bookings: string[] = [];
 
   afterAll(async () => {
@@ -36,6 +37,8 @@ describe("/api/customers (admin)", () => {
       await db().customer.deleteMany({ where: { id: { in: customers } } });
     if (artists.length)
       await db().artist.deleteMany({ where: { id: { in: artists } } });
+    if (users.length)
+      await db().user.deleteMany({ where: { id: { in: users } } });
     await closeTestDb();
   });
 
@@ -68,12 +71,27 @@ describe("/api/customers (admin)", () => {
     // Two artists, two customers; only customer A has a booking by artist A.
     const slug = uid("art");
     const artistA = await d.artist.create({
-      data: { slug: `${slug}-a`, name: "Artist A", role: "artist" },
+      data: {
+        slug: `${slug}-a`,
+        name: "Artist A",
+        status: "RESIDENT",
+        user: {
+          create: { email: `${slug}-a@example.test`, displayName: "Artist A" },
+        },
+      },
     });
     const artistB = await d.artist.create({
-      data: { slug: `${slug}-b`, name: "Artist B", role: "artist" },
+      data: {
+        slug: `${slug}-b`,
+        name: "Artist B",
+        status: "RESIDENT",
+        user: {
+          create: { email: `${slug}-b@example.test`, displayName: "Artist B" },
+        },
+      },
     });
     artists.push(artistA.id, artistB.id);
+    users.push(artistA.userId, artistB.userId);
     const custA = await d.customer.create({
       data: { name: `Cust A ${uid()}` },
     });
