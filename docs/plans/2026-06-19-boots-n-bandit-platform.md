@@ -3,7 +3,7 @@
 Created: 2026-06-19
 Status: PENDING
 Approved: No
-Iterations: 0
+Iterations: 1
 Worktree: No
 Type: Master
 
@@ -82,17 +82,17 @@ graph LR
 | Phase | Wave | Title | Objective | Dependencies |
 | ----- | ---- | ----- | --------- | ------------ |
 | 1 | 1 | Scaffold & Theme | Next 15+TS app, Tailwind, shadcn/ui, heritage tokens ported, `(site)`+`(admin)` route groups, base layouts, tooling, sentinal ignore for `design-src/` | None |
-| 2 | 2 | Data Layer | Prisma schema (full domain model), Docker Postgres, migrations, seed from `design-src/data.jsx` | P1 |
-| 3 | 2 | Design System & Shells | Port primitives (Button/Chip/Tag/Plate/Filigree/Card/Field/StatusBadge/sechead), public Nav/Ticker/Footer, admin AppShell (sidebar/topbar/bottomnav + nav registry + RoleGate) | P1 |
-| 4 | 3 | Auth & RBAC | Passkey (WebAuthn) register/login, encrypted sessions, `requireRole`, sign-in + passkey enrolment + staff invite | P2 |
+| 2 | 2 | Data Layer | Prisma schema (full domain model), Docker Postgres (**`docker-compose.yml` + `.env.example` are explicit deliverables**), migrations, seed from `design-src/data.jsx` | P1 |
+| 3 | 2 | Design System & Shells | Port primitives (Button/Chip/Tag/Plate/Filigree/Card/Field/StatusBadge/sechead), public Nav/Ticker/Footer, admin AppShell (sidebar/topbar/bottomnav + nav registry + RoleGate), **and typed stub shells + prop interfaces for the shared admin components (CalendarGrid, BookingDrawer, CustomerTimeline, DataTable, ChartWrapper, ImageUploader) so Wave-4 phases fill them in without colliding** | P1 |
+| 4 | 3 | Auth & RBAC | Passkey (WebAuthn) register/login, encrypted sessions, `requireRole`, sign-in + passkey enrolment; **staff-invite creates a token only (invite email sent by P11); auto-create a `CalendarFeed` token row on artist enrolment** | P2 |
 | 5 | 3 | Email & CRM Messaging | Resend + React Email templates (confirmation/reminder/receipt/aftercare/review/enquiry-ack/loyalty), send service + `MessageLog` | P2 |
-| 6 | 3 | Domain Services & API | Server services + `app/api` for customers, enquiries, bookings, sessions, availability/leave, reports queries, flash claims | P2 (+P4 contract) |
+| 6 | 3 | Domain Services & API | Server services + `app/api` for customers, enquiries, bookings, sessions, availability/leave, reports queries, flash claims; **`lib/services/loyalty.ts` stamp-award service; booking conflict-check is leave-aware (a `Leave` row blocks the slot)** | P2 (+P4 contract) |
 | 7 | 4 | Public Marketing Site | Home, Artists(+detail), Gallery(filter), Flash, Aftercare/FAQ, Studio, Bandit Pass — from DB, heritage design | P3, P6 |
-| 8 | 4 | Enquire + Inkling + Flash claim | Enquiry form, Inkling mood-board capture + formula artist match, flash claim → enquiry, enquiry-ack email | P3, P6, P5 |
+| 8 | 4 | Enquire + Inkling + Flash claim | Enquiry form, Inkling mood-board capture + formula artist match, flash claim → enquiry, enquiry-ack email; **public review-capture page `/review/[token]` → creates a `Review` row** | P3, P6, P5 |
 | 9 | 4 | Admin Calendar & Front Desk | Day/week calendar (drag/resize), booking drawer, artist switcher, front-desk in-studio board + quick-add + presence, dashboards (Today) | P3, P4, P6 |
 | 10 | 4 | Admin CRM & Ops | Customers directory + timeline, enquiries triage→convert, bookings list, sessions complete→confirm amount→receipt+aftercare emails, availability/leave, reports+charts | P3, P4, P5, P6 |
-| 11 | 4 | Admin Content CMS + Studio + PWA | CMS for gallery/flash/artists/styles/aftercare/FAQ/loyalty/site-settings; studio staff/resources/email-templates/integrations; My Profile; PWA manifest + service worker (installable) | P3, P4, P6 |
-| 12 | 5 | Integrations & Automation | Per-artist iCal feeds, Google Calendar connect stub, CRM cron automations (reminders/aftercare/review/loyalty), review capture page, end-to-end verification pass | P9, P10, P11 |
+| 11 | 4 | Admin Content CMS + Studio + PWA | CMS for gallery/flash/artists/styles/aftercare/FAQ/loyalty/site-settings; studio staff/resources/email-templates/integrations (**Staff screen sends invite emails via P5**); My Profile (**exposes the iCal feed subscribe URL + regenerate action**); PWA manifest + service worker (installable) | P3, P4, P5, P6 |
+| 12 | 5 | Integrations & Automation | Per-artist iCal feeds (consume the `CalendarFeed` token from P4), Google Calendar connect stub, CRM cron automations (reminders/aftercare/review/loyalty), end-to-end verification pass | P9, P10, P11 |
 
 ## Progress Tracking
 
@@ -138,7 +138,10 @@ graph LR
 5. Submitting the public Enquire form creates an `Enquiry` row and sends an enquiry-ack via the email service (logged in `MessageLog`).
 6. In admin, completing a session with a confirmed amount creates a `Session`, sends receipt + aftercare emails, and the customer timeline shows both.
 7. Reports return per-artist bookings/capacity/revenue for a date range.
-8. Each artist exposes an iCal feed URL that returns valid `BEGIN:VCALENDAR` with their bookings.
+8. Each artist exposes an iCal feed URL (from a `CalendarFeed` token auto-created at enrolment, shown on My Profile) that returns valid `BEGIN:VCALENDAR` with their bookings.
+9. Completing a session awards a loyalty stamp per `LoyaltyConfig` (`lib/services/loyalty.ts` increments the customer's stamps).
+10. A customer can submit a review at `/review/[token]`, creating a `Review` row shown on their CRM timeline.
+11. A `Leave` row for an artist blocks new bookings in that range (conflict-check rejects the slot) and hides them from front-desk "in today".
 
 ### Artifacts
 | Artifact | Provides | Exports |

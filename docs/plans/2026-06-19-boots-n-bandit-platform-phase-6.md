@@ -15,3 +15,5 @@ Wave: 3
 
 **Goal:** Server services + app/api route handlers for customers, enquiries, bookings (lifecycle + conflict checks), sessions, availability/leave, flash claims, and report queries (bookings/capacity/revenue per artist). Money in pence.
 **Context:** See master plan at `docs/plans/2026-06-19-boots-n-bandit-platform.md`, plus `docs/PROJECT-BRIEF.md`, `docs/BACKOFHOUSE-IA.md`, and `design-src/` (styles.css tokens, data.jsx seed content). Reuse the shared domain model, auth contract, and design tokens defined in the master plan.
+
+**Review-driven scope note:** Add `lib/services/loyalty.ts` (stamp-award, called by P10 at session-complete). Booking conflict-check MUST be leave-aware: an overlapping `Leave` row blocks the slot.

@@ -15,3 +15,5 @@ Wave: 2
 
 **Goal:** Define the full Prisma schema (User/Authenticator/Artist/Customer/Enquiry/Booking/Session/AvailabilityRule/Leave/Chair/GalleryItem/Flash/TattooStyle/AftercareStage/Faq/LoyaltyConfig/SiteSettings/MessageLog/CalendarFeed/Review); Docker Postgres; migrations; seed from design-src/data.jsx.
 **Context:** See master plan at `docs/plans/2026-06-19-boots-n-bandit-platform.md`, plus `docs/PROJECT-BRIEF.md`, `docs/BACKOFHOUSE-IA.md`, and `design-src/` (styles.css tokens, data.jsx seed content). Reuse the shared domain model, auth contract, and design tokens defined in the master plan.
+
+**Review-driven scope note:** Explicitly deliver `docker-compose.yml` (Postgres) and `.env.example`.

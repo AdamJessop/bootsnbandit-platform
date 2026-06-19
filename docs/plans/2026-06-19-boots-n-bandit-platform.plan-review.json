@@ -1,0 +1,56 @@
+{
+  "review_summary": "The master plan is structurally strong: wave ordering is sound, the domain model is comprehensive, and the phase decomposition maps well to the user request. Seven focused issues were found — two must-fix gaps (loyalty stamp trigger missing from the session-complete flow in P10's DoD, and the CalendarFeed token-generation responsibility is unassigned), two should-fix items (leave→availability blocking is split awkwardly between P6 and P12, and the P5 dependency on P4 is missing from the graph), and three lower-priority clarifications around concurrent Wave 4 file-overlap guard, the review-capture public route assignment, and the iCal CalendarFeed seed/token bootstrap path.",
+  "alignment_score": "high",
+  "risk_level": "medium",
+  "issues": [
+    {
+      "severity": "must_fix",
+      "category": "requirement_coverage",
+      "title": "Loyalty stamp award is mentioned in G2 (BACKOFHOUSE-IA) and P10 summary but is absent from the master plan's Goal Verification truths and from P10's stated objective",
+      "description": "The IA screen G2 states: 'on confirm: mark completed, generate receipt email + aftercare email, schedule review request follow-up, award loyalty stamp.' The user request lists 'loyalty' as a first-class feature. The master plan's Goal Verification (Truth #6) reads: 'completing a session … creates a Session, sends receipt + aftercare emails, and the customer timeline shows both' — loyalty stamp award is silently dropped from this truth. P10's summary also omits the loyalty stamp from the session-complete flow. If the stamp-award step is not explicitly part of P10's Definition of Done, it will be skipped or deferred with no catch. The LoyaltyConfig model is defined in the schema but there is no phase that owns the stamp-award business logic execution at session-complete time (P11 owns configuring the scheme, not awarding stamps).",
+      "suggested_fix": "Add Truth #9 to Goal Verification: 'Completing a session awards the customer N loyalty stamps per LoyaltyConfig.stampsPerVisit and the customer timeline shows the updated stamp count.' Update P10's objective to explicitly include: 'award loyalty stamp on session complete per LoyaltyConfig; trigger loyalty-reward email when rewardThreshold is crossed.' Assign the stamp-award service call to lib/services/loyalty.ts, built in P6 and called by the session-complete handler in P10."
+    },
+    {
+      "severity": "must_fix",
+      "category": "task_completeness",
+      "title": "CalendarFeed token generation has no owning phase — iCal feed URLs cannot work without a bootstrap step",
+      "description": "The schema defines a CalendarFeed model (artist, token) and P12 owns the iCal feed endpoint. However, no phase is assigned responsibility for: (a) generating the CalendarFeed token when an artist account is created or on first-request, (b) exposing the feed URL in the My Profile screen (L3 in the IA), or (c) seeding a CalendarFeed row for each of the 7 seed artists. P11 covers 'My Profile' and P12 covers the feed route, but the gap is token creation and the My Profile UI that displays the subscribe URL. If P12 builds the feed endpoint but no token exists in the DB, Truth #8 ('Each artist exposes an iCal feed URL that returns valid BEGIN:VCALENDAR') will fail.",
+      "suggested_fix": "Add to P4 (Auth & RBAC): 'On staff invite/enrolment, auto-create a CalendarFeed row with a cryptographically random token for that artist (lib/auth/calendarToken.ts).' Add to P11 (My Profile, L3 screen): 'Display the iCal subscribe URL constructed from the CalendarFeed token; include a regenerate-token action.' This closes the bootstrap gap before P12 builds the endpoint."
+    },
+    {
+      "severity": "should_fix",
+      "category": "hidden_dependency",
+      "title": "Leave→availability blocking is split between P6 and P12 with no explicit contract, risking a gap where leave exists in DB but does not block the calendar or public availability",
+      "description": "P6 (Domain Services) builds availability/leave API routes. P9 (Calendar) consumes availability rules for display. P10 (CRM & Ops) adds the leave-management UI. P12 is listed as the place where CRM automations run, but the IA (H2) states: 'leave marks artist unavailable, blocks calendar, removes from front-desk in-today, reflected in public booking availability.' The master plan does not designate which phase makes leave records block the calendar query (i.e., the conflict-check in the booking service). The Phase table for P6 says 'availability/leave' but P10 says 'availability/leave management' — it is ambiguous whether P6's service layer already enforces leave as a blocker in conflict-check queries, or whether that logic lands later. If it lands in P12 or is simply never pinned, bookings can be made over leave days.",
+      "suggested_fix": "In P6's objective, add explicit language: 'Booking conflict-check must query both AvailabilityRule and Leave; a booking that falls within an approved Leave period must be rejected with a clear error. This is tested in P6's DoD before P9/P10 build UI on top of it.' Remove any implication that leave-blocking is a P12 concern — P12 only handles cron automations, not booking integrity."
+    },
+    {
+      "severity": "should_fix",
+      "category": "hidden_dependency",
+      "title": "P5 (Email) is missing as an explicit dependency of P4 (Auth) in the architecture graph, but staff-invite emails are a P4 deliverable that requires the email service",
+      "description": "The architecture Mermaid graph shows P4 depending only on P2. P4's objective includes 'staff invite' (an email is sent to invite a new staff member). The email service (Resend + send service) is built in P5. Both P4 and P5 are in Wave 3 and are listed as parallel. However, if P4 implements staff invite emails (which the IA A2 and K1 require), it needs lib/email/sendEmail — a P5 artifact. Either the staff invite email must be deferred to P10/P11 (where the invite UI lives) or P4 must declare a P5 dependency and run after it, breaking the current parallel claim.",
+      "suggested_fix": "Two options: (A) Remove staff-invite email send from P4's scope — P4 creates the invite token/link only; the invite email is sent by P11 (Studio > Staff) when the owner triggers an invite, since P11 already depends on P5 (via P10). Or (B) Mark P5 as a P4 dependency (P5 → P4) and note that email-send within auth flows requires the email service to be complete first, serializing them in Wave 3. Option A is recommended to keep Wave 3 parallel and cleaner."
+    },
+    {
+      "severity": "should_fix",
+      "category": "definition_of_done",
+      "title": "The review-capture public page has no owning wave-4 phase — it surfaces in P12 but requires a public route under (site), which no wave-4 phase is building",
+      "description": "The IA CRM lifecycle states: 'T+3-5d → review request email.' P12's summary includes 'public review-capture page.' The review-request email presumably contains a link to a public URL (e.g. /review/[token]) where the customer submits their rating/body. This page is a public (site) route. P7 builds all public marketing pages; P8 builds the enquiry/flash public forms. Neither P7 nor P8 includes the review-capture page. P12 is Wave 5 — by the time it runs, all public pages are built. Asking P12 to add a new (site) route is a late dependency on P7/P8 infrastructure with no explicit note.",
+      "suggested_fix": "Add the review-capture page to P8's scope (it is form-like, short, and public — consistent with P8's other public form work) or add it to P7 as a stub page. Either way, note in P12 that the page already exists and P12 only wires the cron job that sends the email with the link. Add to Goal Verification Truth #8 (or a new truth): 'A customer following the review-request link reaches /review/[token], submits a rating, and the Review row is created with status=pending.'"
+    },
+    {
+      "severity": "should_fix",
+      "category": "risk_quality",
+      "title": "Wave 4 file-overlap risk is mitigated only for shared nav files, but AppShell DataTable and Chart wrappers (P3) may be extended by multiple Wave 4 phases simultaneously",
+      "description": "The master plan's risk table entry 'Wave 4 file overlap in (admin) shared nav' is mitigated by 'P3 owns the admin nav registry + AppShell; P9-P11 only add leaf routes, never edit shared shell.' However, the IA component kit lists DataTable, CalendarGrid, BookingDrawer, CustomerTimeline, StatCard, Chart wrappers, ImageUploader as shared components. P9 needs CalendarGrid and BookingDrawer. P10 needs CustomerTimeline, DataTable, StatCard, and Chart wrappers. P11 needs ImageUploader and DataTable. If these are not all defined in P3 (they are not listed in P3's objective), concurrent agents in Wave 4 will create conflicting or duplicate implementations of these components.",
+      "suggested_fix": "Either: (A) Expand P3's scope to include all shared admin component shells (DataTable, BookingDrawer stub, CustomerTimeline stub, StatCard, ChartWrapper, ImageUploader) with clear prop interfaces — then Wave 4 phases only fill in logic, not structure. Or (B) Assign each component to a single owning Wave 4 phase and add a 'Do not create this component — it is owned by PX' note in every other phase's context. Update the overlap risk mitigation to explicitly cover these components, not just nav files."
+    },
+    {
+      "severity": "suggestion",
+      "category": "untested_assumption",
+      "title": "The master plan assumes Docker Postgres is available in the developer environment but does not specify a docker-compose.yml as a P1 or P2 deliverable",
+      "description": "The master plan context states 'Local dev: Docker Compose Postgres' and P2 references Docker Postgres, but no phase explicitly lists 'create docker-compose.yml with postgres service, .env.example, and DATABASE_URL' as a concrete deliverable with a Definition of Done. This is low risk since it is simple, but if the child planner for P2 omits it, subsequent phases (P4 tests, P6 services) will fail to start.",
+      "suggested_fix": "Add to P2's required artifacts: 'docker-compose.yml (postgres:16, port 5432, named volume), .env.example (DATABASE_URL, NEXTAUTH_SECRET placeholders), and a note in the README that docker compose up -d is the prerequisite for prisma migrate dev.' This is one sentence of scope — low effort, prevents a recurring gotcha."
+    }
+  ]
+}
