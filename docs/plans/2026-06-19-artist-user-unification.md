@@ -105,12 +105,12 @@ Type: Feature
 
 ## Progress Tracking
 - [x] Task 1: Schema + ArtistStatus enum + style relation + rate rename + migration (Wave 1)
-- [ ] Task 2: Seed — 7 users 1:1, statuses, style connects, numeric rates (Wave 2)
-- [ ] Task 3: Auth/services/match loaders + `pricing.ts` price-suggest helper (Wave 2)
+- [x] Task 2: Seed — 7 users 1:1, statuses, style connects, numeric rates (Wave 2)
+- [x] Task 3: Auth/services/match loaders + `pricing.ts` price-suggest helper (Wave 2)
 - [ ] Task 4: Admin Content→Artists CMS + Studio→Staff unified create/edit (Wave 3)
 - [ ] Task 5: Public artist pages + Inkling + BookingDrawer price-suggest UI (Wave 3)
 - [ ] Task 6: Whole-repo green — reset+reseed, reconcile tests (Wave 4)
-      **Total Tasks:** 6 | **Completed:** 1 | **Remaining:** 5
+      **Total Tasks:** 6 | **Completed:** 3 | **Remaining:** 3
 
 ## Implementation Tasks
 
