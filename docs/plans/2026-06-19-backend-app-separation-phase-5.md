@@ -1,8 +1,8 @@
 # Dev/deploy/subdomain config + cutover + verify
 
 Created: 2026-06-19
-Status: PENDING
-Approved: No
+Status: COMPLETE
+Approved: Yes
 Iterations: 0
 Worktree: No
 Type: Feature

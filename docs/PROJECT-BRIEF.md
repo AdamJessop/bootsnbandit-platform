@@ -49,6 +49,25 @@ crimson `#c92f4d`, gold `#cfa05a`, teal `#36b0a8`, warm-black bg `#0d0c0a`/`#080
 - **Wave 4 (admin PWA):** calendar, front-desk, CRM timeline, enquiry/booking mgmt, session-complete→receipt, leave, reports, content CMS, loyalty config; PWA manifest/SW.
 - **Wave 5 (integration/polish):** iCal feeds, CRM automations (reminders/follow-ups via scheduled jobs), review capture, end-to-end verification.
 
+## Monorepo & deployment
+
+The codebase is an **npm-workspaces monorepo** (`workspaces: ["apps/*","packages/*"]`):
+
+- `packages/core` (`@bnb/core`) — shared domain layer (Prisma + services + auth + email + pricing + calendar/cron). Owns the Prisma schema/migrations/seed; both apps depend on it.
+- `apps/web` (`@bnb/web`) — public marketing site + public API (enquiries/flash/match/reviews). Apex/www. No staff auth.
+- `apps/admin` (`@bnb/admin`) — installable staff PWA + all staff API (auth/customers/bookings/sessions/availability/leave/reports/content/studio/profile/uploads/cron + per-artist iCal feed). admin.<domain>.
+
+**Local dev:** `docker compose up -d` (Postgres on :5435), `set -a && . ./.env && set +a`, `npm run db:seed`. `npm run dev` runs web on **:3000** and admin on **:3001** concurrently (`dev:web` / `dev:admin` run one). `npm run admin:link` mints a one-time `/sign-in?invite=...` enrolment URL against the admin origin. `npm run build|lint|test` fan out across workspaces; `npm run db:*` target `packages/core/prisma`.
+
+**Production deploy (each app = its own host/Vercel project):**
+
+| App | Domain | Host project | Key env |
+| --- | ------ | ------------ | ------- |
+| `apps/web` | `bootsnbandit.<tld>` + `www` | web project (root dir `apps/web`) | `DATABASE_URL`, `RESEND_API_KEY`, `APP_ORIGIN=https://bootsnbandit.<tld>` |
+| `apps/admin` | `admin.bootsnbandit.<tld>` | admin project (root dir `apps/admin`) | `DATABASE_URL`, `RESEND_API_KEY`, `CRON_SECRET`, `SESSION_SECRET`, `APP_ORIGIN=https://admin.bootsnbandit.<tld>`, `RP_ID=admin.bootsnbandit.<tld>`, `SESSION_COOKIE=bb_admin_session`, `AUTH_REDIRECT=/` |
+
+Both apps point at one **shared Postgres**. `transpilePackages: ["@bnb/core"]` + `outputFileTracingRoot` (monorepo root) are set in each app's `next.config.ts` so the workspace package is transpiled and traced. Auth/cookie/PWA isolation per subdomain is documented in `docs/SUBDOMAIN-ISOLATION.md` (host-only `bb_admin_session`, admin-scoped WebAuthn RP-ID, admin-only installable PWA). Run DB migrations once from CI/one host against the shared database (`npm run db:migrate`).
+
 ## Status log
 
 - [x] Design connector verified; project `da3901cf-...` ("Boots and Bandits") read.
@@ -70,3 +89,10 @@ Sentinal exposes **no path-ignore config key** (`sentinal config list` has no ig
 - Wave 4 IN FLIGHT (P7 public site, P8 enquire/inkling/review, P9 admin calendar/front-desk, P10 admin CRM/sessions/reports, P11 admin CMS/studio/PWA) — 5 parallel agents, disjoint dirs; shared admin components owned: P9 CalendarGrid+BookingDrawer, P10 CustomerTimeline+DataTable+ChartWrapper, P11 ImageUploader. Each verifies own slice (tsc/lint/build+own tests); orchestrator runs consolidated full-suite check after all 5 land.
 - NEXT after Wave 4: consolidated integration verify (full npm test may have inter-phase races — clean + re-run); then Wave 5 = P12 (per-artist iCal feed endpoint `/api/calendar/<token>.ics`, Google Calendar stub, CRM cron automations: reminders T-48/24h, aftercare, review T+4d, loyalty; review-capture already in P8). Then sentinal spec-verify of the master plan.
 - Postgres: docker compose, host port 5435. Tailwind v4 tokens in src/app/globals.css. Admin role: AdminRole "owner"|"artist"; DB Role OWNER|ARTIST.
+
+## Backend app separation (monorepo + subdomains) — DONE
+- **All 5 phases complete.** P1 workspaces + `@bnb/core` (`f0f715b`), P2 web (`743a1e5`), P3 admin (`927b887`), **P4 auth/cookie/PWA isolation + P5 cutover** (this entry).
+- **Isolation (P4):** per-app `.env.example` (web `APP_ORIGIN=:3000`, no staff auth; admin `APP_ORIGIN=:3001` + `RP_ID` + `SESSION_COOKIE=bb_admin_session` + `AUTH_REDIRECT=/`). Staff session cookie is **host-only** (no `Domain=`) + HttpOnly + SameSite=Lax + Secure(prod), env-driven name in set/read/clear (`@bnb/core` auth/cookies+config) and the admin middleware. WebAuthn RP-ID/origin env-driven (localhost dev). Only admin is the installable PWA (manifest+sw at admin root; web ships none). See `docs/SUBDOMAIN-ISOLATION.md`.
+- **Cutover (P5):** deleted legacy root `src/app`, `src/components`, root `public/`, root app configs (`next.config.ts`/`tsconfig.json`/`vitest.config.ts`/`postcss.config.mjs`/`components.json`/`next-env.d.ts`/`.next`). Kept root `package.json` (orchestrator), shared `eslint.config.mjs`, `.gitignore`, `docs/`, `design-src/`, `packages/`, `apps/`, `scripts/`. `git ls-files src/app` empty. `scripts/admin-link.ts` now imports `@bnb/core/db`; seed/prisma target `packages/core/prisma`. Core gained its own `vitest.config.ts` + `test` script; the cross-app `e2e-lifecycle.test.ts` (imports the admin iCal route) moved into `apps/admin`.
+- **Root scripts:** `dev` = web :3000 + admin :3001 concurrently; `build` = `db:generate` + `--workspaces`; `lint`/`test` fan out; `db:*` + `admin:link` preserved.
+- **Verify (all green):** core 108 / web 89 / admin 300 = **497 tests, 0 failures** (≥483). tsc + lint + `next build` clean per app; prisma validate/generate/seed clean; `npm run admin:link` prints `http://localhost:3001/sign-in?invite=...`.

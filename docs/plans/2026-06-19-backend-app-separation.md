@@ -1,7 +1,7 @@
 # Backend App Separation (Monorepo + Subdomains) Master Plan
 
 Created: 2026-06-19
-Status: IN_PROGRESS
+Status: COMPLETE
 Approved: Yes
 Iterations: 1
 Worktree: No
@@ -65,10 +65,10 @@ graph LR
 - [x] Phase 1: Monorepo + @bnb/core (Wave 1)
 - [x] Phase 2: Web app (public) (Wave 2)
 - [x] Phase 3: Admin app (staff PWA) (Wave 2)
-- [ ] Phase 4: Auth/PWA/cookie isolation (Wave 3)
-- [ ] Phase 5: Dev/deploy/cutover + verify (Wave 4)
+- [x] Phase 4: Auth/PWA/cookie isolation (Wave 3)
+- [x] Phase 5: Dev/deploy/cutover + verify (Wave 4)
 
-**Total Phases:** 5 | **Completed:** 3 | **Remaining:** 2
+**Total Phases:** 5 | **Completed:** 5 | **Remaining:** 0
 
 ## Risks and Mitigations
 | Risk | Likelihood | Impact | Mitigation |

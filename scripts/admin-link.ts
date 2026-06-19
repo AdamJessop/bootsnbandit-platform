@@ -1,22 +1,23 @@
 /**
  * Mint a one-time passkey-enrolment link for a seeded staff user.
  * Usage: npm run admin:link [email]   (default: the seeded OWNER)
- * Visit the printed URL in a browser to register your first passkey, then sign in.
+ * Visit the printed URL on the admin app to register your first passkey, then sign in.
+ *
+ * Uses the shared Prisma singleton from `@bnb/core/db` (post core-move) so the
+ * client + driver adapter come from one place. APP_ORIGIN must point at the
+ * admin origin (dev: http://localhost:3001) so the minted URL is reachable.
  */
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { prisma } from "@bnb/core/db";
 import { randomBytes } from "crypto";
 
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
-});
-
 async function main() {
-  const origin = process.env.APP_ORIGIN || "http://localhost:3000";
+  const origin = process.env.APP_ORIGIN || "http://localhost:3001";
   const email = process.argv[2] || "adamjjessop@gmail.com";
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    console.error(`No staff user with email ${email}. Run \`npm run db:seed\` first.`);
+    console.error(
+      `No staff user with email ${email}. Run \`npm run db:seed\` first.`,
+    );
     process.exit(1);
   }
   const token = randomBytes(24).toString("base64url");
@@ -26,7 +27,9 @@ async function main() {
   });
   console.log(`\nPasskey enrolment link for ${email} (${user.role}):\n`);
   console.log(`  ${origin}/sign-in?invite=${token}\n`);
-  console.log("Open it in a browser, register a passkey, and you're in. Expires in 7 days.\n");
+  console.log(
+    "Open it on the admin app, register a passkey, and you're in. Expires in 7 days.\n",
+  );
   await prisma.$disconnect();
 }
 main().catch((e) => {
