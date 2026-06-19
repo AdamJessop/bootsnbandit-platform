@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStyleWeights,
   matchArtists,
+  toMatchArtist,
   type MatchArtist,
 } from "./match";
 
@@ -57,6 +58,44 @@ const ARTISTS: MatchArtist[] = [
     booksStatus: "open",
   },
 ];
+
+describe("toMatchArtist", () => {
+  it("maps the styles relation (TattooStyle{name}[]) to a string[]", () => {
+    const ma = toMatchArtist({
+      id: "sarah",
+      slug: "sarah",
+      name: "Sarah",
+      styles: [{ name: "Fine-line" }, { name: "Realism" }],
+      specials: ["Fine-line"],
+      booksStatus: "open",
+    });
+    expect(ma.styles).toEqual(["Fine-line", "Realism"]);
+  });
+
+  it("yields names that still score in the matcher (Fine-line literal preserved)", () => {
+    const fineLineArtist = toMatchArtist({
+      id: "marnie",
+      name: "Amy",
+      styles: [{ name: "Fine-line" }, { name: "Dotwork & Geometric" }],
+      specials: ["First tattoos"],
+      booksStatus: "open",
+    });
+    const plain = toMatchArtist({
+      id: "cal",
+      name: "Calum",
+      styles: [{ name: "Lettering" }],
+      specials: [],
+      booksStatus: "closed",
+    });
+    // "fine" vibe weights Fine-line ×3; the relation-sourced artist must score
+    // higher than one without the literal style.
+    const results = matchArtists({ vibe: "fine" }, [fineLineArtist, plain], 2);
+    const amy = results.find((r) => r.artist.id === "marnie")!;
+    expect(amy.raw).toBeGreaterThan(0);
+    expect(amy.matchedStyles).toContain("Fine-line");
+    expect(results[0].artist.id).toBe("marnie");
+  });
+});
 
 describe("buildStyleWeights", () => {
   it("weights VIBES ×3, SUBJECTS ×2, COLOURS ×1.5 and accumulates overlaps", () => {

@@ -30,7 +30,12 @@ const sql = postgres(url, { onnotice: () => {} });
 type ArtistSeed = {
   slug: string;
   name: string;
-  role: string;
+  /** Title within the studio (was free-text `role`). */
+  status: "CO_OWNER" | "RESIDENT" | "APPRENTICE";
+  /** Linked User login email (every artist is a User, 1:1). */
+  email: string;
+  /** Access role on the linked User. */
+  accessRole: "OWNER" | "ARTIST";
   styles: string[];
   hue: string;
   tag: string;
@@ -39,8 +44,7 @@ type ArtistSeed = {
   rating: number;
   pieces: number;
   bio: string;
-  rateText: string;
-  hourlyPence: number | null;
+  hourlyRatePence: number | null;
   dayRatePence: number | null;
   insta: string;
   pic: string;
@@ -52,7 +56,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "sarah",
     name: "Sarah",
-    role: "Co-owner",
+    status: "CO_OWNER",
+    email: "adamjjessop@gmail.com",
+    accessRole: "OWNER",
     styles: ["Fine-line", "Realism"],
     hue: "crimson",
     tag: "Fine-line, florals & black-and-grey",
@@ -61,8 +67,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.9,
     pieces: 62,
     bio: "Sarah co-founded the studio in 2016. She moves easily between delicate fine-line florals and detailed black-and-grey — snakes, daggers, ornamental work and the odd Vegas skyline. She'll talk you through every step.",
-    rateText: "£90/hr · day rate £550",
-    hourlyPence: 9000,
+    hourlyRatePence: 9000,
     dayRatePence: 55000,
     insta: "@sarah.bnb",
     pic: "https://i.pravatar.cc/480?img=5",
@@ -72,7 +77,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "cal",
     name: "Calum",
-    role: "Co-owner",
+    status: "CO_OWNER",
+    email: "calum@bootsnbandit.co.uk",
+    accessRole: "OWNER",
     styles: ["Realism", "Lettering"],
     hue: "ink",
     tag: "Black & grey realism & chicano",
@@ -81,8 +88,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 5.0,
     pieces: 78,
     bio: "The other half of the shop. Calum lives in black-and-grey realism and chicano — portraits, statues, script and money-and-cards sleeves. Calm chair-side manner, brutal detail.",
-    rateText: "£95/hr · day rate £600",
-    hourlyPence: 9500,
+    hourlyRatePence: 9500,
     dayRatePence: 60000,
     insta: "@calum.bnb",
     pic: "https://i.pravatar.cc/480?img=12",
@@ -92,7 +98,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "marnie",
     name: "Amy",
-    role: "Resident artist",
+    status: "RESIDENT",
+    email: "amy@bootsnbandit.co.uk",
+    accessRole: "ARTIST",
     styles: ["Fine-line", "Dotwork & Geometric"],
     hue: "teal",
     tag: "Fine-line, botanical & dotwork",
@@ -101,8 +109,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.8,
     pieces: 41,
     bio: "Delicate single-needle work, botanicals and fine geometric pieces. Amy loves a dainty first tattoo and will make sure you feel right at home.",
-    rateText: "£70/hr · day rate £420",
-    hourlyPence: 7000,
+    hourlyRatePence: 7000,
     dayRatePence: 42000,
     insta: "@amy.bnb",
     pic: "https://i.pravatar.cc/480?img=9",
@@ -112,7 +119,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "rhodri",
     name: "Alisha",
-    role: "Resident artist",
+    status: "RESIDENT",
+    email: "alisha@bootsnbandit.co.uk",
+    accessRole: "ARTIST",
     styles: ["Colour", "Realism"],
     hue: "rust",
     tag: "Colour, realism & neo-traditional",
@@ -121,8 +130,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.9,
     pieces: 53,
     bio: "The shop all-rounder — vivid colour peacocks and Disney, black-and-grey portraits and owls, neo-trad animals and the odd Japanese koi. If you can dream it, Alisha can ink it.",
-    rateText: "£85/hr · day rate £520",
-    hourlyPence: 8500,
+    hourlyRatePence: 8500,
     dayRatePence: 52000,
     insta: "@alisha.bnb",
     pic: "https://i.pravatar.cc/480?img=47",
@@ -132,7 +140,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "effie",
     name: "Olivia",
-    role: "Resident artist",
+    status: "RESIDENT",
+    email: "olivia@bootsnbandit.co.uk",
+    accessRole: "ARTIST",
     styles: ["Realism", "Colour"],
     hue: "plum",
     tag: "Black & grey realism & portraits",
@@ -141,8 +151,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.7,
     pieces: 34,
     bio: "Olivia loves a realistic portrait — pets, characters and hand pieces in crisp black-and-grey, plus the occasional pop of colour. Warm, patient and great with nervous first-timers.",
-    rateText: "£70/hr · day rate £400",
-    hourlyPence: 7000,
+    hourlyRatePence: 7000,
     dayRatePence: 40000,
     insta: "@olivia.bnb",
     pic: "https://i.pravatar.cc/480?img=45",
@@ -152,7 +161,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "joss",
     name: "Holly",
-    role: "Resident artist",
+    status: "RESIDENT",
+    email: "holly@bootsnbandit.co.uk",
+    accessRole: "ARTIST",
     styles: ["Realism", "Dotwork & Geometric"],
     hue: "gold",
     tag: "Realism & geometric sleeves",
@@ -161,8 +172,7 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.8,
     pieces: 47,
     bio: "Holly blends black-and-grey realism with sacred-geometry and dotwork — think a roaring tiger framed by honeycomb and mandala. Big, bold, cohesive sleeves are her happy place.",
-    rateText: "£75/hr · day rate £450",
-    hourlyPence: 7500,
+    hourlyRatePence: 7500,
     dayRatePence: 45000,
     insta: "@holly.bnb",
     pic: "https://i.pravatar.cc/480?img=32",
@@ -172,7 +182,9 @@ const ARTISTS: ArtistSeed[] = [
   {
     slug: "priya",
     name: "Tom",
-    role: "Apprentice",
+    status: "APPRENTICE",
+    email: "tom@bootsnbandit.co.uk",
+    accessRole: "ARTIST",
     styles: ["Fine-line", "Dotwork & Geometric"],
     hue: "steel",
     tag: "Linework & small pieces · learning fast",
@@ -181,9 +193,8 @@ const ARTISTS: ArtistSeed[] = [
     rating: 4.7,
     pieces: 23,
     bio: "Our apprentice, mentored day-to-day by Sarah and Calum. Tom takes on smaller linework, fine-line and dotwork pieces at a friendly apprentice rate — a lovely first-tattoo choice.",
-    rateText: "£45/hr · supervised",
-    hourlyPence: 4500,
-    dayRatePence: null,
+    hourlyRatePence: 4500,
+    dayRatePence: 27000,
     insta: "@tom.bnb",
     pic: "https://i.pravatar.cc/480?img=14",
     specials: ["First tattoos", "Small pieces", "Linework"],
@@ -664,24 +675,50 @@ async function main(): Promise<void> {
     `;
   }
 
-  // Artists (upsert by slug)
+  // Users — one per artist, 1:1. Created BEFORE artists because Artist.userId is
+  // required (NOT NULL). Keyed by email.
   for (const a of ARTISTS) {
     await sql`
+      INSERT INTO "User" ("id", "email", "role", "displayName", "active", "updatedAt")
+      VALUES (${createId()}, ${a.email}, ${a.accessRole}::"Role", ${a.name}, true, now())
+      ON CONFLICT ("email") DO UPDATE SET
+        "role" = EXCLUDED."role", "displayName" = EXCLUDED."displayName",
+        "active" = true, "updatedAt" = now()
+    `;
+  }
+  const userRows = await sql<
+    { id: string; email: string }[]
+  >`SELECT "id", "email" FROM "User"`;
+  const userIdByEmail = new Map(userRows.map((r) => [r.email, r.id]));
+
+  // Style id lookup (styles already seeded above) for the m-n connect.
+  const styleRows = await sql<
+    { id: string; name: string }[]
+  >`SELECT "id", "name" FROM "TattooStyle"`;
+  const styleIdByName = new Map(styleRows.map((r) => [r.name, r.id]));
+
+  // Artists (upsert by slug). `status` replaces free-text role; numeric rates
+  // only; styles are connected via the _ArtistToTattooStyle join below.
+  for (const a of ARTISTS) {
+    const userId = userIdByEmail.get(a.email);
+    if (!userId) throw new Error(`Missing user for artist ${a.slug} (${a.email})`);
+    await sql`
       INSERT INTO "Artist" (
-        "id", "slug", "name", "role", "tag", "bio", "styles", "specials", "hue",
-        "rateText", "hourlyPence", "dayRatePence", "insta", "headshot",
+        "id", "slug", "userId", "name", "status", "tag", "bio", "specials", "hue",
+        "hourlyRatePence", "dayRatePence", "insta", "headshot",
         "experience", "rating", "pieces", "booksStatus", "sortOrder", "updatedAt"
       ) VALUES (
-        ${createId()}, ${a.slug}, ${a.name}, ${a.role}, ${a.tag}, ${a.bio},
-        ${a.styles}, ${a.specials}, ${a.hue}, ${a.rateText}, ${a.hourlyPence},
+        ${createId()}, ${a.slug}, ${userId}, ${a.name}, ${a.status}::"ArtistStatus",
+        ${a.tag}, ${a.bio}, ${a.specials}, ${a.hue}, ${a.hourlyRatePence},
         ${a.dayRatePence}, ${a.insta}, ${a.pic}, ${a.exp}, ${a.rating},
         ${a.pieces}, ${a.books}::"BooksStatus", ${a.sortOrder}, now()
       )
       ON CONFLICT ("slug") DO UPDATE SET
-        "name" = EXCLUDED."name", "role" = EXCLUDED."role", "tag" = EXCLUDED."tag",
-        "bio" = EXCLUDED."bio", "styles" = EXCLUDED."styles", "specials" = EXCLUDED."specials",
-        "hue" = EXCLUDED."hue", "rateText" = EXCLUDED."rateText",
-        "hourlyPence" = EXCLUDED."hourlyPence", "dayRatePence" = EXCLUDED."dayRatePence",
+        "userId" = EXCLUDED."userId", "name" = EXCLUDED."name",
+        "status" = EXCLUDED."status", "tag" = EXCLUDED."tag", "bio" = EXCLUDED."bio",
+        "specials" = EXCLUDED."specials", "hue" = EXCLUDED."hue",
+        "hourlyRatePence" = EXCLUDED."hourlyRatePence",
+        "dayRatePence" = EXCLUDED."dayRatePence",
         "insta" = EXCLUDED."insta", "headshot" = EXCLUDED."headshot",
         "experience" = EXCLUDED."experience", "rating" = EXCLUDED."rating",
         "pieces" = EXCLUDED."pieces", "booksStatus" = EXCLUDED."booksStatus",
@@ -693,6 +730,23 @@ async function main(): Promise<void> {
     { id: string; slug: string }[]
   >`SELECT "id", "slug" FROM "Artist"`;
   const artistIdBySlug = new Map(artistRows.map((r) => [r.slug, r.id]));
+
+  // Connect each artist's styles by name via the implicit m-n join table.
+  for (const a of ARTISTS) {
+    const artistId = artistIdBySlug.get(a.slug);
+    if (!artistId) continue;
+    for (const styleName of a.styles) {
+      const styleId = styleIdByName.get(styleName);
+      if (!styleId) {
+        throw new Error(`Unknown style "${styleName}" for artist ${a.slug}`);
+      }
+      await sql`
+        INSERT INTO "_ArtistToTattooStyle" ("A", "B")
+        VALUES (${artistId}, ${styleId})
+        ON CONFLICT ("A", "B") DO NOTHING
+      `;
+    }
+  }
 
   // Gallery (upsert by title — titles are unique in the seed set)
   for (const g of GALLERY) {
@@ -789,37 +843,10 @@ async function main(): Promise<void> {
     `;
   }
 
-  // Demo OWNER user + link to Sarah; an ARTIST user linked to Calum.
-  await sql`
-    INSERT INTO "User" ("id", "email", "role", "displayName", "active", "updatedAt")
-    VALUES (${createId()}, 'adamjjessop@gmail.com', 'OWNER'::"Role", 'Adam (Owner)', true, now())
-    ON CONFLICT ("email") DO UPDATE SET "role" = EXCLUDED."role", "displayName" = EXCLUDED."displayName", "updatedAt" = now()
-  `;
-  await sql`
-    INSERT INTO "User" ("id", "email", "role", "displayName", "active", "updatedAt")
-    VALUES (${createId()}, 'calum@bootsnbandit.co.uk', 'ARTIST'::"Role", 'Calum', true, now())
-    ON CONFLICT ("email") DO UPDATE SET "role" = EXCLUDED."role", "displayName" = EXCLUDED."displayName", "updatedAt" = now()
-  `;
-  const ownerRows = await sql<
-    { id: string }[]
-  >`SELECT "id" FROM "User" WHERE "email" = 'adamjjessop@gmail.com'`;
-  const calRows = await sql<
-    { id: string }[]
-  >`SELECT "id" FROM "User" WHERE "email" = 'calum@bootsnbandit.co.uk'`;
-  const ownerId = ownerRows[0]?.id;
-  const calUserId = calRows[0]?.id;
-  // Link owner -> Sarah (co-owner), artist user -> Calum.
-  if (ownerId) {
-    await sql`UPDATE "Artist" SET "userId" = ${ownerId} WHERE "slug" = 'sarah'`;
-  }
-  if (calUserId) {
-    await sql`UPDATE "Artist" SET "userId" = ${calUserId} WHERE "slug" = 'cal'`;
-  }
-
-  // A calendar feed token per linked artist (auto-created at enrolment in P4;
-  // seed one for each linked artist so iCal work has data).
-  for (const slug of ["sarah", "cal"]) {
-    const aid = artistIdBySlug.get(slug);
+  // A calendar feed token per artist (auto-created at enrolment in P4; seed one
+  // for every artist so iCal work has data for the whole crew).
+  for (const a of ARTISTS) {
+    const aid = artistIdBySlug.get(a.slug);
     if (!aid) continue;
     await sql`
       INSERT INTO "CalendarFeed" ("id", "artistId", "token", "updatedAt")

@@ -40,6 +40,32 @@ export interface MatchArtist {
   booksStatus: "open" | "limited" | "closed";
 }
 
+/**
+ * Prisma-shaped artist as loaded for matching: the `styles` relation comes back
+ * as `TattooStyle` rows (`{ name }[]`), not a `string[]`. `toMatchArtist` maps
+ * that to the matcher's `MatchArtist` shape, preserving the exact style names so
+ * the hard-coded style literals (e.g. "Fine-line") still intersect.
+ */
+export interface LoadedMatchArtist {
+  id: string;
+  slug?: string | null;
+  name: string;
+  styles: { name: string }[];
+  specials: string[];
+  booksStatus: "open" | "limited" | "closed";
+}
+
+export function toMatchArtist(artist: LoadedMatchArtist): MatchArtist {
+  return {
+    id: artist.id,
+    slug: artist.slug,
+    name: artist.name,
+    styles: artist.styles.map((s) => s.name),
+    specials: artist.specials,
+    booksStatus: artist.booksStatus,
+  };
+}
+
 export interface MatchResult {
   artist: MatchArtist;
   rank: number;

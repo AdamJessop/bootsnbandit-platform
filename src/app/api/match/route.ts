@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { matchArtists, type MatchAnswers } from "@/lib/services/match";
+import {
+  matchArtists,
+  toMatchArtist,
+  type MatchAnswers,
+} from "@/lib/services/match";
 import { handleApiError, json, parseBody } from "../_lib/http";
 
 /**
@@ -37,13 +41,17 @@ export async function POST(req: Request): Promise<Response> {
         id: true,
         slug: true,
         name: true,
-        styles: true,
+        styles: { select: { name: true } },
         specials: true,
         booksStatus: true,
       },
     });
 
-    const results = matchArtists(answers, artists, input.limit ?? 4);
+    const results = matchArtists(
+      answers,
+      artists.map(toMatchArtist),
+      input.limit ?? 4,
+    );
     return json({ results });
   } catch (err) {
     return handleApiError(err);

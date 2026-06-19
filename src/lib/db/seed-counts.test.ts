@@ -68,4 +68,43 @@ describe("seed counts", () => {
     `;
     expect(rows[0].n).toBe(1);
   });
+
+  it("creates one User per artist, each linked 1:1 (7 users, all linked)", async () => {
+    if (!(await dbReachable())) return;
+    const users = await sql!`SELECT count(*)::int AS n FROM "User"`;
+    expect(users[0].n, "User count").toBe(7);
+    // Every artist has a (required) userId, so every user is linked to an artist.
+    const linked = await sql!`
+      SELECT count(*)::int AS n FROM "User" u
+      WHERE EXISTS (SELECT 1 FROM "Artist" a WHERE a."userId" = u."id")
+    `;
+    expect(linked[0].n, "linked users").toBe(7);
+  });
+
+  it("has exactly 2 OWNER users (the co-owners)", async () => {
+    if (!(await dbReachable())) return;
+    const rows = await sql!`
+      SELECT count(*)::int AS n FROM "User" WHERE "role" = 'OWNER'
+    `;
+    expect(rows[0].n).toBe(2);
+  });
+
+  it("gives every artist ≥1 connected style and non-null numeric rates", async () => {
+    if (!(await dbReachable())) return;
+    // No artist may have zero connected styles.
+    const noStyles = await sql!`
+      SELECT count(*)::int AS n FROM "Artist" a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM "_ArtistToTattooStyle" j WHERE j."A" = a."id"
+      )
+    `;
+    expect(noStyles[0].n, "artists with no styles").toBe(0);
+
+    // hourlyRatePence + dayRatePence must be set on every artist.
+    const missingRates = await sql!`
+      SELECT count(*)::int AS n FROM "Artist"
+      WHERE "hourlyRatePence" IS NULL OR "dayRatePence" IS NULL
+    `;
+    expect(missingRates[0].n, "artists with a null rate").toBe(0);
+  });
 });
