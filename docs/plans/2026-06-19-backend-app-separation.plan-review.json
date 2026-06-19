@@ -1,0 +1,91 @@
+{
+  "review_summary": "The plan is architecturally sound and covers the monorepo restructure well, but has several concrete gaps that would cause build failures or security regressions without explicit mitigation: the session cookie has no `Domain` attribute (making subdomain isolation a false assumption), `requireRole` hard-codes the `/admin` fallback redirect (which is dead on the admin origin post-rebase), the plan never mentions `transpilePackages` for `@bnb/core` in each app's `next.config`, and P2/P3 parallelism against the root `src/app` is genuinely racy without the recommended checkpoint being enforced as a hard gate.",
+  "alignment_score": "medium",
+  "risk_level": "high",
+  "issues": [
+    {
+      "severity": "must_fix",
+      "category": "hidden_dependency",
+      "title": "Session cookie has no `Domain` attribute — subdomain isolation is a false assumption",
+      "description": "`src/lib/auth/cookies.ts` calls `jar.set(cfg.sessionCookieName, token, { httpOnly, sameSite, secure, path, maxAge })` with no `domain` field. Without an explicit `Domain` attribute the browser pins the cookie to the exact host that Set-Cookie came from, which sounds safe but is the *wrong* mechanism to rely on once you move to subdomains. More critically: the plan's P4 goal ('staff cookies only valid on admin origin') declares this solved via a different cookie name and RP-ID, but the cookie name `bb_session` is a hard-coded constant in `config.ts` (line 25) — it is NOT read from env/`SESSION_COOKIE` at runtime. If the web app ever calls any auth endpoint before P4 is complete (e.g. during P2/P3 parallel work), the same cookie name would be set by both apps. Plan section 'Auth/PWA/cookie isolation' and Pre-Mortem item 3 both assume isolation is achieved but neither the plan nor config actually makes the cookie name env-configurable yet.",
+      "suggested_fix": "In P1 (before splitting apps), change `config.ts` so `sessionCookieName` reads from `process.env.SESSION_COOKIE ?? 'bb_session'` and `challengeCookieName` reads from `process.env.CHALLENGE_COOKIE ?? 'bb_webauthn'`. Add per-app `.env.example` entries (`SESSION_COOKIE=bb_admin_session` for admin, `SESSION_COOKIE=bb_web_session` for web). Document that the `Domain` attribute must NOT be set (host-only binding is the correct isolation mechanism for distinct subdomains). Make this an explicit DoD item in P1 and P4."
+    },
+    {
+      "severity": "must_fix",
+      "category": "task_completeness",
+      "title": "`requireRole` hard-codes `/admin` as the wrong-role redirect — breaks on the admin origin post-rebase",
+      "description": "`src/lib/auth/index.ts` line 37: `redirect('/admin')`. After P3 rebases routes so `/admin/*` becomes `/*` on the admin origin, the path `/admin` no longer exists in `apps/admin`. Any ARTIST trying to access an OWNER route would get a 404 redirect loop. The plan's Pre-Mortem item 2 says 'grep shows zero /admin/ paths in apps/admin' but this redirect is in `@bnb/core` (the shared auth lib), not a page link — it would survive any grep of page files. The sign-in page (`src/app/sign-in/SignInForm.tsx` lines 60, 89) also hard-codes `router.replace('/admin')` as the post-auth landing destination, which will be correct on the admin origin but wrong if web ever adds customer auth.",
+      "suggested_fix": "Before moving `requireRole` to `@bnb/core`, add an `APP_HOME` (or similar) env var that each app sets (e.g. admin sets `/`, web leaves unused). Change `requireRole`'s wrong-role redirect to use `process.env.APP_HOME ?? '/'` and update the sign-in form to use the same env var. Add to P3's DoD: 'grep src of apps/admin shows zero literal /admin/ href strings; requireRole wrong-role redirect resolves to /'. Also add this to the P2/P3 grep check in the risk table."
+    },
+    {
+      "severity": "must_fix",
+      "category": "hidden_dependency",
+      "title": "`transpilePackages: ['@bnb/core']` not mentioned anywhere in the plan — Next.js will fail to compile the workspace package",
+      "description": "Next.js does not transpile node_modules (including npm workspace packages) by default. Without `transpilePackages: ['@bnb/core']` in each app's `next.config`, any import of `@bnb/core` that contains TypeScript or ESM-only code will throw a build error (`SyntaxError: Cannot use import statement` or similar). The current `next.config.ts` only sets `outputFileTracingRoot`. The plan's Goal Verification item 2 ('apps import from @bnb/core') and item 8 ('npm run -ws build succeeds') would both fail silently in the planning phase since neither mentions this Next.js requirement. The plan does mention 'Next.js next.config/transpilePackages' in the user's review request, acknowledging it as a known gap, but it does not appear in any task, DoD, or risk row.",
+      "suggested_fix": "Add an explicit task in P1: 'Create `apps/web/next.config.ts` and `apps/admin/next.config.ts`, each with `transpilePackages: [\"@bnb/core\"]` and `outputFileTracingRoot` pointing to the monorepo root.' Add to P1's DoD: 'Both app next.configs include transpilePackages for @bnb/core; `next build` in each app directory resolves @bnb/core without module-parse errors.' Also note that if `@bnb/core` is compiled to CJS/ESM via its own build step (rather than relying on transpilePackages), the package.json `exports` map must be correct — the plan is silent on whether core is pre-compiled or source-only."
+    },
+    {
+      "severity": "must_fix",
+      "category": "task_completeness",
+      "title": "P2/P3 wave parallelism against `src/app` is unsafe without an enforced pre-parallel checkpoint commit",
+      "description": "The plan says P2 and P3 are Wave 2 parallel and 'each owns ONLY its route group'. However both phases must delete files from the shared `src/app` tree (P2 deletes `(site)/**` and public API routes; P3 deletes `(admin)/**` and staff API routes). If run in separate worktrees or by separate agents simultaneously, both will touch the root `src/lib` import paths (rewriting `@/lib/*` to `@bnb/core/*`) and the root tsconfig path aliases. The risk table acknowledges this but the mitigation says 'commit a pre-parallel checkpoint' without mandating it as a hard gate or specifying what the checkpoint must contain. There is no P1 DoD item that verifies the checkpoint commit exists before P2/P3 start.",
+      "suggested_fix": "Add to P1's DoD: 'A git commit tagged `monorepo-checkpoint` exists where: (a) root app still builds green importing from @bnb/core, (b) apps/web and apps/admin scaffold directories exist with their own package.json/tsconfig/next.config/tailwind but no moved routes yet.' Explicitly state in P2 and P3's context: 'Do not modify root src/lib or root tsconfig; only move files from src/app/(site) [or (admin)] into the target app.' Consider making each phase responsible for deleting only its own route group, with P5 responsible for cleaning up any root scaffolding that remains."
+    },
+    {
+      "severity": "should_fix",
+      "category": "task_completeness",
+      "title": "Route rebase grep check misses `revalidatePath('/admin/...')` calls and `router.push('/admin/...')` in client components",
+      "description": "The plan's risk mitigation for `/admin/*`→`/*` rebase says 'grep all /admin/ hrefs + admin-nav hrefs; tsc/route tests catch the rest'. But the codebase contains `revalidatePath('/admin/content/styles')`, `revalidatePath('/admin/content/flash')`, etc. (confirmed in src/app/(admin)/admin/content/styles/page.tsx line 17, content/flash/page.tsx line 26, etc.) and `router.push('/admin/calendar?...')` in CalendarClient.tsx line 82 and `router.push('/admin/reports?...')` in ReportsView.tsx line 57. These are not `href` attributes and will not be caught by an href-only grep. `revalidatePath` with the wrong path silently does nothing (no build error, no test failure if tests don't exercise that cache invalidation path).",
+      "suggested_fix": "Expand the P3 rebase grep to: `grep -r '/admin/' apps/admin --include='*.ts' --include='*.tsx'` covering href, router.push, router.replace, redirect(), revalidatePath(), revalidateTag(), fetch() calls, and string literals. Add a DoD line: 'Zero literal /admin/ strings appear anywhere in apps/admin source (excluding comments and test fixtures that explicitly test the rebase).' Also check `next/cache` `revalidatePath` calls specifically — these need to match the new route paths exactly."
+    },
+    {
+      "severity": "should_fix",
+      "category": "task_completeness",
+      "title": "No middleware plan for the admin app — auth guard, CSP headers, and PWA scope enforcement",
+      "description": "The current codebase has no `src/middleware.ts` (confirmed: Glob found no middleware file). The plan mentions middleware only in the user's review request as something to check but does not appear in any phase task or DoD. Once `apps/admin` is a standalone app, it will need a middleware to: (a) redirect unauthenticated requests to `/sign-in` before they hit server components (avoiding the current pattern of each page calling `requireRole` independently, which leaks RSC payloads before redirect), (b) enforce Content-Security-Policy with the correct admin origin, and (c) ensure PWA navigation requests within the SW scope are handled correctly. Without middleware, a direct GET to `/calendar` by an unauthenticated user currently only redirects after the RSC render begins.",
+      "suggested_fix": "Add a task to P3: 'Create `apps/admin/src/middleware.ts` that: (1) matches all routes except `/sign-in` and `/api/auth/**`, (2) reads the session cookie and redirects to `/sign-in` if absent/invalid, (3) adds `X-Frame-Options: DENY` and a restrictive CSP for the admin origin.' Add to P3's DoD: 'Unauthenticated GET to /calendar returns a 307 to /sign-in without rendering any RSC payload.' Reference this as a security improvement over the current per-route `requireRole` pattern."
+    },
+    {
+      "severity": "should_fix",
+      "category": "untested_assumption",
+      "title": "Prisma client singleton across workspaces — `server-only` + generated client path not verified to work in npm workspaces",
+      "description": "The plan exports `@bnb/core/db` as a singleton and relies on `prisma generate` running in `packages/core` postinstall. In npm workspaces, `node_modules/.prisma/client` is generated relative to where `prisma generate` runs. If either app bundles `@bnb/core` through transpilePackages (no pre-build step), the generated client must be resolvable from the app's own `node_modules`. With hoisting, this usually works, but the `server-only` guard in `@bnb/core/db` means the module can only be imported in server contexts — if any shared utility in core is accidentally imported in a client component in either app, the `server-only` package will throw at build time with a confusing error that doesn't name the offending import chain. The plan does not describe how to debug or prevent this.",
+      "suggested_fix": "Add to P1's DoD: 'Running `npm run prisma:generate` from the monorepo root (delegating to packages/core) produces a working client; `node -e \"require('@bnb/core/db')\"` resolves without error from both apps/web and apps/admin directories.' Add a note: 'Mark internal-only exports in @bnb/core with `server-only` at the module level, not just the entry point, so accidental client-bundle inclusion gives a clear error at build time rather than a runtime crash.' Consider adding `\"sideEffects\": false` to packages/core/package.json with an exception for server-only files."
+    },
+    {
+      "severity": "should_fix",
+      "category": "untested_assumption",
+      "title": "WebAuthn RP-ID change to subdomain invalidates all existing passkeys — no re-enrolment flow planned for production",
+      "description": "The plan acknowledges 're-enrol passkeys in dev' but treats this as trivial. In production, changing RP-ID from the eTLD+1 (e.g. `bootsnbandit.co.uk`) to a subdomain (`admin.bootsnbandit.co.uk`) means every existing staff passkey becomes permanently invalid — WebAuthn authenticators bind credentials to RP-ID at registration and will refuse authentication challenges from a different RP-ID. The plan has no task for: (a) auditing what RP-ID is currently set in production, (b) a passkey migration/re-enrolment flow, or (c) a fallback auth method during the transition window. This is a production-blocking risk for any live deployment.",
+      "suggested_fix": "Add to P4's tasks: 'Document the current production RP-ID. If it is already the eTLD+1 and admin subdomain is a strict subdomain, verify whether existing authenticators will accept the new RP-ID (they will NOT — RP-ID is immutable per credential). Plan a re-enrolment window: (1) send invite emails to all staff with a re-enrolment link, (2) keep a fallback one-time-code path active during cutover, (3) after all staff have re-enrolled, remove the fallback.' Add this as a P4 must-complete item before P5 cutover."
+    },
+    {
+      "severity": "should_fix",
+      "category": "task_completeness",
+      "title": "Tailwind v4 content glob configuration not addressed per-app",
+      "description": "The plan mentions 'Tailwind v4 content globs per app' only in the user's review request as a concern but it does not appear in any phase task. Tailwind v4 changed how content scanning works — if each app has its own `tailwind.config` (or CSS-first config via `@import 'tailwindcss'` in v4), the glob must correctly include `../../packages/core/**` only if core exports any components with class names (it should not, per the UI-per-app decision). More critically, each app's glob must NOT accidentally include the other app's source, and the shared `components/ui` copy in each app must be within the glob scope. Without explicit per-app tailwind config tasks, the P1 scaffold step may produce apps that build but emit empty CSS.",
+      "suggested_fix": "Add to P1 task: 'Create `apps/web/tailwind.config.ts` and `apps/admin/tailwind.config.ts` with content globs scoped to `./src/**/*.{ts,tsx}` only (not ../../packages/core since core has no UI). Copy `globals.css` verbatim into both apps. Verify each app produces non-empty CSS output after build.' Add DoD item: 'Both apps produce non-empty compiled CSS; spot-check that a known utility class (e.g. `bg-primary`) appears in the output bundle.'"
+    },
+    {
+      "severity": "should_fix",
+      "category": "task_completeness",
+      "title": "Env var fan-out strategy not specified — DATABASE_URL and RESEND_API_KEY needed in both apps",
+      "description": "The plan mentions 'per-app .env with APP_ORIGIN, RP_ID, distinct SESSION_COOKIE; shared DATABASE_URL/RESEND_API_KEY/CRON_SECRET' but does not specify the mechanism. In an npm workspaces monorepo, Next.js reads `.env` from the app's own directory (not the monorepo root). If DATABASE_URL is only in the root `.env`, it will not be picked up by `apps/web` or `apps/admin` Next.js processes unless explicitly symlinked, copied, or the dev script sets env vars before calling `next dev`. The plan has no task for `.env.example` creation or the dev-script pattern to fan out shared vars.",
+      "suggested_fix": "Add to P5 tasks: 'Create `apps/web/.env.example` and `apps/admin/.env.example` each containing all required vars (DATABASE_URL, RESEND_API_KEY, CRON_SECRET, APP_ORIGIN, RP_ID, SESSION_COOKIE, SESSION_SECRET). Add a root `.env.shared.example` for vars that are identical across apps. Document the pattern: developers copy .env.shared to apps/web/.env and apps/admin/.env then add app-specific vars. The root dev script uses `dotenv-cli` or `--env-file` flags to pass shared vars, or each app .env symlinks/includes the shared file.'"
+    },
+    {
+      "severity": "suggestion",
+      "category": "scope_alignment",
+      "title": "The `admin:link` demo script and seed path are not mentioned — potential breakage after prisma moves to packages/core",
+      "description": "The user's review request specifically calls out 'the demo admin:link script + seed path' as something to check. The plan does not mention `prisma/seed.ts` or any `admin:link` npm script in any phase. After Prisma schema and migrations move to `packages/core/prisma`, the seed script path in `packages/core/package.json`'s prisma config block (`\"seed\": \"ts-node prisma/seed.ts\"`) must be updated, and the root `package.json` delegate script (`npm run -w @bnb/core db:seed`) must be documented. If the seed script references `@/lib/*` (current path alias), it will break after the move.",
+      "suggested_fix": "Add to P1's task list: 'Move `prisma/seed.ts` to `packages/core/prisma/seed.ts`; update `packages/core/package.json` prisma.seed path; rewrite any `@/lib/*` imports in seed.ts to relative paths or `@bnb/core/*`; add `core:seed` root delegate script. Verify `npm run -w @bnb/core db:seed` runs successfully against a test DB.' If an `admin:link` script exists (not found in the grep, so may not exist yet or may be planned), document it in P5 alongside the demo env setup."
+    },
+    {
+      "severity": "suggestion",
+      "category": "task_completeness",
+      "title": "sitemap.ts and robots.ts handling after split not mentioned",
+      "description": "The user's review request flags sitemap/robots as a check item. If the current root app has `src/app/sitemap.ts` or `src/app/robots.ts`, these must move to `apps/web` only (they should not exist in `apps/admin` which is staff-only and should be fully disallowed by robots). The plan does not mention these files in any phase task or DoD.",
+      "suggested_fix": "Add to P2's task: 'Move `src/app/sitemap.ts` and `src/app/robots.ts` (if they exist) to `apps/web/src/app/`. Add `apps/admin/src/app/robots.ts` that returns `{ rules: { userAgent: \"*\", disallow: \"/\" } }` to prevent search engine indexing of the staff PWA.' Add to P2 DoD: 'GET /robots.txt on web returns allow-all (or the current policy); GET /robots.txt on admin returns Disallow: /.'"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 Created: 2026-06-19
 Status: PENDING
 Approved: No
-Iterations: 0
+Iterations: 1
 Worktree: No
 Type: Master
 
@@ -113,3 +113,12 @@ graph LR
 
 ## Child Plans
 Stubs at `docs/plans/2026-06-19-backend-app-separation-phase-{1..5}.md` (PENDING). Planned in dependency/wave order via `/spec <stub>`.
+
+## Plan-Review Fixes (binding — folded into phase scope)
+- **[P1 · must] Make auth config env-driven BEFORE splitting:** `SESSION_COOKIE` is hard-coded `"bb_session"` in `src/lib/auth/config.ts:25` → read `process.env.SESSION_COOKIE` (default kept). The wrong-role redirect `redirect("/admin")` in `src/lib/auth/index.ts:37` → configurable target (env `AUTH_REDIRECT`, default `/`). These move into `@bnb/core` and must be parameterised or P4 isolation is a no-op.
+- **[P1 · must] `transpilePackages: ["@bnb/core"]`** in BOTH `apps/*/next.config.ts` (Next does not transpile workspace pkgs by default). P1 DoD proves a Prisma query + a `server-only` import resolve from an app shell.
+- **[P1 · must · GATE] P1 DoD:** the existing root app is green importing exclusively from `@bnb/core`, and a `wip: pre-parallel checkpoint` commit exists. **P2 and P3 MUST NOT start until this holds** (enforced by the master-execute orchestrator, not advisory).
+- **[P3 · should] Route rebase covers NON-href calls too:** `revalidatePath("/admin/..")`, `router.push("/admin/..")`, `redirect("/admin/..")` (confirmed in `CalendarClient.tsx`, `ReportsView.tsx`, several content pages, + the core auth redirect) → `/..`. Add an admin `middleware.ts` auth guard. Admin `robots.ts` → `Disallow: /`; admin ships no public sitemap.
+- **[P4 · should] WebAuthn RP-ID** change invalidates existing passkeys — dev re-enrol via `npm run admin:link`; document prod re-enrol. Staff session cookie `Domain`/name admin-scoped (NOT the eTLD+1) so the web app never accepts it.
+- **[P5 · suggest]** Fix the Prisma seed path + `scripts/admin-link.ts` (`admin:link`) after the core move; split `sitemap.ts`/`robots.ts` per app.
+- **[cross] Tailwind v4** per-app content globs (core is domain-only → no classes from core expected); env fan-out = shared (`DATABASE_URL`/`RESEND_API_KEY`/`CRON_SECRET`) + per-app (`APP_ORIGIN`/`RP_ID`/`SESSION_COOKIE`/`AUTH_REDIRECT`), documented in P5 `.env.example` per app.
