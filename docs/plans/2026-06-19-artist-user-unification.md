@@ -1,7 +1,7 @@
 # Artist/User Unification & Profile Refactor Implementation Plan
 
 Created: 2026-06-19
-Status: PENDING
+Status: IN_PROGRESS
 Approved: Yes
 Iterations: 1
 Worktree: No
@@ -104,13 +104,13 @@ Type: Feature
 | seed | `TattooStyle` | connect by name | `styles:\s*\{\s*connect` |
 
 ## Progress Tracking
-- [ ] Task 1: Schema + ArtistStatus enum + style relation + rate rename + migration (Wave 1)
+- [x] Task 1: Schema + ArtistStatus enum + style relation + rate rename + migration (Wave 1)
 - [ ] Task 2: Seed — 7 users 1:1, statuses, style connects, numeric rates (Wave 2)
 - [ ] Task 3: Auth/services/match loaders + `pricing.ts` price-suggest helper (Wave 2)
 - [ ] Task 4: Admin Content→Artists CMS + Studio→Staff unified create/edit (Wave 3)
 - [ ] Task 5: Public artist pages + Inkling + BookingDrawer price-suggest UI (Wave 3)
 - [ ] Task 6: Whole-repo green — reset+reseed, reconcile tests (Wave 4)
-      **Total Tasks:** 6 | **Completed:** 0 | **Remaining:** 6
+      **Total Tasks:** 6 | **Completed:** 1 | **Remaining:** 5
 
 ## Implementation Tasks
 
