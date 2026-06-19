@@ -36,6 +36,8 @@ export async function completeSession(
 ): Promise<CompleteSessionResult> {
   const { bookingId, amountChargedPence, tipPence, bankRef } = input;
 
+  // TODO(P10): record completedByUserId + reconcile amount
+
   const booking = await prisma.booking.findUniqueOrThrow({
     where: { id: bookingId },
     include: { customer: true },

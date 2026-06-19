@@ -51,9 +51,15 @@ const listSchema = z.object({
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const query = parseQuery(req.url, listSchema);
-    const enquiries = await listEnquiries(query);
+    // PII guard: owners see the whole inbox; non-owners are scoped to enquiries
+    // that prefer their artist. A non-owner without an artistId sees nobody.
+    const scoped =
+      user.role === "OWNER"
+        ? query
+        : { ...query, preferredArtistId: user.artistId ?? "__none__" };
+    const enquiries = await listEnquiries(scoped);
     return json({ enquiries });
   } catch (err) {
     return handleApiError(err);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
 import { reportOverview } from "@/lib/services/reports";
-import { handleApiError, json, parseQuery } from "../_lib/http";
+import { ApiError, handleApiError, json, parseQuery } from "../_lib/http";
 
 /**
  * GET /api/reports (admin) — bookings/capacity/revenue overview for a date
@@ -19,9 +19,15 @@ export async function GET(req: Request): Promise<Response> {
   try {
     const user = await requireRole();
     const { from, to, artistId } = parseQuery(req.url, schema);
-    // Artists may only see their own figures; owners see any/all.
-    const scopedArtistId =
-      user.role === "OWNER" ? artistId : (user.artistId ?? undefined);
+    // Owners see any/all. Non-owners must have an artistId and may only ask
+    // for their own figures — fail closed rather than re-scoping silently.
+    let scopedArtistId = artistId;
+    if (user.role !== "OWNER") {
+      if (!user.artistId) throw new ApiError(403, "Forbidden");
+      if (artistId && artistId !== user.artistId)
+        throw new ApiError(403, "Forbidden");
+      scopedArtistId = user.artistId;
+    }
     const report = await reportOverview({ from, to, artistId: scopedArtistId });
     return json({ report });
   } catch (err) {

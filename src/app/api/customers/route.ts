@@ -35,9 +35,14 @@ const listSchema = z.object({
 
 export async function GET(req: Request): Promise<Response> {
   try {
-    await requireRole();
+    const user = await requireRole();
     const query = parseQuery(req.url, listSchema);
-    const customers = await listCustomers(query);
+    // PII guard: owners list all customers; non-owners are scoped to their own
+    // clients (those with a Booking by their artist). A non-owner without an
+    // artistId is fully scoped out (sees nobody) rather than the whole CRM.
+    const artistId =
+      user.role === "OWNER" ? undefined : (user.artistId ?? "__none__");
+    const customers = await listCustomers({ ...query, artistId });
     return json({ customers });
   } catch (err) {
     return handleApiError(err);

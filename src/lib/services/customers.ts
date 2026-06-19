@@ -32,8 +32,14 @@ export async function createCustomer(
 
 /**
  * Find an existing customer by email (preferred) or phone, otherwise create
- * one. When a match is found, fills in any newly-supplied contact fields.
- * Used by public enquiry/flash flows where the visitor isn't authenticated.
+ * one. Used by public enquiry/flash flows where the visitor isn't
+ * authenticated.
+ *
+ * SECURITY: when a match is found it is returned UNMUTATED. The match runs on
+ * the public path, so updating contact/consent fields here would let a
+ * stranger overwrite an existing customer's email/phone/marketingConsent by
+ * matching on the other field (contact-record takeover). Contact + consent are
+ * only set when creating a brand-new customer.
  */
 export async function upsertCustomerByContact(
   input: CreateCustomerInput,
@@ -46,16 +52,7 @@ export async function upsertCustomerByContact(
     ? await prisma.customer.findFirst({ where: { OR: or } })
     : null;
 
-  if (existing) {
-    return prisma.customer.update({
-      where: { id: existing.id },
-      data: {
-        email: input.email ?? existing.email,
-        phone: input.phone ?? existing.phone,
-        marketingConsent: input.marketingConsent ?? existing.marketingConsent,
-      },
-    });
-  }
+  if (existing) return existing;
 
   return createCustomer(input);
 }
@@ -68,20 +65,32 @@ export interface ListCustomersInput {
   search?: string;
   take?: number;
   skip?: number;
+  /**
+   * Scope to customers who have at least one Booking with this artist. Used to
+   * limit non-OWNER staff to their own clients (PII over-exposure guard).
+   */
+  artistId?: string;
 }
 
 export async function listCustomers(
   input: ListCustomersInput = {},
 ): Promise<Customer[]> {
-  const { search, take = 50, skip = 0 } = input;
-  const where: Prisma.CustomerWhereInput = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { email: { contains: search, mode: "insensitive" } },
-          { phone: { contains: search } },
-        ],
-      }
+  const { search, take = 50, skip = 0, artistId } = input;
+  const filters: Prisma.CustomerWhereInput[] = [];
+  if (search) {
+    filters.push({
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search } },
+      ],
+    });
+  }
+  if (artistId) {
+    filters.push({ bookings: { some: { artistId } } });
+  }
+  const where: Prisma.CustomerWhereInput = filters.length
+    ? { AND: filters }
     : {};
   return prisma.customer.findMany({
     where,

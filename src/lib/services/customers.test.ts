@@ -43,7 +43,35 @@ describe("customers service (DB)", () => {
       phone: "0700",
     });
     expect(second.id).toBe(first.id);
-    expect(second.phone).toBe("0700");
+  });
+
+  it("upsertCustomerByContact does NOT overwrite contact/consent on match", async () => {
+    if (!(await dbReachable())) return;
+    // An existing customer with known phone + consent.
+    const email = `${uid("c")}@example.com`;
+    const phone = `+44${Date.now()}`;
+    const original = await createCustomer({
+      name: "Existing",
+      email,
+      phone,
+      marketingConsent: true,
+    });
+    created.push(original.id);
+
+    // A stranger on the public path matches by email and tries to
+    // change the phone and revoke consent. The match must be returned
+    // unmutated so they cannot take over the contact record.
+    const result = await upsertCustomerByContact({
+      name: "Stranger",
+      email,
+      phone: "0000-attacker",
+      marketingConsent: false,
+    });
+
+    expect(result.id).toBe(original.id);
+    expect(result.phone).toBe(phone);
+    expect(result.email).toBe(email);
+    expect(result.marketingConsent).toBe(true);
   });
 
   it("upsertCustomerByContact creates anew when no contact match", async () => {
