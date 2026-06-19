@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Pirata_One, Cinzel, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -29,6 +29,23 @@ export const metadata: Metadata = {
   title: "Boots 'n' Bandit — Tattoo Studio, Worksop",
   description:
     "Boots 'n' Bandit Tattoo Studio, Worksop. Heritage tattooing, custom work, flash and the Bandit Pass.",
+  // Installable staff PWA (Phase 11). The manifest + service worker make the
+  // (admin) back-of-house installable with an offline read-only app shell.
+  manifest: "/manifest.webmanifest",
+  applicationName: "Boots 'n' Bandit Studio",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "B'n'B Studio",
+  },
+  icons: {
+    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/icon.svg" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#c92f4d",
 };
 
 export default function RootLayout({
@@ -43,7 +60,16 @@ export default function RootLayout({
       data-direction="heritage"
       className={`dark ${pirata.variable} ${cinzel.variable} ${inter.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Register the PWA service worker (offline app shell for read views). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}",
+          }}
+        />
+      </body>
     </html>
   );
 }
