@@ -1,0 +1,56 @@
+{
+  "review_summary": "The plan addresses all 4 requested changes with a sound enforced-1:1 + numeric-rates + style-relation approach, but its consumer inventory misses src/app/(site)/studio/page.tsx, which filters founders off the very free-text Artist.role being dropped. A few should_fix gaps around exact style-name preservation and owner-email ambiguity remain.",
+  "alignment_score": "high",
+  "risk_level": "medium",
+  "issues": [
+    {
+      "severity": "must_fix",
+      "category": "hidden_dependency",
+      "title": "studio/page.tsx founder filter reads the dropped free-text Artist.role",
+      "description": "Task 5's consumer list (line 152) enumerates _data.ts, artists/*, enquire/*, inkling but NOT src/app/(site)/studio/page.tsx. That page at line 52 does `artists.filter((a) => a.role.toLowerCase().includes(\"owner\"))` and renders `{f.role}` at line 119 — both rely on the free-text `Artist.role` string ('Owner'/'Co-owner') that Task 1 removes (replaced by `Artist.status` enum). After the change this filter returns zero founders (status values are CO_OWNER not a string containing 'owner' once lowercased it would match, but the field no longer exists), so the Studio page silently loses its founders section. This is a public-page regression the plan does not cover.",
+      "suggested_fix": "Add src/app/(site)/studio/page.tsx to Task 5 Files. Change the founder filter to `a.status === 'CO_OWNER'` (via the new status field surfaced on the SiteArtist type) and render the status label map instead of `f.role`. Add this page to the Truth #8 grep so it is verified."
+    },
+    {
+      "severity": "must_fix",
+      "category": "task_completeness",
+      "title": "_data.ts SiteArtist type still carries role/rateText/hourlyPence and is consumed by 4+ pages",
+      "description": "src/app/(site)/_data.ts defines the SiteArtist type with `role`, `rateText`, `hourlyPence` (lines 30-32, 75-77, 96-98, 110-121) and is consumed via `a.role`/`r.role` in page.tsx, artists/page.tsx, enquire/page.tsx, studio/page.tsx and `artist.role`/`artist.rateText` in artists/[slug]/page.tsx (lines 34,72,76,137). Task 5 mentions _data.ts but the DoD does not call out that the type's field renames (role->status label, rateText drop, hourlyPence->hourlyRatePence) cascade to every one of these call sites. tsc will catch the renames but rateText being dropped vs. nullable, and the role->status semantic change, need explicit handling at each site (e.g. artists/[slug] line 137 falls back to rateText for rate display).",
+      "suggested_fix": "In Task 5 Key Decisions, enumerate the _data.ts SiteArtist field changes (drop rateText, rename hourlyPence->hourlyRatePence, replace role with status) and list ALL consuming call sites: (site)/page.tsx:39, artists/page.tsx:18, artists/[slug]/page.tsx:34/72/76/137, enquire/page.tsx:39, studio/page.tsx:52/119. Define the rate-display fallback for artists/[slug]:137 now that rateText is gone (format from hourlyRatePence/dayRatePence)."
+    },
+    {
+      "severity": "should_fix",
+      "category": "untested_assumption",
+      "title": "Match scoring depends on EXACT style strings that must survive the relation->names mapping",
+      "description": "src/lib/services/match.ts hard-codes exact style names: `artist.styles.includes(\"Fine-line\")` (line 137) and `\"First tattoos\"` (line 136, specials). The plan's loader maps `artist.styles.map(s => s.name)`, but if the TattooStyle seed rows use different casing/spelling than the prototype's old string[] values (e.g. 'Fine line' vs 'Fine-line'), the matcher silently degrades — no test failure, just wrong rankings. The plan's Pre-Mortem #3 only checks that each artist has >=1 style, not that the names round-trip exactly.",
+      "suggested_fix": "Add a Task 2/3 assertion that the seeded TattooStyle.name values exactly equal the strings match.ts keys on (notably 'Fine-line'), and add a match test that an artist seeded with the 'Fine-line' style still triggers the FIRST_TIMER_BONUS branch. Document the canonical style-name list as the single source of truth."
+    },
+    {
+      "severity": "should_fix",
+      "category": "definition_of_done",
+      "title": "content/artists CMS coerce schema and ProfileEditor still expose rateText/styles-as-string",
+      "description": "src/app/(admin)/admin/content/artists/page.tsx defines a column schema with `{ name: \"rateText\", kind: \"string\" }` (lines 18, 60) and ProfileEditor.tsx (lines 18, 56-62, 80) renders a rateText textarea and `styles.join(\", \")` text input plus actions.ts:45 reads `str(fd, \"rateText\")`. Task 4 says 'remove rateText field' and 'styles multiselect' but the DoD does not name the coerce-schema entry or the ProfileEditor string-join input, and coerce.test.ts:51 asserts on styles[] shape. These are the concrete edits that make Task 4 real; without listing them the schema-driven CMS will still try to coerce a now-nonexistent column.",
+      "suggested_fix": "In Task 4 Files/DoD, explicitly list: remove the rateText entries in content/artists/page.tsx (lines 18,60), replace the ProfileEditor rateText textarea + styles comma-input with a TattooStyle multiselect + numeric rate inputs, update actions.ts:45 to drop rateText and connect styles relation, and update coerce.test.ts:51 expectations."
+    },
+    {
+      "severity": "should_fix",
+      "category": "risk_quality",
+      "title": "Owner email ambiguity (adamjjessop@gmail.com vs <first>@bootsnbandit.co.uk) left as a choose-one TODO",
+      "description": "Task 2 (line 129) and Assumptions (line 45) leave the Sarah owner email as 'pick ONE owner email and document' — an unresolved decision inside an approved plan. The current seed links adamjjessop@gmail.com -> Sarah, but the new convention is <first>@bootsnbandit.co.uk. If the implementer picks the .co.uk convention for Sarah, the existing owner login (and any passkey/test fixture keyed on adamjjessop@gmail.com) breaks; if they keep the gmail, Sarah deviates from the convention. This is an auth-affecting fork, not a cosmetic one.",
+      "suggested_fix": "Resolve in the plan now: keep adamjjessop@gmail.com as Sarah's User.email (preserves existing owner login + passkey + any test referencing it) and note Sarah is the documented exception to the <first>@bootsnbandit.co.uk convention. Add a seed assertion that an OWNER user with email adamjjessop@gmail.com is linked to the Sarah artist."
+    },
+    {
+      "severity": "should_fix",
+      "category": "untested_assumption",
+      "title": "Test fixtures across 5+ files hard-code the old shape and are only addressed generically in Task 6",
+      "description": "Multiple test files already construct artists with the dropped/renamed fields: artists/[slug]/page.test.tsx:18-20 (rateText, hourlyPence), artists/page.test.tsx:20-22, profile/page.test.tsx:22, page.test.tsx:22-24, ProfileEditor.test.tsx:12, coerce.test.ts:51. Task 6 says 'mostly test fixtures' and relies on tsc to surface them, but tsc only catches type mismatches on typed fixtures; loosely-typed object literals fed to mocks may compile while testing the wrong shape. Lumping all fixture churn into Wave 4 also undercuts the parallel-wave claim since Task 4/5 own most of these files.",
+      "suggested_fix": "Move the per-surface fixture updates into the owning task (Task 4 owns profile/ProfileEditor/coerce tests; Task 5 owns artists/page/site page tests) rather than deferring to Task 6, so each wave's tests are green when the wave completes. Keep Task 6 strictly for the whole-repo gate."
+    },
+    {
+      "severity": "suggestion",
+      "category": "scope_alignment",
+      "title": "User.artist kept optional is correct but creates a 'same entity' gap worth noting",
+      "description": "Task 1 keeps `User.artist Artist?` optional 'to allow future non-artist staff' while making Artist.userId required. This correctly delivers enforced 1:1 from the Artist side and matches the clarification (NOT a table merge). It does mean 'Artist and User are the same entity' is true only directionally (every Artist is a User, but a User need not be an Artist) — which aligns with the user's stated intent. No fix needed; just confirm the admin staff flow distinguishes 'create staff-only User' from 'create artist (User+Artist)' so the optional side stays reachable.",
+      "suggested_fix": "Optional: in Task 4 note whether the staff flow can create a User without an Artist (the optional side). If non-artist staff is truly out of scope per Assumptions line 44, consider stating that every created User currently also gets an Artist, so the optionality is forward-looking only."
+    }
+  ]
+}
