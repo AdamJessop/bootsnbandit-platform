@@ -8,6 +8,7 @@ import { AftercareEmail } from "./templates/aftercare";
 import { ReviewRequestEmail } from "./templates/review-request";
 import { EnquiryAckEmail } from "./templates/enquiry-ack";
 import { LoyaltyRewardEmail } from "./templates/loyalty-reward";
+import { StaffInviteEmail } from "./templates/staff-invite";
 
 export interface RenderedEmail {
   subject: string;
@@ -104,6 +105,16 @@ function buildElement(type: EmailType, data: Data): { subject: string; element: 
           rewardLabel: str(data, "rewardLabel"),
           stamps: num(data, "stamps"),
           tierLabel: str(data, "tierLabel"),
+        }),
+      };
+    case "staff_invite":
+      return {
+        subject: "You're invited to the Boots 'n' Bandit studio",
+        element: React.createElement(StaffInviteEmail, {
+          inviteeName: str(data, "inviteeName") ?? str(data, "customerName"),
+          url: str(data, "url"),
+          role: str(data, "role"),
+          expiresAt: str(data, "expiresAt"),
         }),
       };
     default: {

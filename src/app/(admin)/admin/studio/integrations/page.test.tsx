@@ -26,4 +26,12 @@ describe("IntegrationsPage", () => {
     expect(html).toContain("Feed active");
     expect(html).toContain("No feed yet");
   });
+
+  it("renders the Google Calendar connect stub", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page());
+    expect(html).toContain("Google Calendar");
+    expect(html).toContain("Coming soon");
+  });
 });

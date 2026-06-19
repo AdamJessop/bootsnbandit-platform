@@ -3,8 +3,8 @@ import { renderEmail } from "@/lib/email/render";
 import type { EmailType } from "@/lib/email";
 
 /**
- * Studio › Email templates (K3). Owner-only. Previews each of the 7
- * transactional templates by rendering them with representative sample data.
+ * Studio › Email templates (K3). Owner-only. Previews each transactional
+ * template by rendering them with representative sample data.
  * Read-only preview — editing copy lives in the template source (P5).
  */
 export const dynamic = "force-dynamic";
@@ -55,6 +55,15 @@ const SAMPLE: Record<EmailType, { label: string; data: Record<string, unknown> }
         tierLabel: "Bandit",
       },
     },
+    staff_invite: {
+      label: "Staff invite",
+      data: {
+        inviteeName: "Jordan",
+        url: "http://localhost:3000/sign-in?invite=demo",
+        role: "ARTIST",
+        expiresAt: "2026-07-01T00:00:00.000Z",
+      },
+    },
   };
 
 export default async function EmailTemplatesPage() {
@@ -74,7 +83,7 @@ export default async function EmailTemplatesPage() {
         Email templates
       </h1>
       <p className="mt-2 mb-6 text-text-muted">
-        Previews of the 7 transactional templates with sample data.
+        Previews of the transactional templates with sample data.
       </p>
       <div className="space-y-8">
         {previews.map((p) => (

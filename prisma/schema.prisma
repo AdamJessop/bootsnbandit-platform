@@ -73,6 +73,7 @@ enum MessageType {
   review_request
   enquiry_ack
   loyalty_reward
+  staff_invite
 }
 
 enum MessageChannel {

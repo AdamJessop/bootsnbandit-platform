@@ -10,7 +10,8 @@ export type EmailType =
   | "aftercare"
   | "review_request"
   | "enquiry_ack"
-  | "loyalty_reward";
+  | "loyalty_reward"
+  | "staff_invite";
 
 export interface SendEmailInput {
   to: string;

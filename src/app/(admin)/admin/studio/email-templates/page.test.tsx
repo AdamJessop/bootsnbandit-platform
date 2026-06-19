@@ -12,13 +12,14 @@ vi.mock("@/lib/email/render", () => ({
 }));
 
 describe("EmailTemplatesPage", () => {
-  it("previews each of the 7 templates", async () => {
+  it("previews each of the 8 templates", async () => {
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Email templates");
     expect(html).toContain("Booking confirmation");
     expect(html).toContain("Loyalty reward");
-    // 7 preview iframes
-    expect(html.match(/<iframe/g)?.length).toBe(7);
+    expect(html).toContain("Staff invite");
+    // 8 preview iframes
+    expect(html.match(/<iframe/g)?.length).toBe(8);
   });
 });

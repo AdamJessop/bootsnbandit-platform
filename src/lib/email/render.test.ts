@@ -111,6 +111,19 @@ describe("renderEmail", () => {
     expect(html).toContain("8");
   });
 
+  it("renders staff_invite with the redeem URL", async () => {
+    const { subject, html } = await renderEmail("staff_invite", {
+      inviteeName: "Jordan",
+      url: "http://localhost:3000/sign-in?invite=tok_xyz",
+      role: "ARTIST",
+      expiresAt: "2026-07-01T00:00:00.000Z",
+    });
+    expectHtmlBasics(html, subject);
+    expect(html).toContain("Jordan");
+    expect(html).toContain("invite=tok_xyz");
+    expect(subject.toLowerCase()).toContain("invite");
+  });
+
   it("produces a distinct, non-empty subject for every EmailType", async () => {
     const types: EmailType[] = [
       "confirmation",
@@ -120,6 +133,7 @@ describe("renderEmail", () => {
       "review_request",
       "enquiry_ack",
       "loyalty_reward",
+      "staff_invite",
     ];
     const subjects = new Set<string>();
     for (const t of types) {

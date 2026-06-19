@@ -8,10 +8,8 @@ import { sendEmail } from "@/lib/email";
  * (P4) then sends the invitee an email (P5 `sendEmail`) carrying the redeem URL
  * so they can enrol their first passkey at `/sign-in?invite=<token>`.
  *
- * NOTE: the email `EmailType` union (owned by P5) has no dedicated `staff_invite`
- * template, so we send via the `confirmation` transport and carry the invite
- * details (url/role) in `data`. When P5/P12 adds an invite template, only the
- * `type` here changes — the orchestration + MessageLog row are already correct.
+ * Uses the dedicated `staff_invite` email template (added in P12); the invite
+ * URL, role and expiry are carried in `data`.
  */
 
 export interface InviteStaffInput {
@@ -31,10 +29,9 @@ export async function inviteStaff(
 
   await sendEmail({
     to: invite.email,
-    type: "confirmation",
+    type: "staff_invite",
     data: {
-      customerName: input.displayName ?? invite.email,
-      kind: "staff_invite",
+      inviteeName: input.displayName ?? invite.email,
       url: invite.url,
       role: invite.role,
       expiresAt: invite.expiresAt.toISOString(),

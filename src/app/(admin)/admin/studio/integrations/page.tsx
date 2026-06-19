@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, CalendarClock, Mail } from "lucide-react";
+import { CheckCircle2, XCircle, CalendarClock, Mail, Calendar } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -85,8 +85,27 @@ export default async function IntegrationsPage() {
         </ul>
         <p className="mt-3 text-xs text-text-muted">
           Each artist&rsquo;s subscribe URL is shown on their My Profile page.
-          Google Calendar connect arrives later.
         </p>
+      </section>
+
+      <section className="mt-8 rounded-lg border border-border-default bg-bg-card p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-termina text-sm font-bold uppercase tracking-wide text-text-primary">
+          <Calendar className="h-4 w-4" /> Google Calendar
+        </h2>
+        <p className="mb-3 flex items-center gap-2 text-sm">
+          <XCircle className="h-4 w-4 text-bb-gold" />
+          <span className="text-text-secondary">
+            Coming soon — two-way OAuth sync (push studio bookings to Google and
+            pull external busy times back into availability).
+          </span>
+        </p>
+        <a
+          href="/api/integrations/google"
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-border-default px-3 text-sm text-text-muted opacity-70"
+          aria-disabled="true"
+        >
+          <Calendar className="h-4 w-4" /> Connect Google Calendar
+        </a>
       </section>
     </main>
   );

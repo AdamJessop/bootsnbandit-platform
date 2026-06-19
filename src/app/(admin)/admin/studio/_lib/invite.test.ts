@@ -49,15 +49,17 @@ describe("inviteStaff", () => {
     });
   });
 
-  it("sends the invite email to the invitee containing the redeem URL", async () => {
+  it("sends a dedicated staff_invite email to the invitee with the redeem URL", async () => {
     const { inviteStaff } = await load();
     await inviteStaff({ email: "new@studio.test" });
     expect(sendEmail).toHaveBeenCalledOnce();
     const arg = sendEmail.mock.calls[0][0] as {
       to: string;
+      type: string;
       data: { url: string };
     };
     expect(arg.to).toBe("new@studio.test");
+    expect(arg.type).toBe("staff_invite");
     expect(arg.data.url).toContain("invite=tok123");
   });
 
