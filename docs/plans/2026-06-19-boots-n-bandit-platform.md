@@ -102,14 +102,14 @@ graph LR
 - [x] Phase 4: Auth & RBAC (Wave 3) — VERIFIED
 - [x] Phase 5: Email & CRM Messaging (Wave 3) — VERIFIED
 - [x] Phase 6: Domain Services & API (Wave 3) — VERIFIED (+IDOR authz hardening)
-- [x] Phase 7: Public Marketing Site (Wave 4) — built (integration pending)
-- [x] Phase 8: Enquire + Inkling + Flash claim (Wave 4) — built (integration pending)
-- [x] Phase 9: Admin Calendar & Front Desk (Wave 4) — built (integration pending)
-- [x] Phase 10: Admin CRM & Ops (Wave 4) — built (integration pending)
-- [x] Phase 11: Admin Content CMS + Studio + PWA (Wave 4) — built (integration pending)
+- [x] Phase 7: Public Marketing Site (Wave 4) — VERIFIED
+- [x] Phase 8: Enquire + Inkling + Flash claim (Wave 4) — VERIFIED
+- [x] Phase 9: Admin Calendar & Front Desk (Wave 4) — VERIFIED
+- [x] Phase 10: Admin CRM & Ops (Wave 4) — VERIFIED
+- [x] Phase 11: Admin Content CMS + Studio + PWA (Wave 4) — VERIFIED
 - [ ] Phase 12: Integrations & Automation (Wave 5)
 
-**Total Phases:** 12 | **Completed:** 6 | **Remaining:** 6
+**Total Phases:** 12 | **Completed:** 11 | **Remaining:** 1
 
 ## Risks and Mitigations
 
