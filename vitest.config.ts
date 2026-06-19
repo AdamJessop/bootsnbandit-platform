@@ -13,6 +13,11 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Several integration suites write to the shared dockerised Postgres
+    // (Artist/Booking/etc.). Running test files serially (no cross-file
+    // parallelism) keeps those writes from racing the exact-count assertions
+    // in seed-counts.test.ts. Within-file tests still run normally.
+    fileParallelism: false,
   },
   // tsconfig uses `jsx: preserve` (Next handles JSX at build time); override it
   // for tests so Vite's oxc transformer compiles JSX via the automatic React
