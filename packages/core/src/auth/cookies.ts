@@ -7,6 +7,13 @@ import { encodeSession, decodeSession, type SessionPayload } from "./session";
  * Session-cookie read/write helpers. The cookie holds an encrypted JWE
  * (see session.ts); HttpOnly + SameSite=Lax + Secure (prod) keep it safe from
  * JS and CSRF on top-level navigations.
+ *
+ * Subdomain isolation (P4): we deliberately set NO `Domain=` attribute, so the
+ * cookie is *host-only* — bound to the exact origin that set it (admin.<domain>
+ * in prod). It is never broadcast to the apex/www web app or any sibling
+ * subdomain. The cookie name itself is env-driven (`SESSION_COOKIE`, distinct
+ * `bb_admin_session` for staff) so staff and any future customer session can
+ * never be confused. See docs/SUBDOMAIN-ISOLATION.md.
  */
 
 export async function writeSessionCookie(
@@ -20,6 +27,7 @@ export async function writeSessionCookie(
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
+    // No `domain` — host-only cookie, scoped to the admin origin (P4).
     maxAge: cfg.sessionTtlSeconds,
   });
 }
