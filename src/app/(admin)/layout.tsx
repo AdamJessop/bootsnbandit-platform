@@ -1,14 +1,13 @@
+import { AppShell } from "@/components/admin/AppShell";
+
 /**
- * Staff PWA shell — (admin) route group.
- * Calmer heritage subset. AppShell (sidebar/topbar/bottomnav + RoleGate)
- * is built in Phase 3; auth gating in Phase 4.
+ * Staff PWA shell — (admin) route group. Wraps every back-of-house screen in
+ * the responsive AppShell (sidebar + top bar + mobile bottom-nav), driven by
+ * the admin-nav registry. Role is hard-coded to "owner" until auth lands in
+ * Wave 3; swap to the session role then.
  */
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <div className="relative z-[1] min-h-dvh bg-bg-base text-text-secondary">
-      {children}
-    </div>
-  );
+  return <AppShell role="owner">{children}</AppShell>;
 }

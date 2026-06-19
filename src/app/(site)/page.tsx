@@ -1,49 +1,165 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { MapPin, Star, ShieldCheck } from "lucide-react";
+import {
+  Filigree,
+  SectionHead,
+  StatTile,
+  ArtistCard,
+  GalleryTile,
+  type Artist,
+  type GalleryItem,
+} from "@/components/site";
 
 /**
- * Placeholder heritage home. Proves the warm-black surface, crimson/gold
- * accents, display font and shadcn primitives render. Real marketing home
- * lands in Phase 7 (Public Marketing Site).
+ * Heritage home demo. Renders the ported primitives (hero, stat strip, artist
+ * cards, gallery masonry) against sample props to prove the design system.
+ * Real data + remaining sections land in Phase 7.
  */
+
+const ARTISTS: Artist[] = [
+  {
+    id: "marnie",
+    name: "Marnie",
+    role: "Fine-line",
+    tag: "Delicate florals & first tattoos",
+    books: "open",
+    rating: 4.9,
+  },
+  {
+    id: "cal",
+    name: "Cal",
+    role: "Blackwork",
+    tag: "Bold blackwork & sleeves",
+    books: "limited",
+    rating: 4.8,
+  },
+  {
+    id: "sarah",
+    name: "Sarah",
+    role: "Colour",
+    tag: "Saturated colour realism",
+    books: "open",
+    rating: 5,
+  },
+  {
+    id: "dex",
+    name: "Dex",
+    role: "Japanese",
+    tag: "Traditional irezumi",
+    books: "closed",
+    rating: 4.7,
+  },
+];
+
+const GALLERY: GalleryItem[] = [
+  {
+    id: "g1",
+    title: "Peony half-sleeve",
+    style: "Japanese",
+    artistName: "Dex",
+    big: true,
+  },
+  {
+    id: "g2",
+    title: "Fine-line fern",
+    style: "Fine-line",
+    artistName: "Marnie",
+  },
+  { id: "g3", title: "Blackwork moth", style: "Blackwork", artistName: "Cal" },
+  { id: "g4", title: "Colour koi", style: "Colour", artistName: "Sarah" },
+  { id: "g5", title: "Dotwork mandala", style: "Dotwork", artistName: "Cal" },
+];
+
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-[1200px] px-7 py-24">
-      <p className="eyebrow mb-4">Worksop · Nottinghamshire</p>
-      <h1 className="display chrome text-[clamp(40px,8vw,88px)]">
-        Boots &rsquo;n&rsquo; Bandit
-      </h1>
-      <p className="lead mt-5 max-w-[52ch]">
-        Heritage tattooing on warm black, raspberry crimson and vintage gold.
-        This is the Phase&nbsp;1 scaffold &mdash; the full marketing site lands
-        in Phase&nbsp;7.
-      </p>
+    <>
+      <section className="hero">
+        <div className="hero-bg">
+          <div className="hero-veil" />
+        </div>
+        <div className="hero-in">
+          <span className="hero-ribbon">
+            <span className="dot dot-open pulse" /> Books open · now taking
+            Summer 2026
+          </span>
+          <h1 className="display chrome hero-title">
+            Boots &rsquo;n&rsquo; Bandit
+          </h1>
+          <Filigree />
+          <p className="hero-sub">
+            Heritage tattooing in Worksop. Seven resident artists, custom work
+            from fine-line to blackwork, and a proper brew while you wait.
+          </p>
+          <div className="hero-cta">
+            <Link href="/enquire" className="btn btn-lg">
+              Make an enquiry
+            </Link>
+            <Link href="/inkling" className="btn btn-lg btn-ghost">
+              Find my artist with Inkling
+            </Link>
+          </div>
+          <div className="hero-meta">
+            <span>
+              <MapPin className="ic" /> 67 Newcastle Avenue, Worksop
+            </span>
+            <span>
+              <Star className="ic" /> 4.9 from 380+ reviews
+            </span>
+            <span>
+              <ShieldCheck className="ic" /> Fully licensed studio
+            </span>
+          </div>
+        </div>
+      </section>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Button>Enquire</Button>
-        <Button variant="outline" className="border-bb-gold text-bb-gold">
-          View flash
-        </Button>
-      </div>
+      <section className="section">
+        <div className="wrap">
+          <div className="stat-strip">
+            <StatTile num="7" label="Resident artists" tone="crimson" />
+            <StatTile num="10+" label="Years in Worksop" tone="gold" />
+            <StatTile num="4.9" label="Average rating" tone="teal" />
+            <StatTile num="12k+" label="Pieces & counting" />
+          </div>
+        </div>
+      </section>
 
-      <Card className="mt-12 max-w-md border-border-default bg-bg-card">
-        <CardHeader>
-          <CardTitle className="text-text-primary">Theme check</CardTitle>
-        </CardHeader>
-        <CardContent className="text-text-muted">
-          <ul className="space-y-1 text-sm">
-            <li>
-              <span className="text-bb-crimson">●</span> crimson #c92f4d
-            </li>
-            <li>
-              <span className="text-bb-gold">●</span> gold #cfa05a
-            </li>
-            <li>
-              <span className="text-bb-teal">●</span> teal #36b0a8
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </main>
+      <section className="section">
+        <div className="wrap">
+          <SectionHead
+            eyebrow="The crew"
+            title="Meet the artists"
+            action={
+              <Link href="/artists" className="btn btn-sm btn-ghost">
+                All artists
+              </Link>
+            }
+          />
+          <div className="artist-grid">
+            {ARTISTS.map((a) => (
+              <ArtistCard key={a.id} artist={a} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="section" style={{ background: "var(--bg-base)" }}>
+        <div className="wrap">
+          <SectionHead
+            eyebrow="Fresh ink"
+            title="Recent work"
+            action={
+              <Link href="/gallery" className="btn btn-sm btn-ghost">
+                Full gallery
+              </Link>
+            }
+          />
+          <div className="gallery-masonry">
+            {GALLERY.map((g) => (
+              <GalleryTile key={g.id} item={g} />
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
