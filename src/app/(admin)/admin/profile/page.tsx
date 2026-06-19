@@ -22,8 +22,15 @@ export default async function ProfilePage() {
   const { origin } = getAuthConfig();
 
   const artist = user.artistId
-    ? await prisma.artist.findUnique({ where: { id: user.artistId } })
+    ? await prisma.artist.findUnique({
+        where: { id: user.artistId },
+        include: { styles: { select: { id: true } } },
+      })
     : null;
+  const styles = await prisma.tattooStyle.findMany({
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
   const feed = user.artistId
     ? await prisma.calendarFeed.findUnique({
         where: { artistId: user.artistId },
@@ -38,11 +45,13 @@ export default async function ProfilePage() {
   const feedUrl = feed ? `${origin}/api/calendar/${feed.token}.ics` : null;
 
   const values: ProfileEditorValues = {
+    status: artist?.status ?? "RESIDENT",
     bio: artist?.bio ?? null,
-    rateText: artist?.rateText ?? null,
     insta: artist?.insta ?? null,
     headshot: artist?.headshot ?? null,
-    styles: artist?.styles ?? [],
+    hourlyRatePence: artist?.hourlyRatePence ?? null,
+    dayRatePence: artist?.dayRatePence ?? null,
+    selectedStyleIds: artist?.styles.map((s) => s.id) ?? [],
     specials: artist?.specials ?? [],
   };
 
@@ -59,7 +68,7 @@ export default async function ProfilePage() {
           Profile &amp; portfolio
         </h2>
         {artist ? (
-          <ProfileEditor values={values} action={saveProfile} />
+          <ProfileEditor values={values} styles={styles} action={saveProfile} />
         ) : (
           <p className="text-sm text-text-muted">
             Your account has no linked artist profile yet. Ask an owner to link
@@ -82,7 +91,12 @@ export default async function ProfilePage() {
               {feedUrl}
             </code>
             <form action={regenerateFeed} className="mt-3">
-              <Button type="submit" variant="outline" size="sm" className="gap-1.5">
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+              >
                 <RefreshCw className="h-4 w-4" /> Regenerate URL
               </Button>
             </form>

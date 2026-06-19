@@ -18,13 +18,21 @@ vi.mock("@/lib/db", () => ({
     artist: {
       findUnique: vi.fn(async () => ({
         id: "art1",
+        status: "CO_OWNER",
         bio: "Heritage tattooer",
-        rateText: null,
         insta: "@sarah",
         headshot: null,
-        styles: ["Fineline"],
+        hourlyRatePence: 9000,
+        dayRatePence: 60000,
         specials: [],
+        styles: [{ id: "s1" }],
       })),
+    },
+    tattooStyle: {
+      findMany: vi.fn(async () => [
+        { id: "s1", name: "Fine-line" },
+        { id: "s2", name: "Bold" },
+      ]),
     },
     calendarFeed: {
       findUnique: vi.fn(async () => ({ token: "FEEDTOKEN" })),
@@ -47,11 +55,10 @@ describe("ProfilePage", () => {
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Sarah");
-    expect(html).toContain(
-      "http://localhost:3000/api/calendar/FEEDTOKEN.ics",
-    );
+    expect(html).toContain("http://localhost:3000/api/calendar/FEEDTOKEN.ics");
     expect(html).toContain("Regenerate URL");
     expect(html).toContain("MacBook");
     expect(html).toContain("Heritage tattooer");
+    expect(html).toContain("Fine-line");
   });
 });

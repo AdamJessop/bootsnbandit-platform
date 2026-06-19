@@ -13,7 +13,10 @@ import { generateToken } from "@/lib/auth/tokens";
 
 const PROFILE_PATH = "/admin/profile";
 
-async function requireOwnArtist(): Promise<{ userId: string; artistId: string }> {
+async function requireOwnArtist(): Promise<{
+  userId: string;
+  artistId: string;
+}> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   if (!user.artistId) throw new Error("No linked artist profile");
@@ -36,16 +39,29 @@ function arr(fd: FormData, key: string): string[] {
     .filter(Boolean);
 }
 
+function ids(fd: FormData, key: string): string[] {
+  return fd.getAll(key).filter((v): v is string => typeof v === "string");
+}
+
+/** £ string → integer pence, or null for blank/invalid. */
+function pence(fd: FormData, key: string): number | null {
+  const s = str(fd, key);
+  if (s == null) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+}
+
 export async function saveProfile(fd: FormData): Promise<void> {
   const { artistId } = await requireOwnArtist();
   await prisma.artist.update({
     where: { id: artistId },
     data: {
       bio: str(fd, "bio"),
-      rateText: str(fd, "rateText"),
       insta: str(fd, "insta"),
       headshot: str(fd, "headshot"),
-      styles: arr(fd, "styles"),
+      hourlyRatePence: pence(fd, "hourlyRatePounds"),
+      dayRatePence: pence(fd, "dayRatePounds"),
+      styles: { set: ids(fd, "styleIds").map((id) => ({ id })) },
       specials: arr(fd, "specials"),
     },
   });

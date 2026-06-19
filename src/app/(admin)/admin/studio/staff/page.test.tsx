@@ -14,8 +14,13 @@ vi.mock("@/lib/db", () => ({
           displayName: "Sarah",
           role: "OWNER",
           active: true,
+          artist: { slug: "sarah", status: "CO_OWNER" },
           authenticators: [
-            { id: "p1", deviceName: "MacBook", createdAt: new Date("2026-01-01") },
+            {
+              id: "p1",
+              deviceName: "MacBook",
+              createdAt: new Date("2026-01-01"),
+            },
           ],
         },
       ]),
@@ -30,11 +35,12 @@ vi.mock("../_lib/actions", () => ({
 }));
 
 describe("StaffPage", () => {
-  it("renders the staff manager with the roster", async () => {
+  it("renders the staff manager with the roster + linked artist status", async () => {
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Staff");
     expect(html).toContain("sarah@studio.test");
     expect(html).toContain("Invite staff");
+    expect(html).toContain("Co-owner");
   });
 });

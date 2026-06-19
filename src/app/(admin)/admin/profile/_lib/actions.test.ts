@@ -47,21 +47,43 @@ describe("profile actions", () => {
   });
   afterEach(() => vi.resetModules());
 
-  it("saveProfile updates only the signed-in user's own artist row", async () => {
+  it("saveProfile updates only the signed-in user's own artist row with the style relation + numeric rates", async () => {
     const { saveProfile } = await import("./actions");
-    await saveProfile(fd({ bio: "Hello", insta: "@me", styles: "Fineline, Bold" }));
+    const form = fd({
+      bio: "Hello",
+      insta: "@me",
+      hourlyRatePounds: "90",
+      dayRatePounds: "600",
+    });
+    form.append("styleIds", "s1");
+    form.append("styleIds", "s2");
+    await saveProfile(form);
     expect(artistUpdate).toHaveBeenCalledWith({
       where: { id: "art1" },
       data: expect.objectContaining({
         bio: "Hello",
         insta: "@me",
-        styles: ["Fineline", "Bold"],
+        hourlyRatePence: 9000,
+        dayRatePence: 60000,
+        styles: { set: [{ id: "s1" }, { id: "s2" }] },
       }),
     });
   });
 
+  it("saveProfile does not write rateText or a comma-joined styles string", async () => {
+    const { saveProfile } = await import("./actions");
+    await saveProfile(fd({ bio: "x" }));
+    const data = artistUpdate.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).not.toHaveProperty("rateText");
+    expect(data.styles).toEqual({ set: [] });
+  });
+
   it("saveProfile throws if the user has no linked artist", async () => {
-    getCurrentUser.mockResolvedValue({ id: "u1", role: "ARTIST", artistId: null });
+    getCurrentUser.mockResolvedValue({
+      id: "u1",
+      role: "ARTIST",
+      artistId: null,
+    });
     const { saveProfile } = await import("./actions");
     await expect(saveProfile(fd({ bio: "x" }))).rejects.toThrow();
   });

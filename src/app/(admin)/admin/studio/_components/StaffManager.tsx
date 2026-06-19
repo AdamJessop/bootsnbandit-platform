@@ -1,14 +1,18 @@
 "use client";
 
-import { KeyRound, UserPlus, Trash2 } from "lucide-react";
+import { KeyRound, UserPlus, Trash2, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { artistStatusLabel, type ArtistStatus } from "@/lib/artist-status";
 
 /**
  * Studio › Staff manager (K1). Invite form (mints + emails an invite) plus a
  * roster with per-user role select, enable/disable toggle and passkey removal.
- * All mutations are server-action form submits owned by `studio/_lib/actions`.
+ * Under artist/user unification every staff member is an artist: the roster
+ * surfaces each user's linked Artist profile (title) and flags any account that
+ * has no profile yet (create one in Content › Artists). All mutations are
+ * server-action form submits owned by `studio/_lib/actions`.
  */
 
 export interface StaffPasskey {
@@ -17,12 +21,18 @@ export interface StaffPasskey {
   createdAt: string;
 }
 
+export interface StaffArtist {
+  slug: string;
+  status: ArtistStatus;
+}
+
 export interface StaffMember {
   id: string;
   email: string;
   displayName: string;
   role: "OWNER" | "ARTIST";
   active: boolean;
+  artist: StaffArtist | null;
   passkeys: StaffPasskey[];
 }
 
@@ -89,7 +99,8 @@ export function StaffManager({
         </form>
         <p className="mt-2 text-xs text-text-muted">
           Mints a single-use invite link and emails it to the invitee to enrol a
-          passkey.
+          passkey. Every staff member is an artist — create their public profile
+          in Content › Artists (it links to this account 1:1).
         </p>
       </section>
 
@@ -114,9 +125,22 @@ export function StaffManager({
                     )}
                   </p>
                   <p className="text-sm text-text-muted">{m.email}</p>
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-text-muted">
+                    <Palette className="h-3.5 w-3.5" />
+                    {m.artist ? (
+                      <span>{artistStatusLabel(m.artist.status)}</span>
+                    ) : (
+                      <span className="text-bb-gold">
+                        No artist profile — add one in Content › Artists
+                      </span>
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <form action={setRoleAction} className="flex items-center gap-1.5">
+                  <form
+                    action={setRoleAction}
+                    className="flex items-center gap-1.5"
+                  >
                     <input type="hidden" name="id" value={m.id} />
                     <select
                       name="role"
@@ -151,7 +175,9 @@ export function StaffManager({
                   {m.passkeys.length})
                 </p>
                 {m.passkeys.length === 0 ? (
-                  <p className="text-sm text-text-muted">No passkeys enrolled.</p>
+                  <p className="text-sm text-text-muted">
+                    No passkeys enrolled.
+                  </p>
                 ) : (
                   <ul className="space-y-1.5">
                     {m.passkeys.map((p) => (

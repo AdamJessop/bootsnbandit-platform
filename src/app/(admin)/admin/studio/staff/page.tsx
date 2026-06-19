@@ -1,9 +1,6 @@
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import {
-  StaffManager,
-  type StaffMember,
-} from "../_components/StaffManager";
+import { StaffManager, type StaffMember } from "../_components/StaffManager";
 import {
   inviteStaffAction,
   removePasskeyAction,
@@ -22,6 +19,7 @@ export default async function StaffPage() {
       authenticators: {
         select: { id: true, deviceName: true, createdAt: true },
       },
+      artist: { select: { slug: true, status: true } },
     },
   });
 
@@ -31,6 +29,7 @@ export default async function StaffPage() {
     displayName: u.displayName,
     role: u.role,
     active: u.active,
+    artist: u.artist ? { slug: u.artist.slug, status: u.artist.status } : null,
     passkeys: u.authenticators.map((a) => ({
       id: a.id,
       deviceName: a.deviceName,
