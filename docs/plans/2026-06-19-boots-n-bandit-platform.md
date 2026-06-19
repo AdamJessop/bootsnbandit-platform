@@ -99,9 +99,9 @@ graph LR
 - [x] Phase 1: Scaffold & Theme (Wave 1) — VERIFIED
 - [x] Phase 2: Data Layer (Wave 2) — VERIFIED
 - [x] Phase 3: Design System & Shells (Wave 2) — VERIFIED
-- [ ] Phase 4: Auth & RBAC (Wave 3)
-- [ ] Phase 5: Email & CRM Messaging (Wave 3)
-- [ ] Phase 6: Domain Services & API (Wave 3)
+- [x] Phase 4: Auth & RBAC (Wave 3) — VERIFIED
+- [x] Phase 5: Email & CRM Messaging (Wave 3) — VERIFIED
+- [x] Phase 6: Domain Services & API (Wave 3) — VERIFIED (+IDOR authz hardening)
 - [ ] Phase 7: Public Marketing Site (Wave 4)
 - [ ] Phase 8: Enquire + Inkling + Flash claim (Wave 4)
 - [ ] Phase 9: Admin Calendar & Front Desk (Wave 4)
@@ -109,7 +109,7 @@ graph LR
 - [ ] Phase 11: Admin Content CMS + Studio + PWA (Wave 4)
 - [ ] Phase 12: Integrations & Automation (Wave 5)
 
-**Total Phases:** 12 | **Completed:** 3 | **Remaining:** 9
+**Total Phases:** 12 | **Completed:** 6 | **Remaining:** 6
 
 ## Risks and Mitigations
 
