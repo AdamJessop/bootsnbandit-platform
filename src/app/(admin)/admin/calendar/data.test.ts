@@ -3,8 +3,22 @@ import { resolveActiveArtist, type ArtistLite } from "./data";
 import type { SessionUser } from "@/lib/auth";
 
 const artists: ArtistLite[] = [
-  { id: "a1", name: "Boots", hue: null, booksStatus: "open" },
-  { id: "a2", name: "Bandit", hue: null, booksStatus: "open" },
+  {
+    id: "a1",
+    name: "Boots",
+    hue: null,
+    booksStatus: "open",
+    hourlyRatePence: 9000,
+    dayRatePence: 55000,
+  },
+  {
+    id: "a2",
+    name: "Bandit",
+    hue: null,
+    booksStatus: "open",
+    hourlyRatePence: null,
+    dayRatePence: null,
+  },
 ];
 
 const owner: SessionUser = {

@@ -22,6 +22,7 @@ import {
   type Artist as ArtistProp,
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { getArtists, getGallery, getFlash } from "./_data";
 import { formatPence } from "./_format";
 import { PassportCard } from "./passport/PassportCard";
@@ -36,7 +37,7 @@ function toArtistProp(a: Awaited<ReturnType<typeof getArtists>>[number]): Artist
   return {
     id: a.slug,
     name: a.name,
-    role: a.role,
+    role: artistStatusLabel(a.status),
     tag: a.tag,
     books: a.books,
     rating: a.rating ?? undefined,

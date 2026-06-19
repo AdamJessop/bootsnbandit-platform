@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { InklingTabs, type InklingArtist } from "./InklingTabs";
 
 /**
@@ -17,12 +18,18 @@ async function loadArtists(): Promise<InklingArtist[]> {
       select: {
         id: true,
         name: true,
-        role: true,
+        status: true,
         slug: true,
         booksStatus: true,
       },
     });
-    return rows;
+    return rows.map((a) => ({
+      id: a.id,
+      name: a.name,
+      role: artistStatusLabel(a.status),
+      slug: a.slug,
+      booksStatus: a.booksStatus,
+    }));
   } catch {
     return [];
   }

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
 
 /**
@@ -28,7 +29,7 @@ async function loadData(): Promise<{
       prisma.artist.findMany({
         where: { active: true },
         orderBy: { sortOrder: "asc" },
-        select: { id: true, name: true, role: true, booksStatus: true },
+        select: { id: true, name: true, status: true, booksStatus: true },
       }),
       prisma.tattooStyle.findMany({ orderBy: { sortOrder: "asc" } }),
     ]);
@@ -36,7 +37,7 @@ async function loadData(): Promise<{
       artists: artists.map((a) => ({
         id: a.id,
         name: a.name,
-        role: a.role,
+        role: artistStatusLabel(a.status),
         booksStatus: a.booksStatus,
       })),
       styleOptions: styles.map((s) => s.name),

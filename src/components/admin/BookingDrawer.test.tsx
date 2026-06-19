@@ -3,13 +3,36 @@ import { describe, expect, it, vi } from "vitest";
 // The drawer pulls next-themes via no path here; it only imports ui primitives,
 // react and the tested pure modules. We assert the component is importable and
 // that its public types/exports line up with the form helpers it delegates to.
-import { BookingDrawer } from "./BookingDrawer";
+import { BookingDrawer, type NamedOption } from "./BookingDrawer";
 import { initialState } from "./booking-drawer-state";
-import { draftToPayload, validateDraft } from "./booking-form";
+import {
+  draftToPayload,
+  suggestedPricePounds,
+  validateDraft,
+} from "./booking-form";
 
 describe("BookingDrawer module", () => {
   it("exports the component", () => {
     expect(typeof BookingDrawer).toBe("function");
+  });
+
+  it("artist options may carry numeric rates for the price suggestion", () => {
+    const artist: NamedOption = {
+      id: "art_1",
+      name: "Sarah",
+      hourlyRatePence: 9000,
+      dayRatePence: 55000,
+    };
+    // The drawer seeds the price field from the selected artist + duration.
+    expect(
+      suggestedPricePounds(
+        {
+          hourlyRatePence: artist.hourlyRatePence,
+          dayRatePence: artist.dayRatePence,
+        },
+        90,
+      ),
+    ).toBe("180.00");
   });
 
   it("re-exports the BookingDraft type via state module (smoke)", () => {

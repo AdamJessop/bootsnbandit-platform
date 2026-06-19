@@ -11,6 +11,7 @@ import {
   Tag,
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { getArtist, getArtists, getArtistGallery } from "../../_data";
 import { formatPence } from "../../_format";
 import styles from "../artists.module.css";
@@ -31,7 +32,7 @@ export async function generateMetadata({
   const artist = await getArtist(slug);
   if (!artist) return { title: "Artist · Boots 'n' Bandit" };
   return {
-    title: `${artist.name} · ${artist.role} · Boots 'n' Bandit`,
+    title: `${artist.name} · ${artistStatusLabel(artist.status)} · Boots 'n' Bandit`,
     description:
       artist.bio ??
       `${artist.name} — ${artist.tag}. Tattoo artist at Boots 'n' Bandit, Worksop.`,
@@ -69,11 +70,11 @@ export default async function ArtistDetailPage({ params }: PageProps) {
               face
               ratio="3/4"
               className={styles.portrait}
-              cap={[artist.name, artist.role]}
+              cap={[artist.name, artistStatusLabel(artist.status)]}
             />
             <div>
               <span className={styles.kicker}>
-                {artist.role}
+                {artistStatusLabel(artist.status)}
                 {artist.experience ? ` · ${artist.experience} experience` : ""}
               </span>
               <h1 className="display chrome" style={{ margin: "0 0 10px" }}>
@@ -131,15 +132,24 @@ export default async function ArtistDetailPage({ params }: PageProps) {
                 </div>
               </div>
             )}
-            <div className={styles.metaBlock}>
-              <h4>Rates</h4>
-              <span className={styles.metaValue}>
-                {artist.rateText ??
-                  (artist.dayRatePence
-                    ? `Day rate ${formatPence(artist.dayRatePence)}`
-                    : "On enquiry")}
-              </span>
-            </div>
+            {(artist.hourlyRatePence != null ||
+              artist.dayRatePence != null) && (
+              <div className={styles.metaBlock}>
+                <h4>Rates</h4>
+                <span className={styles.metaValue}>
+                  {[
+                    artist.hourlyRatePence != null
+                      ? `${formatPence(artist.hourlyRatePence)}/hr`
+                      : null,
+                    artist.dayRatePence != null
+                      ? `Day rate ${formatPence(artist.dayRatePence)}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </div>
+            )}
             {artist.insta && (
               <div className={styles.metaBlock}>
                 <h4>Find them</h4>

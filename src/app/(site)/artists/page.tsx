@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ornDot } from "@/components/site";
 import type { Artist as ArtistProp } from "@/components/site";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { getArtists } from "../_data";
 import { ArtistFilter } from "./ArtistFilter";
 
@@ -15,7 +16,7 @@ export default async function ArtistsPage() {
   const props: ArtistProp[] = artists.map((a) => ({
     id: a.slug,
     name: a.name,
-    role: a.role,
+    role: artistStatusLabel(a.status),
     tag: a.tag,
     books: a.books,
     rating: a.rating ?? undefined,

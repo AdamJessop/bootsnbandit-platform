@@ -4,6 +4,7 @@ import {
   draftToPayload,
   formatPence,
   parsePounds,
+  suggestedPricePounds,
   validateDraft,
   type BookingFormState,
 } from "./booking-form";
@@ -72,6 +73,26 @@ describe("validateDraft", () => {
     expect(
       validateDraft(baseState({ priceEstimatePounds: "" })).priceEstimatePounds,
     ).toBeUndefined();
+  });
+});
+
+describe("suggestedPricePounds", () => {
+  const rates = { hourlyRatePence: 9000, dayRatePence: 55000 };
+
+  it("suggests ceil(hours) × hourly for short sessions", () => {
+    // 90 min → 2 hr → 2 × £90 = £180
+    expect(suggestedPricePounds(rates, 90)).toBe("180.00");
+  });
+
+  it("uses the day rate for 6h+ sessions when set", () => {
+    expect(suggestedPricePounds(rates, 360)).toBe("550.00");
+  });
+
+  it("returns '' when no rate is available", () => {
+    expect(
+      suggestedPricePounds({ hourlyRatePence: null, dayRatePence: null }, 90),
+    ).toBe("");
+    expect(suggestedPricePounds(undefined, 90)).toBe("");
   });
 });
 

@@ -6,7 +6,7 @@ const ARTIST = {
   slug: "sarah",
   name: "Sarah",
   first: "Sarah",
-  role: "Co-owner",
+  status: "CO_OWNER" as const,
   tag: "Fine-line, florals & black-and-grey",
   books: "open" as const,
   rating: 4.9,
@@ -15,9 +15,8 @@ const ARTIST = {
   specials: ["Fine-line", "Floral"],
   bio: "Sarah co-founded the studio in 2016.",
   experience: "14 yrs",
-  rateText: "£90/hr · day rate £550",
   dayRatePence: 55000,
-  hourlyPence: 9000,
+  hourlyRatePence: 9000,
   insta: "@sarah.bnb",
   hue: "crimson",
   headshot: null,
@@ -55,6 +54,11 @@ describe("ArtistDetailPage", () => {
     expect(html).toContain("co-founded");
     expect(html).toContain("Enquire with Sarah");
     expect(html).toContain("Ornamental snake");
+    // Status label (not free-text role) and £ rates from numeric pence.
+    expect(html).toContain("Co-owner");
+    expect(html).toContain("£90"); // hourly 9000p
+    expect(html).toContain("£550"); // day 55000p
+    expect(html).not.toContain("rateText");
   });
 
   it("calls notFound for an unknown slug", async () => {

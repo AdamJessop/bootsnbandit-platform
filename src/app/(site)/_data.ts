@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import type { BooksStatus } from "@/components/site";
+import type { ArtistStatus } from "@/lib/artist-status";
 import { firstName } from "./_format";
 
 /**
@@ -18,7 +19,7 @@ export interface SiteArtist {
   slug: string;
   name: string;
   first: string;
-  role: string;
+  status: ArtistStatus;
   tag: string;
   books: BooksStatus;
   rating: number | null;
@@ -27,9 +28,8 @@ export interface SiteArtist {
   specials: string[];
   bio: string | null;
   experience: string | null;
-  rateText: string | null;
   dayRatePence: number | null;
-  hourlyPence: number | null;
+  hourlyRatePence: number | null;
   insta: string | null;
   hue: string | null;
   headshot: string | null;
@@ -63,18 +63,17 @@ const ARTIST_SELECT = {
   id: true,
   slug: true,
   name: true,
-  role: true,
+  status: true,
   tag: true,
   booksStatus: true,
   rating: true,
   pieces: true,
-  styles: true,
+  styles: { select: { name: true } },
   specials: true,
   bio: true,
   experience: true,
-  rateText: true,
   dayRatePence: true,
-  hourlyPence: true,
+  hourlyRatePence: true,
   insta: true,
   hue: true,
   headshot: true,
@@ -84,18 +83,17 @@ type RawArtist = {
   id: string;
   slug: string;
   name: string;
-  role: string;
+  status: ArtistStatus;
   tag: string | null;
   booksStatus: BooksStatus;
   rating: number | null;
   pieces: number | null;
-  styles: string[];
+  styles: { name: string }[];
   specials: string[];
   bio: string | null;
   experience: string | null;
-  rateText: string | null;
   dayRatePence: number | null;
-  hourlyPence: number | null;
+  hourlyRatePence: number | null;
   insta: string | null;
   hue: string | null;
   headshot: string | null;
@@ -107,18 +105,17 @@ function shapeArtist(r: RawArtist): SiteArtist {
     slug: r.slug,
     name: r.name,
     first: firstName(r.name),
-    role: r.role,
+    status: r.status,
     tag: r.tag ?? "",
     books: r.booksStatus,
     rating: r.rating,
     pieces: r.pieces,
-    styles: r.styles,
+    styles: r.styles.map((s) => s.name),
     specials: r.specials,
     bio: r.bio,
     experience: r.experience,
-    rateText: r.rateText,
     dayRatePence: r.dayRatePence,
-    hourlyPence: r.hourlyPence,
+    hourlyRatePence: r.hourlyRatePence,
     insta: r.insta,
     hue: r.hue,
     headshot: r.headshot,

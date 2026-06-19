@@ -16,8 +16,9 @@ vi.mock("../_data", () => ({
     instagramUrl: null,
   })),
   getArtists: vi.fn(async () => [
-    { slug: "sarah", name: "Sarah", role: "Co-owner", bio: "Sarah co-founded the studio.", headshot: null, hue: "crimson" },
-    { slug: "cal", name: "Calum", role: "Co-owner", bio: "The other half.", headshot: null, hue: "ink" },
+    { slug: "sarah", name: "Sarah", status: "CO_OWNER", bio: "Sarah co-founded the studio.", headshot: null, hue: "crimson" },
+    { slug: "cal", name: "Calum", status: "CO_OWNER", bio: "The other half.", headshot: null, hue: "ink" },
+    { slug: "tom", name: "Tom", status: "APPRENTICE", bio: "Learning the ropes.", headshot: null, hue: "teal" },
   ]),
 }));
 
@@ -31,6 +32,10 @@ describe("StudioPage", () => {
     expect(html).toContain("Tue");
     expect(html).toContain("Sarah");
     expect(html).toContain("Calum");
+    // Founders are filtered by CO_OWNER status; the apprentice is excluded and
+    // the co-owner status label is rendered.
+    expect(html).not.toContain("Tom");
+    expect(html).toContain("Co-owner");
     expect(html).toContain("Spotless");
     expect(html).toContain("Gift vouchers");
     expect(html).toContain("google.com/maps");

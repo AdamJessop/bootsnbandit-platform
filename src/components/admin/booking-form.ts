@@ -6,6 +6,11 @@
  * component stays a thin shell around them.
  */
 
+import {
+  suggestSessionPricePence,
+  type ArtistRates,
+} from "@/lib/pricing";
+
 export type BookingType = "consult" | "session" | "flash";
 export type BookingStatus =
   | "enquiry"
@@ -39,6 +44,21 @@ export const DURATION_OPTIONS = [30, 60, 90, 120, 180, 240, 360] as const;
 /** Integer pence → "£123.45". */
 export function formatPence(pence: number): string {
   return `£${(pence / 100).toFixed(2)}`;
+}
+
+/**
+ * Suggest an editable price-estimate string (pounds, e.g. "180.00") for a
+ * selected artist + session duration. Empty string when no rate is available,
+ * which the drawer leaves the field blank for. Wraps the shared
+ * `suggestSessionPricePence` helper.
+ */
+export function suggestedPricePounds(
+  rates: ArtistRates | null | undefined,
+  durationMin: number,
+): string {
+  if (!rates) return "";
+  const pence = suggestSessionPricePence(rates, durationMin);
+  return pence != null ? (pence / 100).toFixed(2) : "";
 }
 
 /** "£12.50" / "120" → integer pence, or null when blank/invalid. */

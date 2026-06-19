@@ -35,6 +35,7 @@ import {
   draftToPayload,
   formatPence,
   parsePounds,
+  suggestedPricePounds,
   validateDraft,
   type BookingFormState,
   type BookingPayload,
@@ -52,6 +53,9 @@ export type { BookingDraft } from "./booking-drawer-state";
 export interface NamedOption {
   id: string;
   name: string;
+  /** Artist rates (optional) — drive the session price suggestion. */
+  hourlyRatePence?: number | null;
+  dayRatePence?: number | null;
 }
 
 export interface BookingDrawerProps {
@@ -105,6 +109,27 @@ export function BookingDrawer({
       setFormError(null);
     }
   }, [open, booking, defaultArtistId]);
+
+  // Pre-fill the (still editable) price estimate from the selected artist's
+  // rates + duration. Only seeds when the field is blank so a typed override is
+  // never clobbered.
+  useEffect(() => {
+    const artist = artists.find((a) => a.id === state.artistId);
+    if (!artist) return;
+    const suggestion = suggestedPricePounds(
+      {
+        hourlyRatePence: artist.hourlyRatePence,
+        dayRatePence: artist.dayRatePence,
+      },
+      state.durationMins,
+    );
+    if (!suggestion) return;
+    setState((s) =>
+      s.priceEstimatePounds.trim() === ""
+        ? { ...s, priceEstimatePounds: suggestion }
+        : s,
+    );
+  }, [artists, state.artistId, state.durationMins]);
 
   const isEdit = Boolean(booking?.id);
   const pricePreview = useMemo(() => {

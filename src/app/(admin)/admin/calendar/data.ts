@@ -20,6 +20,9 @@ export interface ArtistLite {
   name: string;
   hue: string | null;
   booksStatus: string;
+  /** Numeric rates feed the booking-drawer price suggestion. */
+  hourlyRatePence: number | null;
+  dayRatePence: number | null;
 }
 
 /** Artists the signed-in user may view/switch between. */
@@ -31,13 +34,22 @@ export async function loadArtistsForUser(
   const artists = await prisma.artist.findMany({
     where,
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, hue: true, booksStatus: true },
+    select: {
+      id: true,
+      name: true,
+      hue: true,
+      booksStatus: true,
+      hourlyRatePence: true,
+      dayRatePence: true,
+    },
   });
   return artists.map((a) => ({
     id: a.id,
     name: a.name,
     hue: a.hue,
     booksStatus: a.booksStatus,
+    hourlyRatePence: a.hourlyRatePence,
+    dayRatePence: a.dayRatePence,
   }));
 }
 

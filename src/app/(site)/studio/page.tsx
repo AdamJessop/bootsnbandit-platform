@@ -11,6 +11,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { ornDot, SectionHead, Plate, Field } from "@/components/site";
+import { artistStatusLabel } from "@/lib/artist-status";
 import { getSiteSettings, getArtists } from "../_data";
 import styles from "./studio.module.css";
 
@@ -49,7 +50,7 @@ export default async function StudioPage() {
     getArtists(),
   ]);
 
-  const founders = artists.filter((a) => a.role.toLowerCase().includes("owner"));
+  const founders = artists.filter((a) => a.status === "CO_OWNER");
   const address = [
     settings?.addressLine,
     settings?.city,
@@ -116,7 +117,7 @@ export default async function StudioPage() {
                 />
                 <div>
                   <h3 className="chrome">{f.name}</h3>
-                  <span className="meta">{f.role}</span>
+                  <span className="meta">{artistStatusLabel(f.status)}</span>
                   {f.bio && <p>{f.bio}</p>}
                 </div>
               </div>
