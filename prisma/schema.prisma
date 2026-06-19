@@ -113,6 +113,43 @@ model User {
   @@index([role])
 }
 
+// Short-lived WebAuthn challenge store (registration + authentication).
+// Rows are created when options are generated and consumed (deleted) on verify.
+// `userId` is set for registration (enrolment) flows; null for the email-first
+// authentication flow where the challenge is keyed by handle instead.
+enum WebAuthnCeremony {
+  registration
+  authentication
+}
+
+model WebAuthnChallenge {
+  id        String           @id @default(cuid())
+  handle    String           @unique // opaque cookie id tying browser to challenge
+  challenge String // base64url challenge issued to the browser
+  ceremony  WebAuthnCeremony
+  userId    String? // set for registration; the user enrolling a passkey
+  email     String? // set for authentication; the email being signed in
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+
+  @@index([expiresAt])
+}
+
+// Owner-minted staff invite. Token only — Phase 11 sends the email. Redeeming
+// the token lets the invitee enrol their first passkey for the linked user.
+model StaffInvite {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  email      String
+  role       Role      @default(ARTIST)
+  userId     String? // user created/linked when the invite is minted
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email])
+}
+
 // WebAuthn credential (one user may have many passkeys)
 model Authenticator {
   id                   String   @id @default(cuid())

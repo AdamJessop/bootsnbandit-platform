@@ -1,13 +1,17 @@
 import { AppShell } from "@/components/admin/AppShell";
+import { requireRole } from "@/lib/auth";
+import type { AdminRole } from "@/lib/admin-nav";
 
 /**
- * Staff PWA shell — (admin) route group. Wraps every back-of-house screen in
- * the responsive AppShell (sidebar + top bar + mobile bottom-nav), driven by
- * the admin-nav registry. Role is hard-coded to "owner" until auth lands in
- * Wave 3; swap to the session role then.
+ * Staff PWA shell — (admin) route group. Every back-of-house screen requires a
+ * signed-in staff user (requireRole redirects to /sign-in otherwise). The
+ * session role (OWNER/ARTIST) is mapped to the AppShell's AdminRole so nav is
+ * correctly scoped per user.
  */
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <AppShell role="owner">{children}</AppShell>;
+  const user = await requireRole();
+  const role: AdminRole = user.role === "OWNER" ? "owner" : "artist";
+  return <AppShell role={role}>{children}</AppShell>;
 }
