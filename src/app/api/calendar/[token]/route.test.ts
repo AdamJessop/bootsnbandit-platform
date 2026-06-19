@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const feedFindFirst = vi.fn();
 const bookingFindMany = vi.fn();
 
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     calendarFeed: {
       findFirst: (...a: unknown[]) => feedFindFirst(...a),

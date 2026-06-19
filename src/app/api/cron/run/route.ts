@@ -1,5 +1,5 @@
-import { runAllCron } from "@/lib/cron";
-import { json } from "../../_lib/http";
+import { runAllCron } from "@bnb/core/cron";
+import { json } from "@bnb/core/http";
 
 /**
  * POST /api/cron/run — runs every CRM cron automation (reminders, review

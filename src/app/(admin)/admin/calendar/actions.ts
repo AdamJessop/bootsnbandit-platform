@@ -1,12 +1,12 @@
 "use server";
 
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 import {
   BookingConflictError,
   createBooking,
   updateBooking,
   type CreateBookingInput,
-} from "@/lib/services/bookings";
+} from "@bnb/core/services/bookings";
 
 /**
  * Server actions for the calendar/front-desk surfaces (Phase 9). These persist

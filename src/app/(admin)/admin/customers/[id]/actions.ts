@@ -7,8 +7,8 @@
  * customers they have a booking with (PII guard).
  */
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import { validateManualEmail, validateNotes } from "./action-helpers";
 
 async function assertCanAccessCustomer(

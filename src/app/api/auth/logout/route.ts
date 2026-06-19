@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clearSessionCookie } from "@/lib/auth/cookies";
+import { clearSessionCookie } from "@bnb/core/auth/cookies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { artistStatusLabel } from "@/lib/artist-status";
+import { artistStatusLabel } from "@bnb/core/artist-status";
 import { ArtistForm } from "./ArtistForm";
 import {
   draftToFormData,

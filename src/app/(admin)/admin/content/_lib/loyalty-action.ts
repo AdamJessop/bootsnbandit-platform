@@ -2,8 +2,8 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { prisma } from "@bnb/core/db";
+import { requireRole } from "@bnb/core/auth";
 import { parseLoyaltyForm } from "./loyalty-form";
 
 /**

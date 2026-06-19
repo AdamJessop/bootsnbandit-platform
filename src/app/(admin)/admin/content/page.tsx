@@ -10,7 +10,7 @@ import {
   Settings,
   ArrowRight,
 } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 
 /**
  * Content CMS hub (BACKOFHOUSE-IA J). Owner-only. Links to each manageable

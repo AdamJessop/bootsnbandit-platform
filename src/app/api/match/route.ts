@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { prisma } from "@/lib/db";
+import { prisma } from "@bnb/core/db";
 import {
   matchArtists,
   toMatchArtist,
   type MatchAnswers,
-} from "@/lib/services/match";
-import { handleApiError, json, parseBody } from "../_lib/http";
+} from "@bnb/core/services/match";
+import { handleApiError, json, parseBody } from "@bnb/core/http";
 
 /**
  * POST /api/match — public Inkling Style Matcher.

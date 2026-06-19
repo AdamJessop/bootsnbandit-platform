@@ -10,14 +10,14 @@ const feedUpdate = vi.fn();
 const authFindFirst = vi.fn();
 const authDelete = vi.fn();
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   getCurrentUser: (...a: unknown[]) => getCurrentUser(...a),
 }));
-vi.mock("@/lib/auth/tokens", () => ({ generateToken: () => "NEWTOKEN" }));
+vi.mock("@bnb/core/auth/tokens", () => ({ generateToken: () => "NEWTOKEN" }));
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     artist: { update: artistUpdate },
     calendarFeed: { upsert: feedUpsert, update: feedUpdate },

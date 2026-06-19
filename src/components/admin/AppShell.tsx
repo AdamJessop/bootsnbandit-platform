@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Crown, Search, UserCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import {
   visibleNavItems,
   bottomNavItems,

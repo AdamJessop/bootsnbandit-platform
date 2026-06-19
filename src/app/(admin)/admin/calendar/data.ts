@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/db";
-import { listBookings } from "@/lib/services/bookings";
-import { listLeave } from "@/lib/services/leave";
-import type { SessionUser } from "@/lib/auth";
+import { prisma } from "@bnb/core/db";
+import { listBookings } from "@bnb/core/services/bookings";
+import { listLeave } from "@bnb/core/services/leave";
+import type { SessionUser } from "@bnb/core/auth";
 import type {
   CalendarEvent,
   CalendarLeave,

@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 import {
   createEnquiry,
   listEnquiries,
   type CreateEnquiryInput,
-} from "@/lib/services/enquiries";
-import { handleApiError, json, parseBody, parseQuery } from "../_lib/http";
+} from "@bnb/core/services/enquiries";
+import { handleApiError, json, parseBody, parseQuery } from "@bnb/core/http";
 
 /**
  * /api/enquiries

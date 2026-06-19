@@ -2,6 +2,10 @@
   "name": "bootsnbandit",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,10 +15,10 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:generate": "prisma generate --schema=packages/core/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=packages/core/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=packages/core/prisma/schema.prisma",
+    "db:seed": "tsx packages/core/prisma/seed.ts",
     "admin:link": "tsx scripts/admin-link.ts"
   },
   "dependencies": {
@@ -59,6 +63,6 @@
     "vitest": "^4.1.9"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx packages/core/prisma/seed.ts"
   }
 }

@@ -1,6 +1,6 @@
-import { requireRole } from "@/lib/auth";
-import { renderEmail } from "@/lib/email/render";
-import type { EmailType } from "@/lib/email";
+import { requireRole } from "@bnb/core/auth";
+import { renderEmail } from "@bnb/core/email/render";
+import type { EmailType } from "@bnb/core/email";
 
 /**
  * Studio › Email templates (K3). Owner-only. Previews each transactional

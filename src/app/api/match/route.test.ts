@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { closeTestDb, dbReachable } from "@/lib/services/testdb";
+import { closeTestDb, dbReachable } from "@bnb/core/services/testdb";
 import { POST } from "./route";
 
 describe("POST /api/match (public)", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveActiveArtist, type ArtistLite } from "./data";
-import type { SessionUser } from "@/lib/auth";
+import type { SessionUser } from "@bnb/core/auth";
 
 const artists: ArtistLite[] = [
   {

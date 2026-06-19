@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@bnb/core/db";
 import { ReviewForm } from "./ReviewForm";
 
 /**

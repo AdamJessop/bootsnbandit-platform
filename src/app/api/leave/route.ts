@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
-import { createLeave, listLeave } from "@/lib/services/leave";
+import { requireRole } from "@bnb/core/auth";
+import { createLeave, listLeave } from "@bnb/core/services/leave";
 import {
   ApiError,
   handleApiError,
   json,
   parseBody,
   parseQuery,
-} from "../_lib/http";
+} from "@bnb/core/http";
 
 /**
  * /api/leave (admin) — declare + list artist leave. Approved leave blocks

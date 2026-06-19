@@ -8,10 +8,10 @@ import {
   Banknote,
   Armchair,
 } from "lucide-react";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@bnb/core/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { reportOverview } from "@/lib/services/reports";
+import { prisma } from "@bnb/core/db";
+import { reportOverview } from "@bnb/core/services/reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPence } from "@/components/admin/booking-form";
 

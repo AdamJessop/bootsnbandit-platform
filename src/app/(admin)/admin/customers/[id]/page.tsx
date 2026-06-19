@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { CustomerTimeline } from "@/components/admin/CustomerTimeline";

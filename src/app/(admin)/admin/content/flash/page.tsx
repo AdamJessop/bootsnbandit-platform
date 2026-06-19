@@ -1,5 +1,5 @@
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import { CrudSection, type CrudField } from "../_components/CrudSection";
 import { createRow, deleteRow, updateRow, type CrudConfig } from "../_lib/crud";
 import type { FieldSpec } from "../_lib/coerce";

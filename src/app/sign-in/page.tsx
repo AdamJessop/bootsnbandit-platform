@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@bnb/core/auth";
 import { Mark } from "@/components/site/Mark";
 import { SignInForm } from "./SignInForm";
 

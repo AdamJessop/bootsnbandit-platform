@@ -1,6 +1,6 @@
 import { CheckCircle2, XCircle, CalendarClock, Mail, Calendar } from "lucide-react";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 
 /**
  * Studio › Integrations (K4). Owner-only. Shows per-artist iCal feed status

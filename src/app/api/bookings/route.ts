@@ -1,17 +1,17 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 import {
   createBooking,
   listBookings,
   type CreateBookingInput,
-} from "@/lib/services/bookings";
+} from "@bnb/core/services/bookings";
 import {
   ApiError,
   handleApiError,
   json,
   parseBody,
   parseQuery,
-} from "../_lib/http";
+} from "@bnb/core/http";
 
 /**
  * /api/bookings (admin). Requires a signed-in staff user.

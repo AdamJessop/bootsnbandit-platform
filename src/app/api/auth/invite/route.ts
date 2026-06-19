@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
-import { mintStaffInvite } from "@/lib/auth/invite";
+import { requireRole } from "@bnb/core/auth";
+import { mintStaffInvite } from "@bnb/core/auth/invite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { startAuthentication } from "@/lib/auth/webauthn";
+import { startAuthentication } from "@bnb/core/auth/webauthn";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 
 /**
  * Heritage scrim + modal. Closes on backdrop click and Escape. `wide` widens

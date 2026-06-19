@@ -1,7 +1,7 @@
 import { KeyRound, RefreshCw, Trash2, CalendarClock } from "lucide-react";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { getAuthConfig } from "@/lib/auth/config";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
+import { getAuthConfig } from "@bnb/core/auth/config";
 import { Button } from "@/components/ui/button";
 import {
   ProfileEditor,

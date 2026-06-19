@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const runAllCron = vi.fn();
-vi.mock("@/lib/cron", () => ({ runAllCron: (...a: unknown[]) => runAllCron(...a) }));
+vi.mock("@bnb/core/cron", () => ({ runAllCron: (...a: unknown[]) => runAllCron(...a) }));
 
 import { POST } from "./route";
 

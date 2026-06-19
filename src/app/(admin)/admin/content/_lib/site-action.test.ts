@@ -6,11 +6,11 @@ const upsert = vi.fn();
 const revalidatePath = vi.fn();
 const requireRole = vi.fn();
 
-vi.mock("@/lib/db", () => ({ prisma: { siteSettings: { upsert } } }));
+vi.mock("@bnb/core/db", () => ({ prisma: { siteSettings: { upsert } } }));
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: (...a: unknown[]) => requireRole(...a),
 }));
 

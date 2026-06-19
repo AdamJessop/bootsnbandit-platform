@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { closeTestDb, dbReachable, testDb, uid } from "@/lib/services/testdb";
+import { closeTestDb, dbReachable, testDb, uid } from "@bnb/core/services/testdb";
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({
     id: "u1",
     email: "o@x",
@@ -10,11 +10,11 @@ vi.mock("@/lib/auth", () => ({
   })),
   getCurrentUser: vi.fn(async () => null),
 }));
-vi.mock("@/lib/email", () => ({
+vi.mock("@bnb/core/email", () => ({
   sendEmail: vi.fn(async () => ({ id: "msg", status: "sent" })),
 }));
 
-const { requireRole } = await import("@/lib/auth");
+const { requireRole } = await import("@bnb/core/auth");
 const asArtist = (artistId: string | null) =>
   vi.mocked(requireRole).mockResolvedValueOnce({
     id: "a1",

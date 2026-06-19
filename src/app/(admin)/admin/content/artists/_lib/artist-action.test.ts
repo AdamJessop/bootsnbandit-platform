@@ -8,13 +8,13 @@ const artistUpdate = vi.fn();
 const artistDelete = vi.fn();
 const transaction = vi.fn();
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: (...a: unknown[]) => requireRole(...a),
 }));
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     artist: { update: artistUpdate, delete: artistDelete },
     $transaction: (...a: unknown[]) => transaction(...a),

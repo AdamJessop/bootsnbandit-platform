@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({
     id: "u1",
     email: "sarah@studio.test",
@@ -10,10 +10,10 @@ vi.mock("@/lib/auth", () => ({
     artistId: "art1",
   })),
 }));
-vi.mock("@/lib/auth/config", () => ({
+vi.mock("@bnb/core/auth/config", () => ({
   getAuthConfig: () => ({ origin: "http://localhost:3000" }),
 }));
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     artist: {
       findUnique: vi.fn(async () => ({

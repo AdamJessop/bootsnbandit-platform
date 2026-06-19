@@ -10,7 +10,7 @@ const requireRole = vi.fn();
 const writeFile = vi.fn();
 const mkdir = vi.fn();
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: (...args: unknown[]) => requireRole(...args),
 }));
 

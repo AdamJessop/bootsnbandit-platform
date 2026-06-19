@@ -16,7 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import { CalendarGrid, type CalendarEvent } from "@/components/admin/CalendarGrid";
 import {
   BookingDrawer,

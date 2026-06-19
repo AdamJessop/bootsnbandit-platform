@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { claimFlash } from "@/lib/services/flash";
-import { handleApiError, json, parseBody } from "../_lib/http";
+import { claimFlash } from "@bnb/core/services/flash";
+import { handleApiError, json, parseBody } from "@bnb/core/http";
 
 /**
  * POST /api/flash — public flash claim. Unauthenticated.

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 
 /**
  * Boots 'n' Bandit brand mark — an 8-point heritage star.

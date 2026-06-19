@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import { booksLabel, type BooksStatus } from "./books";
 
 /**

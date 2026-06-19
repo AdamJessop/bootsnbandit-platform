@@ -22,7 +22,7 @@ import {
   type Artist as ArtistProp,
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
-import { artistStatusLabel } from "@/lib/artist-status";
+import { artistStatusLabel } from "@bnb/core/artist-status";
 import { getArtists, getGallery, getFlash } from "./_data";
 import { formatPence } from "./_format";
 import { PassportCard } from "./passport/PassportCard";

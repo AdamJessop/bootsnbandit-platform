@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
-import { requireRole } from "@/lib/auth";
+import { prisma } from "@bnb/core/db";
+import { requireRole } from "@bnb/core/auth";
 import { coerceArtist, slugify } from "./artist-form";
 
 /**

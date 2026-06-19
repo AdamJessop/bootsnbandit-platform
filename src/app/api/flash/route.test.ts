@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { closeTestDb, dbReachable, testDb, uid } from "@/lib/services/testdb";
+import { closeTestDb, dbReachable, testDb, uid } from "@bnb/core/services/testdb";
 
-vi.mock("@/lib/email", () => ({
+vi.mock("@bnb/core/email", () => ({
   sendEmail: vi.fn(async () => ({ id: "msg", status: "sent" })),
 }));
 

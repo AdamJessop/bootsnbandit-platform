@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Award, Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import { SITE_NAV, STUDIO } from "@/lib/site-nav";
 import { Mark } from "./Mark";
 

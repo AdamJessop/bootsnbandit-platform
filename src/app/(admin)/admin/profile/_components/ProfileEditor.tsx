@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { artistStatusLabel, type ArtistStatus } from "@/lib/artist-status";
+import { artistStatusLabel, type ArtistStatus } from "@bnb/core/artist-status";
 
 /**
  * Own artist profile + portfolio editor (L1). The signed-in artist edits their

@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
  * side. Runs against a live, migrated Postgres; skips gracefully when
  * DATABASE_URL is unset/unreachable so `npm test` never breaks without a DB.
  *
- * Only the auth gate + revalidate are mocked; `@/lib/db` (real prisma) is used.
+ * Only the auth gate + revalidate are mocked; `@bnb/core/db` (real prisma) is used.
  */
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({ id: "o", role: "OWNER" })),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -30,12 +30,12 @@ const TEST_EMAIL = `int-test-${Date.now()}@example.test`;
 const TEST_SLUG = `int-test-${Date.now()}`;
 
 d("createArtist (integration)", () => {
-  let prisma: typeof import("@/lib/db").prisma;
+  let prisma: typeof import("@bnb/core/db").prisma;
   let styleId: string | undefined;
   let reachable = false;
 
   beforeAll(async () => {
-    ({ prisma } = await import("@/lib/db"));
+    ({ prisma } = await import("@bnb/core/db"));
     try {
       const style = await prisma.tattooStyle.findFirst({
         select: { id: true },

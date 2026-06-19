@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 
 /**
  * Filter / selection chip. `on` highlights it (crimson, or gold with the

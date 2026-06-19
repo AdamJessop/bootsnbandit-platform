@@ -4,7 +4,7 @@ import { KeyRound, UserPlus, Trash2, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { artistStatusLabel, type ArtistStatus } from "@/lib/artist-status";
+import { artistStatusLabel, type ArtistStatus } from "@bnb/core/artist-status";
 
 /**
  * Studio › Staff manager (K1). Invite form (mints + emails an invite) plus a

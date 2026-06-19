@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { artistStatusLabel } from "@/lib/artist-status";
+import { prisma } from "@bnb/core/db";
+import { artistStatusLabel } from "@bnb/core/artist-status";
 import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
 
 /**

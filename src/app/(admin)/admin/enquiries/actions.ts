@@ -7,10 +7,10 @@
  * leave) surface as a 409-style message.
  */
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { BookingConflictError, createBooking } from "@/lib/services/bookings";
-import { updateEnquiryStatus } from "@/lib/services/enquiries";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
+import { BookingConflictError, createBooking } from "@bnb/core/services/bookings";
+import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import { buildConvertInput, validateReply } from "./enquiry-helpers";
 import type { BookingType } from "@prisma/client";
 

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({ id: "o1", role: "OWNER" })),
 }));
-vi.mock("@/lib/email/render", () => ({
+vi.mock("@bnb/core/email/render", () => ({
   renderEmail: vi.fn(async (type: string) => ({
     subject: `${type} subject`,
     html: `<p>${type} body</p>`,

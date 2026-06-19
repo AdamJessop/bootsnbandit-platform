@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
-import { reportOverview } from "@/lib/services/reports";
-import { ApiError, handleApiError, json, parseQuery } from "../_lib/http";
+import { requireRole } from "@bnb/core/auth";
+import { reportOverview } from "@bnb/core/services/reports";
+import { ApiError, handleApiError, json, parseQuery } from "@bnb/core/http";
 
 /**
  * GET /api/reports (admin) — bookings/capacity/revenue overview for a date

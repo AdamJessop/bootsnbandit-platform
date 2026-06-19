@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/admin/AppShell";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 import type { AdminRole } from "@/lib/admin-nav";
 
 /**

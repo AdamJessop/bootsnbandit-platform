@@ -11,10 +11,10 @@ vi.mock("server-only", () => ({}));
 const mintStaffInvite = vi.fn();
 const sendEmail = vi.fn();
 
-vi.mock("@/lib/auth/invite", () => ({
+vi.mock("@bnb/core/auth/invite", () => ({
   mintStaffInvite: (...a: unknown[]) => mintStaffInvite(...a),
 }));
-vi.mock("@/lib/email", () => ({
+vi.mock("@bnb/core/email", () => ({
   sendEmail: (...a: unknown[]) => sendEmail(...a),
 }));
 

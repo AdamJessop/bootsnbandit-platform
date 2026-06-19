@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { completeSession } from "@/lib/services/sessions";
-import { ApiError, handleApiError, json, parseBody } from "../_lib/http";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
+import { completeSession } from "@bnb/core/services/sessions";
+import { ApiError, handleApiError, json, parseBody } from "@bnb/core/http";
 
 /**
  * POST /api/sessions (admin) — complete a session.

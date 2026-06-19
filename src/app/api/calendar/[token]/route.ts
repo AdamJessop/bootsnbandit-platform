@@ -1,6 +1,6 @@
 import type { BookingStatus } from "@prisma/client";
-import { prisma } from "@/lib/db";
-import { buildArtistCalendar, type FeedBooking } from "@/lib/calendar/ical";
+import { prisma } from "@bnb/core/db";
+import { buildArtistCalendar, type FeedBooking } from "@bnb/core/calendar/ical";
 
 /**
  * GET /api/calendar/<token>.ics — public per-artist iCal subscribe feed (P12).

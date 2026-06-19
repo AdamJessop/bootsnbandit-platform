@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { requireRole } from "@/lib/auth";
-import { handleApiError, json, jsonError } from "../_lib/http";
+import { requireRole } from "@bnb/core/auth";
+import { handleApiError, json, jsonError } from "@bnb/core/http";
 
 /**
  * POST /api/uploads — owner-gated image upload for the content CMS

@@ -1,16 +1,16 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 import {
   listAvailabilityRules,
   setAvailabilityRules,
-} from "@/lib/services/availability";
+} from "@bnb/core/services/availability";
 import {
   ApiError,
   handleApiError,
   json,
   parseBody,
   parseQuery,
-} from "../_lib/http";
+} from "@bnb/core/http";
 
 /**
  * /api/availability (admin) — read + replace an artist's weekly pattern.

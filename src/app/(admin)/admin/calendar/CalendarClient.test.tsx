@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 // CalendarClient pulls in the server actions module transitively, which imports
 // the server-only auth helper. Stub it so the module graph loads in node.
-vi.mock("@/lib/auth", () => ({ requireRole: vi.fn() }));
-vi.mock("@/lib/services/bookings", () => ({
+vi.mock("@bnb/core/auth", () => ({ requireRole: vi.fn() }));
+vi.mock("@bnb/core/services/bookings", () => ({
   BookingConflictError: class extends Error {},
   createBooking: vi.fn(),
   updateBooking: vi.fn(),

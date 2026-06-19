@@ -4,7 +4,7 @@
  */
 
 import { penceToPounds } from "../_lib/artist-form";
-import type { ArtistStatus } from "@/lib/artist-status";
+import type { ArtistStatus } from "@bnb/core/artist-status";
 
 export interface StyleOption {
   id: string;

@@ -9,13 +9,13 @@ const del = vi.fn();
 const revalidatePath = vi.fn();
 const requireRole = vi.fn();
 
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: { faq: { create, update, delete: del } },
 }));
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: (...a: unknown[]) => requireRole(...a),
 }));
 

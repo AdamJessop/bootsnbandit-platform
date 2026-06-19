@@ -1,5 +1,5 @@
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import { SiteEditor, type SiteEditorValues } from "../_components/SiteEditor";
 import { saveSite } from "../_lib/site-action";
 

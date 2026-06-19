@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Users, Armchair, Mail, Plug, ArrowRight } from "lucide-react";
-import { requireRole } from "@/lib/auth";
+import { requireRole } from "@bnb/core/auth";
 
 /** Studio admin hub (BACKOFHOUSE-IA K). Owner-only. */
 export const dynamic = "force-dynamic";

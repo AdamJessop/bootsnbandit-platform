@@ -5,7 +5,7 @@
  * prisma-shaped profile payload plus the selected style ids and the User halves.
  */
 
-import type { ArtistStatus } from "@/lib/artist-status";
+import type { ArtistStatus } from "@bnb/core/artist-status";
 
 export type AccessRole = "OWNER" | "ARTIST";
 export type BooksStatus = "open" | "limited" | "closed";

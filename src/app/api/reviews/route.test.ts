@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const findUnique = vi.fn();
 const update = vi.fn();
 
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     review: {
       findUnique: (...args: unknown[]) => findUnique(...args),

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   CalendarClient: vi.fn<(props: Record<string, unknown>) => null>(),
 }));
 
-vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
+vi.mock("@bnb/core/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("./CalendarClient", () => ({ CalendarClient: mocks.CalendarClient }));
 vi.mock("./data", () => ({

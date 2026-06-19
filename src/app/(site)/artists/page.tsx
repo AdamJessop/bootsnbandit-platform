@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ornDot } from "@/components/site";
 import type { Artist as ArtistProp } from "@/components/site";
-import { artistStatusLabel } from "@/lib/artist-status";
+import { artistStatusLabel } from "@bnb/core/artist-status";
 import { getArtists } from "../_data";
 import { ArtistFilter } from "./ArtistFilter";
 

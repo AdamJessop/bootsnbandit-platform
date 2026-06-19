@@ -11,7 +11,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { ornDot, SectionHead, Plate, Field } from "@/components/site";
-import { artistStatusLabel } from "@/lib/artist-status";
+import { artistStatusLabel } from "@bnb/core/artist-status";
 import { getSiteSettings, getArtists } from "../_data";
 import styles from "./studio.module.css";
 

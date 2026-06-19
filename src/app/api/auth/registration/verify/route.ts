@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { finishRegistration } from "@/lib/auth/webauthn";
-import { getCurrentUser } from "@/lib/auth";
-import { resolveInvite, markInviteRedeemed } from "@/lib/auth/invite";
+import { finishRegistration } from "@bnb/core/auth/webauthn";
+import { getCurrentUser } from "@bnb/core/auth";
+import { resolveInvite, markInviteRedeemed } from "@bnb/core/auth/invite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

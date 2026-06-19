@@ -1,4 +1,4 @@
-import { json } from "../../_lib/http";
+import { json } from "@bnb/core/http";
 
 /**
  * GET /api/integrations/google — Google Calendar connect STUB (P12).

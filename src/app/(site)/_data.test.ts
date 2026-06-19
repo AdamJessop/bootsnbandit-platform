@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 // the db + `server-only` so we can assert it exposes the expected query helpers
 // without needing a live database in the unit-test run.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({ prisma: {} }));
+vi.mock("@bnb/core/db", () => ({ prisma: {} }));
 
 describe("_data module surface", () => {
   it("exports the page data-access helpers", async () => {

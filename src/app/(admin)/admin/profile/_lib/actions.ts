@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { generateToken } from "@/lib/auth/tokens";
+import { prisma } from "@bnb/core/db";
+import { getCurrentUser } from "@bnb/core/auth";
+import { generateToken } from "@bnb/core/auth/tokens";
 
 /**
  * My Profile server actions (L). Self-scoped: each action resolves the signed-in

@@ -1,7 +1,7 @@
 import { endOfDay, format, startOfDay, subDays } from "date-fns";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { reportOverview } from "@/lib/services/reports";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
+import { reportOverview } from "@bnb/core/services/reports";
 import {
   bookingsByStatusData,
   capacityByArtistData,

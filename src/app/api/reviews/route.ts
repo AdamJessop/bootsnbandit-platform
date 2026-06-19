@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { prisma } from "@/lib/db";
-import { ApiError, handleApiError, json, parseBody } from "../_lib/http";
+import { prisma } from "@bnb/core/db";
+import { ApiError, handleApiError, json, parseBody } from "@bnb/core/http";
 
 /**
  * POST /api/reviews — public review capture from `/review/[token]`.

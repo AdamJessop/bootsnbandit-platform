@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ARTIST_STATUS_OPTIONS, type ArtistStatus } from "@/lib/artist-status";
+import { ARTIST_STATUS_OPTIONS, type ArtistStatus } from "@bnb/core/artist-status";
 import { BOOKS_OPTIONS, type Draft, type StyleOption } from "./artist-draft";
 
 /**

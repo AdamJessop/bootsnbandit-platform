@@ -1,7 +1,7 @@
 import "server-only";
-import { prisma } from "@/lib/db";
+import { prisma } from "@bnb/core/db";
 import type { BooksStatus } from "@/components/site";
-import type { ArtistStatus } from "@/lib/artist-status";
+import type { ArtistStatus } from "@bnb/core/artist-status";
 import { firstName } from "./_format";
 
 /**

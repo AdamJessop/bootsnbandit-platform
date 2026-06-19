@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import {
   GRID_START_HOUR,
   PX_PER_MIN,

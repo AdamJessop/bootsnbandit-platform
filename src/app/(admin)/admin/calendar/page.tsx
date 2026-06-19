@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@bnb/core/auth";
 import { redirect } from "next/navigation";
 import type { CalendarView } from "@/components/admin/CalendarGrid";
 import { CalendarClient } from "./CalendarClient";

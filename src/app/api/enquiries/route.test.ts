@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { closeTestDb, dbReachable, testDb, uid } from "@/lib/services/testdb";
+import { closeTestDb, dbReachable, testDb, uid } from "@bnb/core/services/testdb";
 
-vi.mock("@/lib/email", () => ({
+vi.mock("@bnb/core/email", () => ({
   sendEmail: vi.fn(async () => ({ id: "msg", status: "sent" })),
 }));
 // Admin GET requires an OWNER; stub the auth contract.
@@ -20,7 +20,7 @@ const requireRole = vi.fn(
     artistId: null,
   }),
 );
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole,
   getCurrentUser: vi.fn(async () => null),
 }));

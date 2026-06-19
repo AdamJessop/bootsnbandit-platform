@@ -1,7 +1,7 @@
 import "server-only";
 import type { Role } from "@prisma/client";
-import { mintStaffInvite, type MintedInvite } from "@/lib/auth/invite";
-import { sendEmail } from "@/lib/email";
+import { mintStaffInvite, type MintedInvite } from "@bnb/core/auth/invite";
+import { sendEmail } from "@bnb/core/email";
 
 /**
  * Staff-invite orchestration (Studio › Staff, K1). Mints a `StaffInvite` token

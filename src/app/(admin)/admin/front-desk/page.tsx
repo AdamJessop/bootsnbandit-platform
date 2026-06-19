@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@bnb/core/auth";
 import { redirect } from "next/navigation";
 import { FrontDeskClient } from "./FrontDeskClient";
 import { loadDeskArtists } from "./data";

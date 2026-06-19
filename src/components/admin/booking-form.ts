@@ -9,7 +9,7 @@
 import {
   suggestSessionPricePence,
   type ArtistRates,
-} from "@/lib/pricing";
+} from "@bnb/core/pricing";
 
 export type BookingType = "consult" | "session" | "flash";
 export type BookingStatus =

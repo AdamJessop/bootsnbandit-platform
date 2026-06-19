@@ -1,0 +1,18 @@
+{
+  "name": "Boots 'n' Bandit Studio",
+  "short_name": "B'n'B Studio",
+  "description": "Boots 'n' Bandit staff back-of-house.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#c92f4d",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}

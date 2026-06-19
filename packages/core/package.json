@@ -1,0 +1,51 @@
+{
+  "name": "@bnb/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./db": "./src/db.ts",
+    "./db/*": "./src/db/*.ts",
+    "./services": "./src/services/index.ts",
+    "./services/*": "./src/services/*.ts",
+    "./auth": "./src/auth/index.ts",
+    "./auth/*": "./src/auth/*.ts",
+    "./email": "./src/email/index.ts",
+    "./email/*": "./src/email/*.ts",
+    "./email/templates/theme": "./src/email/templates/theme.ts",
+    "./email/templates/*": "./src/email/templates/*.tsx",
+    "./pricing": "./src/pricing.ts",
+    "./calendar/*": "./src/calendar/*.ts",
+    "./cron": "./src/cron/index.ts",
+    "./cron/*": "./src/cron/*.ts",
+    "./artist-status": "./src/artist-status.ts",
+    "./utils": "./src/utils.ts",
+    "./http": "./src/http/index.ts"
+  },
+  "scripts": {
+    "postinstall": "prisma generate --schema=prisma/schema.prisma",
+    "build": "prisma generate --schema=prisma/schema.prisma",
+    "db:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "db:push": "prisma db push --schema=prisma/schema.prisma",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@react-email/components": "^1.0.12",
+    "@simplewebauthn/server": "^13.3.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "ical-generator": "^11.0.0",
+    "pg": "^8.22.0",
+    "resend": "^6.14.0",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "prisma": "^7.8.0",
+    "tsx": "^4.22.4"
+  }
+}

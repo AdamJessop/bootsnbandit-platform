@@ -1,6 +1,6 @@
 import { endOfDay, startOfDay } from "date-fns";
-import { requireRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import { Badge } from "@/components/ui/badge";
 import { formatPence } from "@/components/admin/money";
 import { formatDateTime } from "../_shared/labels";

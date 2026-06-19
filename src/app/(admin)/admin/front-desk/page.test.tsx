@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth", () => ({ getCurrentUser: vi.fn() }));
+vi.mock("@bnb/core/auth", () => ({ getCurrentUser: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("./FrontDeskClient", () => ({ FrontDeskClient: () => null }));
 vi.mock("./data", () => ({ loadDeskArtists: vi.fn() }));

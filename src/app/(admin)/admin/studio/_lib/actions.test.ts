@@ -12,10 +12,10 @@ vi.mock("./invite", () => ({ inviteStaff: (...a: unknown[]) => inviteStaff(...a)
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
-vi.mock("@/lib/auth", () => ({
+vi.mock("@bnb/core/auth", () => ({
   requireRole: (...a: unknown[]) => requireRole(...a),
 }));
-vi.mock("@/lib/db", () => ({
+vi.mock("@bnb/core/db", () => ({
   prisma: {
     user: { update: userUpdate },
     authenticator: { delete: authDelete },

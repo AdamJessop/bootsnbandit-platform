@@ -3,7 +3,7 @@
  * "use server" module so they unit-test without server-only imports).
  */
 import type { BookingType, EnquiryStatus } from "@prisma/client";
-import type { CreateBookingInput } from "@/lib/services/bookings";
+import type { CreateBookingInput } from "@bnb/core/services/bookings";
 
 /** Tally enquiries per status (pure; used by the inbox tabs). */
 export function countByStatus(

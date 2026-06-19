@@ -4,12 +4,12 @@ const requireRole = vi.fn();
 const createBooking = vi.fn();
 const updateBooking = vi.fn();
 
-vi.mock("@/lib/auth", () => ({ requireRole: () => requireRole() }));
-vi.mock("@/lib/services/bookings", async () => {
+vi.mock("@bnb/core/auth", () => ({ requireRole: () => requireRole() }));
+vi.mock("@bnb/core/services/bookings", async () => {
   // Re-use the real BookingConflictError so instanceof checks work.
   const actual = await vi.importActual<
-    typeof import("@/lib/services/bookings")
-  >("@/lib/services/bookings");
+    typeof import("@bnb/core/services/bookings")
+  >("@bnb/core/services/bookings");
   return {
     BookingConflictError: actual.BookingConflictError,
     createBooking: (input: unknown) => createBooking(input),
@@ -17,7 +17,7 @@ vi.mock("@/lib/services/bookings", async () => {
   };
 });
 
-import { BookingConflictError } from "@/lib/services/bookings";
+import { BookingConflictError } from "@bnb/core/services/bookings";
 import { saveBookingAction, updateBookingAction } from "./actions";
 
 const owner = { role: "OWNER", artistId: null };

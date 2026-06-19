@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 import { Plate } from "./Plate";
 import type { GalleryItem } from "./types";
 

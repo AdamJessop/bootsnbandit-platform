@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@bnb/core/utils";
 
 /**
  * Shared admin image uploader for gallery / flash / artist headshots

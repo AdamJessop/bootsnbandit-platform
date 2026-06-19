@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
-import { createCustomer, listCustomers } from "@/lib/services/customers";
-import { handleApiError, json, parseBody, parseQuery } from "../_lib/http";
+import { requireRole } from "@bnb/core/auth";
+import { createCustomer, listCustomers } from "@bnb/core/services/customers";
+import { handleApiError, json, parseBody, parseQuery } from "@bnb/core/http";
 
 /**
  * /api/customers (admin CRM). All methods require a signed-in staff user.

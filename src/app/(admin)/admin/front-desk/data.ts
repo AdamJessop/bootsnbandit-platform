@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { listBookings } from "@/lib/services/bookings";
+import { prisma } from "@bnb/core/db";
+import { listBookings } from "@bnb/core/services/bookings";
 import type { DeskArtist } from "./desk-board";
 
 export {
