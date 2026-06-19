@@ -14,6 +14,7 @@ export {
 } from "./BookingDrawer";
 export {
   CustomerTimeline,
+  sortTimeline,
   type CustomerTimelineProps,
   type TimelineEntry,
 } from "./CustomerTimeline";
@@ -22,6 +23,7 @@ export {
   type DataTableProps,
   type DataTableColumn,
 } from "./DataTable";
+export { formatPence, parsePoundsToPence } from "./money";
 export {
   ChartWrapper,
   type ChartWrapperProps,
