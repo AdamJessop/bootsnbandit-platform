@@ -1,0 +1,132 @@
+/* Studio page: about, founders, values, visit/map, contact, gift vouchers. */
+
+.about {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 40px;
+  align-items: center;
+}
+.aboutCopy p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.founders {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+.founder {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 18px;
+  align-items: center;
+}
+.founderPlate {
+  width: 110px;
+}
+.founder h3 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  margin: 0 0 4px;
+}
+.founder p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+}
+.values {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+.valueCard .ic {
+  width: 28px;
+  height: 28px;
+  color: var(--bb-gold);
+  margin-bottom: 12px;
+}
+.valueCard h3 {
+  font-family: var(--font-termina);
+  font-size: 15px;
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+.valueCard p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+.visit {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 32px;
+  align-items: stretch;
+}
+.visitDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.visitRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.visitRow .ic {
+  width: 20px;
+  height: 20px;
+  color: var(--bb-gold);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.visitRow b {
+  display: block;
+  font-family: var(--font-termina);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.visitRow span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.mapFrame {
+  width: 100%;
+  min-height: 320px;
+  height: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  filter: grayscale(0.4) contrast(1.05) brightness(0.85);
+}
+.contactGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 32px;
+  align-items: start;
+}
+.voucherBand {
+  text-align: center;
+  border: 1px dashed var(--bb-gold);
+  border-radius: var(--radius);
+  padding: 38px;
+  background: var(--bg-card);
+}
+
+@media (max-width: 900px) {
+  .about,
+  .visit,
+  .contactGrid {
+    grid-template-columns: 1fr;
+  }
+  .founders,
+  .values {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .values {
+    grid-template-columns: 1fr;
+  }
+}
