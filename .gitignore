@@ -24,6 +24,7 @@ yarn-error.log*
 .env
 .env.local
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -31,6 +32,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# local data
-/postgres-data

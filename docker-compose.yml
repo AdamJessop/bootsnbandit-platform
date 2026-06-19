@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: bootsnbandit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bootsnbandit
+      POSTGRES_USER: bootsnbandit
+      POSTGRES_PASSWORD: bootsnbandit
+    ports:
+      # Host 5435 (5432 is occupied by another project on this dev box).
+      # Container still listens on 5432. Update DATABASE_URL host port to match.
+      - "5435:5432"
+    volumes:
+      - bootsnbandit-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bootsnbandit -d bootsnbandit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bootsnbandit-pgdata:

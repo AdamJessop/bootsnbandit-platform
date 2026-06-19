@@ -1,0 +1,503 @@
+// Boots 'n' Bandit — Prisma schema (Phase 2: Data Layer)
+// Full domain model per master plan Context section.
+// Money is stored as integer pence (GBP). No payment gateway.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ARTIST
+  OWNER
+}
+
+enum BooksStatus {
+  open
+  limited
+  closed
+}
+
+enum BookingType {
+  consult
+  session
+  flash
+}
+
+enum BookingStatus {
+  enquiry
+  pending
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
+enum EnquiryStatus {
+  new
+  replied
+  converted
+  closed
+}
+
+enum EnquirySource {
+  web
+  flash
+  inkling
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+}
+
+enum FlashStatus {
+  available
+  claimed
+  retired
+}
+
+enum MessageType {
+  confirmation
+  reminder
+  receipt
+  aftercare
+  review_request
+  enquiry_ack
+  loyalty_reward
+}
+
+enum MessageChannel {
+  email
+  sms
+}
+
+enum MessageStatus {
+  queued
+  sent
+  failed
+  logged
+}
+
+enum ReviewStatus {
+  pending
+  submitted
+  published
+  hidden
+}
+
+// ---------------------------------------------------------------------------
+// Auth / staff
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  role        Role     @default(ARTIST)
+  displayName String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  authenticators Authenticator[]
+  artist         Artist?
+
+  @@index([role])
+}
+
+// WebAuthn credential (one user may have many passkeys)
+model Authenticator {
+  id                   String   @id @default(cuid())
+  userId               String
+  credentialID         String   @unique
+  credentialPublicKey  Bytes
+  counter              BigInt   @default(0)
+  transports           String[] @default([])
+  deviceName           String?
+  createdAt            DateTime @default(now())
+  lastUsedAt           DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Artists
+// ---------------------------------------------------------------------------
+
+model Artist {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  userId      String?     @unique
+  name        String
+  role        String
+  tag         String?
+  bio         String?
+  styles      String[]    @default([])
+  specials    String[]    @default([])
+  hue         String?
+  rateText    String?
+  hourlyPence Int?
+  dayRatePence Int?
+  insta       String?
+  headshot    String?
+  experience  String?
+  rating      Float?
+  pieces      Int?
+  booksStatus BooksStatus @default(open)
+  sortOrder   Int         @default(0)
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user             User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  galleryItems     GalleryItem[]
+  flashes          Flash[]
+  enquiries        Enquiry[]
+  bookings         Booking[]
+  availabilityRules AvailabilityRule[]
+  leave            Leave[]
+  calendarFeed     CalendarFeed?
+
+  @@index([booksStatus])
+  @@index([sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Customers / CRM
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id                String   @id @default(cuid())
+  name              String
+  email             String?
+  phone             String?
+  notes             String?
+  marketingConsent  Boolean  @default(false)
+  loyaltyStamps     Int      @default(0)
+  loyaltyTier       Int      @default(0)
+  tags              String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  enquiries   Enquiry[]
+  bookings    Booking[]
+  messages    MessageLog[]
+  reviews     Review[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+// ---------------------------------------------------------------------------
+// Enquiries (lead capture)
+// ---------------------------------------------------------------------------
+
+model Enquiry {
+  id                String        @id @default(cuid())
+  customerId        String?
+  contactName       String
+  contactEmail      String?
+  contactPhone      String?
+  preferredArtistId String?
+  style             String?
+  placement         String?
+  size              String?
+  budgetPence       Int?
+  description       String?
+  moodboard         String[]      @default([])
+  matchData         Json?
+  status            EnquiryStatus @default(new)
+  source            EnquirySource @default(web)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  preferredArtist Artist?   @relation(fields: [preferredArtistId], references: [id], onDelete: SetNull)
+  bookings        Booking[]
+
+  @@index([status])
+  @@index([source])
+  @@index([customerId])
+  @@index([preferredArtistId])
+}
+
+// ---------------------------------------------------------------------------
+// Bookings + Sessions
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id                 String        @id @default(cuid())
+  customerId         String
+  artistId           String
+  enquiryId          String?
+  chairId            String?
+  type               BookingType
+  style              String?
+  placement          String?
+  start              DateTime
+  end                DateTime
+  durationMin        Int
+  priceEstimatePence Int?
+  depositPence       Int?
+  status             BookingStatus @default(enquiry)
+  notes              String?
+  remindersOptIn     Boolean       @default(true)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  artist   Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  enquiry  Enquiry?  @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  chair    Chair?    @relation(fields: [chairId], references: [id], onDelete: SetNull)
+  session  Session?
+  messages MessageLog[]
+  reviews  Review[]
+
+  @@index([artistId, start])
+  @@index([customerId])
+  @@index([status])
+  @@index([start])
+}
+
+model Session {
+  id                String    @id @default(cuid())
+  bookingId         String    @unique
+  completedAt       DateTime  @default(now())
+  amountChargedPence Int
+  tipPence          Int?
+  bankRef           String?
+  receiptSentAt     DateTime?
+  aftercareSentAt   DateTime?
+  reviewRequestAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Availability / leave / resources
+// ---------------------------------------------------------------------------
+
+model AvailabilityRule {
+  id        String   @id @default(cuid())
+  artistId  String
+  weekday   Int // 0=Sun .. 6=Sat
+  startTime String // "HH:MM"
+  endTime   String // "HH:MM"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@index([artistId, weekday])
+}
+
+model Leave {
+  id        String      @id @default(cuid())
+  artistId  String
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    LeaveStatus @default(approved)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@index([artistId, startDate])
+}
+
+model Chair {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  active    Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  bookings Booking[]
+}
+
+// ---------------------------------------------------------------------------
+// Content (CMS-managed)
+// ---------------------------------------------------------------------------
+
+model GalleryItem {
+  id        String   @id @default(cuid())
+  artistId  String?
+  style     String?
+  title     String   @unique
+  placement String?
+  image     String?
+  hue       String?
+  featured  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artist Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+
+  @@index([artistId])
+  @@index([style])
+  @@index([sortOrder])
+}
+
+model Flash {
+  id          String      @id @default(cuid())
+  artistId    String?
+  title       String      @unique
+  image       String?
+  hue         String?
+  sizeCm      String?
+  pricePence  Int?
+  total       Int         @default(1)
+  claimed     Int         @default(0)
+  deadline    String?
+  status      FlashStatus @default(available)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  artist Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
+
+  @@index([artistId])
+  @@index([status])
+}
+
+model TattooStyle {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+model AftercareStage {
+  id        String   @id @default(cuid())
+  order     Int      @unique
+  title     String
+  body      String
+  hue       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+}
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String   @unique
+  answer    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Loyalty + site settings (singletons / config)
+// ---------------------------------------------------------------------------
+
+model LoyaltyConfig {
+  id              String   @id @default(cuid())
+  name            String   @unique @default("Bandit Pass")
+  stampsPerVisit  Int      @default(1)
+  spendPerStamp   Int? // pence per stamp (null = one stamp per piece)
+  rewardThreshold Int      @default(8)
+  rewardDesc      String?
+  expiryMonths    Int?
+  perks           Json? // [{ stamps: 2, title, desc }, ...]
+  messaging       String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SiteSettings {
+  id              String   @id @default(cuid())
+  studioName      String   @unique
+  addressLine     String?
+  city            String?
+  county          String?
+  postcode        String?
+  hoursText       String?
+  phone           String?
+  email           String?
+  licensingText   String?
+  facebookUrl     String?
+  instagramUrl    String?
+  tickerLines     String[] @default([])
+  enquiriesOpen   Boolean  @default(true)
+  visualDirection String   @default("heritage")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Messaging / calendar / reviews
+// ---------------------------------------------------------------------------
+
+model MessageLog {
+  id              String         @id @default(cuid())
+  customerId      String?
+  relatedBookingId String?
+  type            MessageType
+  channel         MessageChannel @default(email)
+  subject         String?
+  body            String?
+  status          MessageStatus  @default(logged)
+  sentAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  relatedBooking Booking?  @relation(fields: [relatedBookingId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([type])
+  @@index([relatedBookingId])
+}
+
+model CalendarFeed {
+  id        String   @id @default(cuid())
+  artistId  String   @unique
+  token     String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id          String       @id @default(cuid())
+  bookingId   String?
+  customerId  String?
+  token       String       @unique
+  rating      Int?
+  body        String?
+  status      ReviewStatus @default(pending)
+  requestedAt DateTime     @default(now())
+  submittedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([bookingId])
+}
