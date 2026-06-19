@@ -125,9 +125,12 @@
   --shadow-md: 0 6px 18px var(--shadow-color);
   --shadow-lg: 0 14px 40px var(--shadow-color);
   --shadow-xl: 0 28px 70px var(--shadow-color);
-  --glow-crimson: 0 0 0 1px rgba(201, 47, 77, 0.45), 0 0 30px -6px rgba(201, 47, 77, 0.6);
-  --glow-gold: 0 0 0 1px rgba(207, 160, 90, 0.45), 0 0 30px -6px rgba(207, 160, 90, 0.55);
-  --glow-teal: 0 0 0 1px rgba(54, 176, 168, 0.4), 0 0 26px -6px rgba(54, 176, 168, 0.5);
+  --glow-crimson:
+    0 0 0 1px rgba(201, 47, 77, 0.45), 0 0 30px -6px rgba(201, 47, 77, 0.6);
+  --glow-gold:
+    0 0 0 1px rgba(207, 160, 90, 0.45), 0 0 30px -6px rgba(207, 160, 90, 0.55);
+  --glow-teal:
+    0 0 0 1px rgba(54, 176, 168, 0.4), 0 0 26px -6px rgba(54, 176, 168, 0.5);
 
   --focus-ring: 0 0 0 2px rgba(201, 47, 77, 0.6);
 
@@ -330,8 +333,16 @@
     z-index: 0;
     opacity: 0.5;
     background:
-      radial-gradient(1200px 600px at 80% -10%, rgba(201, 47, 77, 0.07), transparent 60%),
-      radial-gradient(900px 500px at 0% 110%, rgba(54, 176, 168, 0.05), transparent 55%);
+      radial-gradient(
+        1200px 600px at 80% -10%,
+        rgba(201, 47, 77, 0.07),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 0% 110%,
+        rgba(54, 176, 168, 0.05),
+        transparent 55%
+      );
   }
   img {
     max-width: 100%;
