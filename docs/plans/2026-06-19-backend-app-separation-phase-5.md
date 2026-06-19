@@ -1,7 +1,7 @@
 # Dev/deploy/subdomain config + cutover + verify
 
 Created: 2026-06-19
-Status: COMPLETE
+Status: VERIFIED
 Approved: Yes
 Iterations: 0
 Worktree: No
