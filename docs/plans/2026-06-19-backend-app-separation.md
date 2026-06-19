@@ -1,7 +1,7 @@
 # Backend App Separation (Monorepo + Subdomains) Master Plan
 
 Created: 2026-06-19
-Status: PENDING
+Status: IN_PROGRESS
 Approved: Yes
 Iterations: 1
 Worktree: No
@@ -62,13 +62,13 @@ graph LR
 | 5 | 4 | Dev/deploy/cutover + verify | Root scripts (`dev` runs both on distinct ports, `build`/`lint`/`test` across workspaces); remove legacy root `src/app`+configs; subdomain/deploy docs + per-app `.env.example`; end-to-end verify both apps (tsc/lint/build/test per workspace, ≥483 total) | P4 |
 
 ## Progress Tracking
-- [ ] Phase 1: Monorepo + @bnb/core (Wave 1)
+- [x] Phase 1: Monorepo + @bnb/core (Wave 1)
 - [ ] Phase 2: Web app (public) (Wave 2)
 - [ ] Phase 3: Admin app (staff PWA) (Wave 2)
 - [ ] Phase 4: Auth/PWA/cookie isolation (Wave 3)
 - [ ] Phase 5: Dev/deploy/cutover + verify (Wave 4)
 
-**Total Phases:** 5 | **Completed:** 0 | **Remaining:** 5
+**Total Phases:** 5 | **Completed:** 1 | **Remaining:** 4
 
 ## Risks and Mitigations
 | Risk | Likelihood | Impact | Mitigation |
