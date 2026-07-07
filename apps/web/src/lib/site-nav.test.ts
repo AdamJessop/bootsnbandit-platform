@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  mergeShellSettings,
-  SITE_NAV,
-  STUDIO,
-  TICKER_LINES,
-} from "./site-nav";
+import { mergeShellSettings, SITE_NAV, STUDIO, TICKER_LINES } from "./site-nav";
 
 describe("SITE_NAV", () => {
   it("keeps the public routes registered", () => {
     expect(SITE_NAV.map((i) => i.href)).toContain("/enquire");
+  });
+
+  it("registers the customer sign-in route", () => {
+    const signIn = SITE_NAV.find((i) => i.href === "/account/sign-in");
+    expect(signIn?.label).toBe("Sign in");
   });
 });
 

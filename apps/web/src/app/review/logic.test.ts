@@ -10,7 +10,10 @@ describe("review logic", () => {
   });
 
   it("builds a payload with the token and trimmed body", () => {
-    const p = buildReviewPayload("tok123", { rating: 5, body: "  great work  " });
+    const p = buildReviewPayload("tok123", {
+      rating: 5,
+      body: "  great work  ",
+    });
     expect(p).toEqual({ token: "tok123", rating: 5, body: "great work" });
   });
 

@@ -22,7 +22,10 @@ const schema = z.object({
 export async function POST(req: Request): Promise<Response> {
   try {
     if (!limiter.hit(clientIp(req))) {
-      return jsonError(429, "Too many requests — please try again in a minute.");
+      return jsonError(
+        429,
+        "Too many requests — please try again in a minute.",
+      );
     }
     const input = await parseBody(req, schema);
     const result = await claimFlash(input);

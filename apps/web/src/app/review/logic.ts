@@ -10,7 +10,9 @@ export interface ReviewDraft {
 }
 
 export function isReviewValid(draft: ReviewDraft): boolean {
-  return Number.isInteger(draft.rating) && draft.rating >= 1 && draft.rating <= 5;
+  return (
+    Number.isInteger(draft.rating) && draft.rating >= 1 && draft.rating <= 5
+  );
 }
 
 export interface ReviewPayload {

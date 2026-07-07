@@ -34,11 +34,26 @@ export default defineConfig({
     // catch-all so `@bnb/core/db` → db.ts, `@bnb/core/services` → its index.
     alias: [
       { find: /^@bnb\/core\/db$/, replacement: path.join(coreSrc, "db.ts") },
-      { find: /^@bnb\/core\/services$/, replacement: path.join(coreSrc, "services/index.ts") },
-      { find: /^@bnb\/core\/auth$/, replacement: path.join(coreSrc, "auth/index.ts") },
-      { find: /^@bnb\/core\/email$/, replacement: path.join(coreSrc, "email/index.ts") },
-      { find: /^@bnb\/core\/cron$/, replacement: path.join(coreSrc, "cron/index.ts") },
-      { find: /^@bnb\/core\/http$/, replacement: path.join(coreSrc, "http/index.ts") },
+      {
+        find: /^@bnb\/core\/services$/,
+        replacement: path.join(coreSrc, "services/index.ts"),
+      },
+      {
+        find: /^@bnb\/core\/auth$/,
+        replacement: path.join(coreSrc, "auth/index.ts"),
+      },
+      {
+        find: /^@bnb\/core\/email$/,
+        replacement: path.join(coreSrc, "email/index.ts"),
+      },
+      {
+        find: /^@bnb\/core\/cron$/,
+        replacement: path.join(coreSrc, "cron/index.ts"),
+      },
+      {
+        find: /^@bnb\/core\/http$/,
+        replacement: path.join(coreSrc, "http/index.ts"),
+      },
       { find: /^@bnb\/core\/(.*)$/, replacement: path.join(coreSrc, "$1") },
       { find: "@", replacement: path.resolve(__dirname, "src") },
     ],

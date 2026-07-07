@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireRole = vi.fn();
 const createBooking = vi.fn();
 const updateBooking = vi.fn();
+const createCustomerWithWelcome = vi.fn();
 
 vi.mock("@bnb/core/auth", () => ({ requireRole: () => requireRole() }));
 vi.mock("@bnb/core/services/bookings", async () => {
@@ -16,6 +17,10 @@ vi.mock("@bnb/core/services/bookings", async () => {
     updateBooking: (id: string, input: unknown) => updateBooking(id, input),
   };
 });
+vi.mock("@bnb/core/services/customer-welcome", () => ({
+  createCustomerWithWelcome: (input: unknown) =>
+    createCustomerWithWelcome(input),
+}));
 
 import { BookingConflictError } from "@bnb/core/services/bookings";
 import { saveBookingAction, updateBookingAction } from "./actions";
@@ -34,6 +39,7 @@ const saveInput = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("saveBookingAction", () => {
@@ -70,6 +76,99 @@ describe("saveBookingAction", () => {
     const res = await saveBookingAction(saveInput);
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/leave/i);
+  });
+});
+
+describe("saveBookingAction (inline new customer)", () => {
+  const { customerId: _drop, ...noCustomer } = saveInput;
+  const newCustomerInput = {
+    ...noCustomer,
+    newCustomer: {
+      name: "Robin Vale",
+      email: "robin@example.com",
+      dob: "1990-04-12",
+    },
+  };
+
+  it("creates the customer (welcome email) then the booking", async () => {
+    requireRole.mockResolvedValue(owner);
+    createCustomerWithWelcome.mockResolvedValue({ id: "cus_new" });
+    createBooking.mockResolvedValue({ id: "bk_9" });
+    vi.stubEnv("PUBLIC_SITE_ORIGIN", "https://bootsandbandit.com");
+
+    const res = await saveBookingAction(newCustomerInput);
+
+    expect(res).toEqual({ ok: true, bookingId: "bk_9" });
+    expect(createCustomerWithWelcome).toHaveBeenCalledWith({
+      name: "Robin Vale",
+      email: "robin@example.com",
+      dob: new Date("1990-04-12T00:00:00.000Z"),
+      siteOrigin: "https://bootsandbandit.com",
+    });
+    expect(createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: "cus_new" }),
+    );
+    // Customer creation (welcome email) strictly precedes the booking write.
+    expect(createCustomerWithWelcome.mock.invocationCallOrder[0]).toBeLessThan(
+      createBooking.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("defaults siteOrigin to localhost and dob to null when omitted", async () => {
+    requireRole.mockResolvedValue(owner);
+    createCustomerWithWelcome.mockResolvedValue({ id: "cus_new" });
+    createBooking.mockResolvedValue({ id: "bk_10" });
+    vi.stubEnv("PUBLIC_SITE_ORIGIN", undefined);
+
+    const res = await saveBookingAction({
+      ...noCustomer,
+      newCustomer: { name: "Robin Vale", email: "robin@example.com" },
+    });
+
+    expect(res.ok).toBe(true);
+    expect(createCustomerWithWelcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dob: null,
+        siteOrigin: "http://localhost:3000",
+      }),
+    );
+  });
+
+  it("rejects when neither customerId nor newCustomer is given", async () => {
+    requireRole.mockResolvedValue(owner);
+    const res = await saveBookingAction({ ...noCustomer });
+    expect(res.ok).toBe(false);
+    expect(createCustomerWithWelcome).not.toHaveBeenCalled();
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("rejects when both customerId and newCustomer are given", async () => {
+    requireRole.mockResolvedValue(owner);
+    const res = await saveBookingAction({
+      ...saveInput,
+      newCustomer: { name: "Robin Vale", email: "robin@example.com" },
+    });
+    expect(res.ok).toBe(false);
+    expect(createCustomerWithWelcome).not.toHaveBeenCalled();
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("rejects a malformed new-customer email", async () => {
+    requireRole.mockResolvedValue(owner);
+    const res = await saveBookingAction({
+      ...noCustomer,
+      newCustomer: { name: "Robin Vale", email: "not-an-email" },
+    });
+    expect(res.ok).toBe(false);
+    expect(createCustomerWithWelcome).not.toHaveBeenCalled();
+  });
+
+  it("does not create the booking when customer creation fails", async () => {
+    requireRole.mockResolvedValue(owner);
+    createCustomerWithWelcome.mockRejectedValue(new Error("email exists"));
+    const res = await saveBookingAction(newCustomerInput);
+    expect(res.ok).toBe(false);
+    expect(createBooking).not.toHaveBeenCalled();
   });
 });
 

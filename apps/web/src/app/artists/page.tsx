@@ -36,7 +36,8 @@ export default async function ArtistsPage() {
           </h1>
           <p className="lead" style={{ maxWidth: 640 }}>
             Seven residents, one chair-side ethos: proper custom work, no daft
-            questions, and a brew on the side. Find someone whose style is yours.
+            questions, and a brew on the side. Find someone whose style is
+            yours.
           </p>
         </div>
       </header>

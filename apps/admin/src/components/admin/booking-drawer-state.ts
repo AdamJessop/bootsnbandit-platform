@@ -44,6 +44,10 @@ export function initialState(
   const { date, time } = toLocalParts(booking?.start);
   return {
     customerId: booking?.customerId ?? "",
+    customerMode: "existing",
+    newCustomerName: "",
+    newCustomerDob: "",
+    newCustomerEmail: "",
     artistId: booking?.artistId ?? defaultArtistId ?? "",
     type: booking?.type ?? "session",
     style: booking?.style ?? "",
@@ -56,6 +60,8 @@ export function initialState(
         ? (booking.priceEstimate / 100).toFixed(2)
         : "",
     notes: booking?.notes ?? "",
-    status: booking?.status ?? "pending",
+    // Brand-new drafts default to confirmed (fires the confirmation email on
+    // create); editing an existing booking keeps its stored status.
+    status: booking?.status ?? (booking?.id ? "pending" : "confirmed"),
   };
 }

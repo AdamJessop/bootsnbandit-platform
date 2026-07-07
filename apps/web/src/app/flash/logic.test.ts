@@ -32,7 +32,9 @@ describe("nextDropDeadline", () => {
 
   it("returns null when no item has a deadline (banner hides)", () => {
     expect(nextDropDeadline([])).toBeNull();
-    expect(nextDropDeadline([{ deadline: null }, { deadline: undefined }])).toBeNull();
+    expect(
+      nextDropDeadline([{ deadline: null }, { deadline: undefined }]),
+    ).toBeNull();
   });
 });
 

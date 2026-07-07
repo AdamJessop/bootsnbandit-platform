@@ -168,14 +168,14 @@ _Assume this plan failed. Most likely internal reasons:_
 - [x] Task 3: Select dropdown label fix (Wave 1) — `items` prop approach; also fixed `__all__`/`all` sentinel labels in EnquiryInbox/ReportsView filters
 - [x] Task 4: Owner artist-profile editor from Studio (Wave 1)
 - [x] Task 5: CalendarGrid multi-artist modes + data loaders (Wave 1) — new `CalendarLegend.tsx` extracted for the line limit; API: `mode`/`artists` props, `onCreate(start, artistId?)`, `artistTone()`, `loadCalendarDataAll()`
-- [ ] Task 6: All-staff calendar wiring (Wave 2)
+- [x] Task 6: All-staff calendar wiring (Wave 2) — includes drag-move fix (event's own artistId, not activeArtistId)
 - [x] Task 7: Customer auth core (Wave 2)
 - [x] Task 8: Welcome email template + orchestration service (Wave 3)
-- [ ] Task 9: Booking drawer inline customer creation + confirmed default (Wave 4)
+- [x] Task 9: Booking drawer inline customer creation + confirmed default (Wave 4) — new `NewCustomerFields.tsx` extracted for the line limit
 - [ ] Task 10: Web sign-in / set-password / sign-out (Wave 4)
 - [ ] Task 11: Gated passport account area + cancel requests (Wave 5)
 - [x] Task 12: Admin surfacing of cancellation requests (Wave 2)
-      **Total Tasks:** 12 | **Completed:** 8 | **Remaining:** 4
+      **Total Tasks:** 12 | **Completed:** 10 | **Remaining:** 2
 
 ## Deferred Issues
 

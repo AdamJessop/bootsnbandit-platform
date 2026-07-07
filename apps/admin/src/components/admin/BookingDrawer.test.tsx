@@ -104,4 +104,39 @@ describe("BookingDrawer module", () => {
     const onSave = vi.fn().mockResolvedValue("That slot is already booked.");
     expect(onSave).toBeTypeOf("function");
   });
+
+  it("create mode offers a 'New customer' toggle", () => {
+    const html = renderToStaticMarkup(
+      <BookingDrawer
+        open
+        customers={[{ id: "cus_1", name: "Cassidy Vale" }]}
+        artists={[{ id: "art_1", name: "Sarah North" }]}
+        defaultArtistId="art_1"
+        onSave={vi.fn().mockResolvedValue(null)}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(html).toContain("New customer");
+  });
+
+  it("edit mode hides the new-customer toggle", () => {
+    const html = renderToStaticMarkup(
+      <BookingDrawer
+        open
+        booking={{
+          id: "bk_1",
+          customerId: "cus_1",
+          artistId: "art_1",
+          type: "session",
+          start: new Date(2026, 5, 16, 12, 0).toISOString(),
+          durationMins: 90,
+        }}
+        customers={[{ id: "cus_1", name: "Cassidy Vale" }]}
+        artists={[{ id: "art_1", name: "Sarah North" }]}
+        onSave={vi.fn().mockResolvedValue(null)}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(html).not.toContain("New customer");
+  });
 });

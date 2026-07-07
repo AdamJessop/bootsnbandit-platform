@@ -2,11 +2,9 @@
 
 /**
  * Booking create/edit drawer (BACKOFHOUSE-IA C3). A shadcn Sheet hosting the
- * customer / artist / type / style / placement / start+duration / price / notes
- * / status form. All field maths (validation, pence↔£, date→window) live in the
- * tested pure module ./booking-form. Saving is delegated to the parent via
- * `onSave`, which persists through the Phase-6 booking service (server action)
- * and reports BookingConflictError as a friendly message.
+ * customer (pick existing or create inline) / artist / type / style /
+ * placement / window / price / notes / status form. Field maths live in
+ * ./booking-form; saving is delegated to the parent via `onSave`.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -43,6 +41,7 @@ import {
   type BookingType,
 } from "./booking-form";
 import { initialState, type BookingDraft } from "./booking-drawer-state";
+import { CustomerModeToggle, NewCustomerFields } from "./NewCustomerFields";
 
 export type { BookingDraft } from "./booking-drawer-state";
 
@@ -190,24 +189,39 @@ export function BookingDrawer({
         </SheetHeader>
 
         <div className="flex flex-col gap-4 px-4 pb-2">
-          <Field label="Customer" error={errors.customerId}>
-            <Select
-              items={customerItems}
-              value={state.customerId}
-              onValueChange={(v) => set("customerId", v ?? "")}
-            >
-              <SelectTrigger aria-label="Customer">
-                <SelectValue placeholder="Search or pick a customer" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+          {state.customerMode === "new" && !isEdit ? (
+            <NewCustomerFields state={state} errors={errors} onChange={set} />
+          ) : (
+            <Field label="Customer" error={errors.customerId}>
+              <Select
+                items={customerItems}
+                value={state.customerId}
+                onValueChange={(v) => set("customerId", v ?? "")}
+              >
+                <SelectTrigger aria-label="Customer">
+                  <SelectValue placeholder="Search or pick a customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+          {!isEdit ? (
+            <CustomerModeToggle
+              mode={state.customerMode}
+              onToggle={() =>
+                set(
+                  "customerMode",
+                  state.customerMode === "new" ? "existing" : "new",
+                )
+              }
+            />
+          ) : null}
 
           <Field label="Artist" error={errors.artistId}>
             <Select

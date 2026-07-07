@@ -107,7 +107,11 @@ export function ContactForm({ enquiriesOpen }: { enquiriesOpen: boolean }) {
         />
       </Field>
       {error && (
-        <p className="meta" role="alert" style={{ color: "var(--crimson, #c92f4d)" }}>
+        <p
+          className="meta"
+          role="alert"
+          style={{ color: "var(--crimson, #c92f4d)" }}
+        >
           {error}
         </p>
       )}

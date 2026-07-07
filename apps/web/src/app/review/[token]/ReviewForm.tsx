@@ -51,7 +51,8 @@ export function ReviewForm({
         </div>
         <h1 className="display">Thank you</h1>
         <p className="lead">
-          Your review means the world to us{artistName ? ` and ${artistName}` : ""}.
+          Your review means the world to us
+          {artistName ? ` and ${artistName}` : ""}.
         </p>
       </div>
     );

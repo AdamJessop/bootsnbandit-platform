@@ -34,7 +34,10 @@ const createSchema = z.object({
 export async function POST(req: Request): Promise<Response> {
   try {
     if (!limiter.hit(clientIp(req))) {
-      return jsonError(429, "Too many enquiries — please try again in a minute.");
+      return jsonError(
+        429,
+        "Too many enquiries — please try again in a minute.",
+      );
     }
     const settings = await prisma.siteSettings.findFirst({
       select: { enquiriesOpen: true },
@@ -46,9 +49,7 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     const input = await parseBody(req, createSchema);
-    const enquiry = await createEnquiry(
-      input as unknown as CreateEnquiryInput,
-    );
+    const enquiry = await createEnquiry(input as unknown as CreateEnquiryInput);
     return json({ enquiry }, 201);
   } catch (err) {
     return handleApiError(err);

@@ -19,7 +19,11 @@ describe("isStudioContactValid", () => {
 
   it("accepts a phone number of at least 6 digits as the contact", () => {
     expect(
-      isStudioContactValid({ name: "Ada", contact: "07123 456789", message: "hi" }),
+      isStudioContactValid({
+        name: "Ada",
+        contact: "07123 456789",
+        message: "hi",
+      }),
     ).toBe(true);
     expect(
       isStudioContactValid({ name: "Ada", contact: "123", message: "hi" }),

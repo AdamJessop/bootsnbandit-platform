@@ -31,7 +31,10 @@ export default function NotFound() {
             That page doesn&rsquo;t exist — maybe it healed over. Head back to
             the studio and we&rsquo;ll point you right.
           </p>
-          <div className="hero-cta" style={{ justifyContent: "center", marginTop: 0 }}>
+          <div
+            className="hero-cta"
+            style={{ justifyContent: "center", marginTop: 0 }}
+          >
             <Link href="/" className="btn">
               Back home
             </Link>

@@ -39,7 +39,11 @@ vi.mock("../../_data", () => ({
   ]),
 }));
 
-vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("notFound"); } }));
+vi.mock("next/navigation", () => ({
+  notFound: () => {
+    throw new Error("notFound");
+  },
+}));
 
 // CSS modules aren't processed in the unit-test env (no PostCSS/Tailwind).
 vi.mock("../artists.module.css", () => ({ default: {} }));

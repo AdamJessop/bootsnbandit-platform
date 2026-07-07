@@ -3,11 +3,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 /**
- * Guard: the public web app must never import the core auth subpath. The
- * staff session cookie is host-only on the admin subdomain, so any auth-gated
- * code shipped here could never authenticate in prod — it would just leak
- * staff surface (and a /sign-in redirect web doesn't have) onto the public
- * origin.
+ * Guard: the public web app must never import the core STAFF auth subpath.
+ * The staff session cookie is host-only on the admin subdomain, so any
+ * auth-gated code shipped here could never authenticate in prod — it would
+ * just leak staff surface (and a /sign-in redirect web doesn't have) onto the
+ * public origin. The single exception is `…/auth/customer-session`: that is
+ * the CUSTOMER (public-site) session, designed for this origin, with its own
+ * HKDF key and cookie name so it can never decode staff tokens.
  */
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..");
@@ -26,13 +28,14 @@ function collectSourceFiles(dir: string): string[] {
 }
 
 describe("public origin auth guard", () => {
-  it("no file under apps/web/src imports the core auth subpath", () => {
+  it("no file under apps/web/src imports the core staff auth subpath", () => {
     // Built dynamically so this guard file never matches itself.
     const needle = ["@bnb", "core", "auth"].join("/");
+    const allowed = `${needle}/customer-session`;
     const files = collectSourceFiles(SRC_ROOT);
     expect(files.length).toBeGreaterThan(50); // sanity: the glob found the app
     const offenders = files.filter((f) =>
-      readFileSync(f, "utf8").includes(needle),
+      readFileSync(f, "utf8").split(allowed).join("").includes(needle),
     );
     expect(offenders).toEqual([]);
   });

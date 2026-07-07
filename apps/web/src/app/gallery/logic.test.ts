@@ -28,9 +28,9 @@ describe("filterGallery", () => {
   });
 
   it("combines style + artist (AND)", () => {
-    expect(
-      filterGallery(ITEMS, "Fine-line", "sarah").map((i) => i.id),
-    ).toEqual(["1"]);
+    expect(filterGallery(ITEMS, "Fine-line", "sarah").map((i) => i.id)).toEqual(
+      ["1"],
+    );
   });
 });
 

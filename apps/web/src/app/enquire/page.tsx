@@ -109,12 +109,18 @@ export default async function EnquirePage({
               <h2 className="display chrome" style={{ margin: "0 0 10px" }}>
                 Books are closed
               </h2>
-              <p className="muted" style={{ maxWidth: 480, margin: "0 auto 18px" }}>
+              <p
+                className="muted"
+                style={{ maxWidth: 480, margin: "0 auto 18px" }}
+              >
                 We&rsquo;re not taking new enquiries just now while we catch up
                 on the diary. Check back soon — or follow us for the next books
                 opening and flash drop.
               </p>
-              <div className="hero-cta" style={{ justifyContent: "center", marginTop: 0 }}>
+              <div
+                className="hero-cta"
+                style={{ justifyContent: "center", marginTop: 0 }}
+              >
                 <Link href="/flash" className="btn btn-sm">
                   See the flash wall
                 </Link>

@@ -11,6 +11,10 @@ import {
 
 const baseState = (over: Partial<BookingFormState> = {}): BookingFormState => ({
   customerId: "cus_1",
+  customerMode: "existing",
+  newCustomerName: "",
+  newCustomerDob: "",
+  newCustomerEmail: "",
   artistId: "art_1",
   type: "session",
   style: "Traditional",
@@ -23,6 +27,19 @@ const baseState = (over: Partial<BookingFormState> = {}): BookingFormState => ({
   status: "pending",
   ...over,
 });
+
+/** A valid new-customer draft (no existing customerId selected). */
+const newCustomerState = (
+  over: Partial<BookingFormState> = {},
+): BookingFormState =>
+  baseState({
+    customerId: "",
+    customerMode: "new",
+    newCustomerName: "Robin Vale",
+    newCustomerDob: "1990-04-12",
+    newCustomerEmail: "robin@example.com",
+    ...over,
+  });
 
 describe("formatPence / parsePounds", () => {
   it("formats pence to GBP", () => {
@@ -79,6 +96,60 @@ describe("validateDraft", () => {
   });
 });
 
+describe("validateDraft (new-customer mode)", () => {
+  it("accepts a complete new-customer draft", () => {
+    expect(validateDraft(newCustomerState())).toEqual({});
+  });
+
+  it("skips the customerId requirement in new mode", () => {
+    const errors = validateDraft(newCustomerState({ customerId: "" }));
+    expect(errors.customerId).toBeUndefined();
+  });
+
+  it("requires a name", () => {
+    expect(
+      validateDraft(newCustomerState({ newCustomerName: "  " }))
+        .newCustomerName,
+    ).toBeTruthy();
+  });
+
+  it("requires a plausible email", () => {
+    expect(
+      validateDraft(newCustomerState({ newCustomerEmail: "" }))
+        .newCustomerEmail,
+    ).toBeTruthy();
+    expect(
+      validateDraft(newCustomerState({ newCustomerEmail: "not-an-email" }))
+        .newCustomerEmail,
+    ).toBeTruthy();
+    expect(
+      validateDraft(newCustomerState({ newCustomerEmail: "a@b" }))
+        .newCustomerEmail,
+    ).toBeTruthy();
+  });
+
+  it("dob is optional but must parse as a valid date when given", () => {
+    expect(
+      validateDraft(newCustomerState({ newCustomerDob: "" })).newCustomerDob,
+    ).toBeUndefined();
+    expect(
+      validateDraft(newCustomerState({ newCustomerDob: "not-a-date" }))
+        .newCustomerDob,
+    ).toBeTruthy();
+    expect(
+      validateDraft(newCustomerState({ newCustomerDob: "1990-13-45" }))
+        .newCustomerDob,
+    ).toBeTruthy();
+  });
+
+  it("existing mode ignores blank new-customer fields", () => {
+    const errors = validateDraft(
+      baseState({ newCustomerName: "", newCustomerEmail: "" }),
+    );
+    expect(errors).toEqual({});
+  });
+});
+
 describe("suggestedPricePounds", () => {
   const rates = { hourlyRatePence: 9000, dayRatePence: 55000 };
 
@@ -116,5 +187,31 @@ describe("draftToPayload", () => {
   it("omits price when blank", () => {
     const payload = draftToPayload(baseState({ priceEstimatePounds: "" }));
     expect(payload.priceEstimatePence).toBeNull();
+  });
+
+  it("existing mode carries customerId and no newCustomer", () => {
+    const payload = draftToPayload(baseState());
+    expect(payload.customerId).toBe("cus_1");
+    expect(payload.newCustomer).toBeUndefined();
+  });
+
+  it("new mode carries newCustomer (trimmed) and no customerId", () => {
+    const payload = draftToPayload(
+      newCustomerState({
+        newCustomerName: " Robin Vale ",
+        newCustomerEmail: " robin@example.com ",
+      }),
+    );
+    expect(payload.customerId).toBeUndefined();
+    expect(payload.newCustomer).toEqual({
+      name: "Robin Vale",
+      email: "robin@example.com",
+      dob: "1990-04-12",
+    });
+  });
+
+  it("new mode omits dob when blank", () => {
+    const payload = draftToPayload(newCustomerState({ newCustomerDob: "" }));
+    expect(payload.newCustomer?.dob).toBeUndefined();
   });
 });

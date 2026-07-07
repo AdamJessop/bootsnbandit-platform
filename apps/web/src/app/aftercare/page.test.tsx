@@ -3,8 +3,20 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("../_data", () => ({
   getAftercareStages: vi.fn(async () => [
-    { id: "s0", order: 0, title: "Day 1–2 · Fresh & wrapped", body: "Keep wrap on.", hue: "crimson" },
-    { id: "s4", order: 4, title: "Day 30+ · Healed", body: "SPF forever.", hue: "gold" },
+    {
+      id: "s0",
+      order: 0,
+      title: "Day 1–2 · Fresh & wrapped",
+      body: "Keep wrap on.",
+      hue: "crimson",
+    },
+    {
+      id: "s4",
+      order: 4,
+      title: "Day 30+ · Healed",
+      body: "SPF forever.",
+      hue: "gold",
+    },
   ]),
   getFaqs: vi.fn(async () => [
     { id: "f1", question: "Does it hurt?", answer: "A bit.", sortOrder: 0 },

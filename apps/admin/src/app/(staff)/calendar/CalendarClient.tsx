@@ -36,9 +36,18 @@ import type { BookingPayload } from "@/components/admin/booking-form";
 import { saveBookingAction, updateBookingAction } from "./actions";
 import { shiftAnchor } from "./nav";
 
+/** Sentinel `?artist=` value for the owner-only all-staff calendar. */
+export const ALL_STAFF = "all";
+
+/** Artist option enriched with the hue driving the all-staff overlay/legend. */
+export interface CalendarArtistOption extends NamedOption {
+  hue?: string | null;
+}
+
 export interface CalendarClientProps {
   canSwitchArtist: boolean;
-  artists: NamedOption[];
+  artists: CalendarArtistOption[];
+  /** Artist whose calendar is shown, or the `"all"` sentinel (owners only). */
   activeArtistId: string;
   view: CalendarView;
   /** ISO anchor date. */
@@ -46,6 +55,34 @@ export interface CalendarClientProps {
   events: CalendarEvent[];
   leave: CalendarLeave[];
   customers: NamedOption[];
+}
+
+/**
+ * Draft seeded when clicking an empty slot. In all-staff mode only a column
+ * click supplies an artist; otherwise the drawer makes the user pick one.
+ */
+export function slotDraft(
+  activeArtistId: string,
+  startISO?: string,
+  artistId?: string,
+): BookingDraft | undefined {
+  if (!startISO) return undefined;
+  return {
+    start: startISO,
+    artistId:
+      artistId ?? (activeArtistId === ALL_STAFF ? undefined : activeArtistId),
+  };
+}
+
+/**
+ * Artist to persist against when moving/editing an event: the event's own
+ * artist (tagged in all-staff mode) — never the `"all"` sentinel.
+ */
+export function eventArtist(
+  ev: { artistId?: string } | undefined,
+  activeArtistId: string,
+): string {
+  return ev?.artistId ?? activeArtistId;
 }
 
 const HEADING = new Intl.DateTimeFormat("en-GB", {
@@ -69,10 +106,16 @@ export function CalendarClient({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<BookingDraft | undefined>(undefined);
 
+  const allStaff = activeArtistId === ALL_STAFF;
+  const showAllOption = canSwitchArtist && artists.length > 1;
+
   // Lets the closed Select trigger render the artist's name, not the cuid.
   const artistItems = useMemo(
-    () => artists.map((a) => ({ value: a.id, label: a.name })),
-    [artists],
+    () => [
+      ...(showAllOption ? [{ value: ALL_STAFF, label: "All staff" }] : []),
+      ...artists.map((a) => ({ value: a.id, label: a.name })),
+    ],
+    [artists, showAllOption],
   );
 
   const navigate = (next: {
@@ -88,10 +131,8 @@ export function CalendarClient({
     startTransition(() => router.push(`/calendar?${params.toString()}`));
   };
 
-  function openCreate(startISO?: string) {
-    setEditing(
-      startISO ? { start: startISO, artistId: activeArtistId } : undefined,
-    );
+  function openCreate(startISO?: string, artistId?: string) {
+    setEditing(slotDraft(activeArtistId, startISO, artistId));
     setDrawerOpen(true);
   }
 
@@ -103,7 +144,7 @@ export function CalendarClient({
     );
     setEditing({
       id: ev.id,
-      artistId: activeArtistId,
+      artistId: eventArtist(ev, activeArtistId),
       type: ev.type,
       style: ev.title,
       start: ev.start,
@@ -139,10 +180,13 @@ export function CalendarClient({
   }
 
   function handleMove(eventId: string, startISO: string, endISO: string) {
+    // Persist against the event's own artist — using activeArtistId here would
+    // silently reassign the booking in all-staff mode.
+    const ev = events.find((e) => e.id === eventId);
     startTransition(async () => {
       const res = await updateBookingAction({
         id: eventId,
-        artistId: activeArtistId,
+        artistId: eventArtist(ev, activeArtistId),
         start: startISO,
         end: endISO,
       });
@@ -205,9 +249,9 @@ export function CalendarClient({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {artists.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name}
+                {artistItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -236,6 +280,16 @@ export function CalendarClient({
           artistId={activeArtistId}
           view={view}
           date={anchorISO}
+          mode={allStaff ? "allStaff" : "single"}
+          artists={
+            allStaff
+              ? artists.map((a) => ({
+                  id: a.id,
+                  name: a.name,
+                  hue: a.hue ?? null,
+                }))
+              : undefined
+          }
           events={events}
           leave={leave}
           onCreate={openCreate}
@@ -249,7 +303,7 @@ export function CalendarClient({
         booking={editing}
         customers={customers}
         artists={artists}
-        defaultArtistId={activeArtistId}
+        defaultArtistId={allStaff ? undefined : activeArtistId}
         onSave={handleSave}
         onClose={() => setDrawerOpen(false)}
       />

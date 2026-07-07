@@ -82,7 +82,10 @@ export default async function ArtistDetailPage({ params }: PageProps) {
                 {artist.name}
               </h1>
               {artist.tag && <p className="lead">{artist.tag}</p>}
-              <div className="row gap-4" style={{ marginTop: 14, flexWrap: "wrap" }}>
+              <div
+                className="row gap-4"
+                style={{ marginTop: 14, flexWrap: "wrap" }}
+              >
                 <BooksBadge status={artist.books} />
                 {artist.rating != null && <Stars value={artist.rating} />}
                 {artist.pieces != null && (
@@ -90,7 +93,10 @@ export default async function ArtistDetailPage({ params }: PageProps) {
                 )}
               </div>
               {artist.bio && <p className={styles.bio}>{artist.bio}</p>}
-              <div className="hero-cta" style={{ justifyContent: "flex-start", marginTop: 0 }}>
+              <div
+                className="hero-cta"
+                style={{ justifyContent: "flex-start", marginTop: 0 }}
+              >
                 <Link
                   href={
                     open
@@ -185,7 +191,10 @@ export default async function ArtistDetailPage({ params }: PageProps) {
       </section>
 
       <section className="cta-band">
-        <div className="wrap center" style={{ position: "relative", zIndex: 1 }}>
+        <div
+          className="wrap center"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           <SectionHead
             eyebrow="Ready when you are"
             title="Let's make something you'll wear forever"
@@ -193,7 +202,10 @@ export default async function ArtistDetailPage({ params }: PageProps) {
             center
           />
           <div className="hero-cta" style={{ marginTop: 8 }}>
-            <Link href={`/enquire?artist=${artist.slug}`} className="btn btn-lg">
+            <Link
+              href={`/enquire?artist=${artist.slug}`}
+              className="btn btn-lg"
+            >
               Enquire with {artist.first}
             </Link>
             <Link href="/studio" className="btn btn-lg btn-ghost">

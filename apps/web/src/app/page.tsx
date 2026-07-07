@@ -39,7 +39,9 @@ export const metadata: Metadata = {
     "Seven resident artists, custom work from fine-line to blackwork, and a proper brew while you wait. Heritage tattooing in Worksop. Books open for Summer 2026.",
 };
 
-function toArtistProp(a: Awaited<ReturnType<typeof getArtists>>[number]): ArtistProp {
+function toArtistProp(
+  a: Awaited<ReturnType<typeof getArtists>>[number],
+): ArtistProp {
   return {
     id: a.slug,
     name: a.name,
@@ -364,7 +366,10 @@ export default async function HomePage() {
 
       {/* 9. CTA BAND */}
       <section className="cta-band">
-        <div className="wrap center" style={{ position: "relative", zIndex: 1 }}>
+        <div
+          className="wrap center"
+          style={{ position: "relative", zIndex: 1 }}
+        >
           <SectionHead
             eyebrow="Ready when you are"
             title="Let's make something you'll wear forever"

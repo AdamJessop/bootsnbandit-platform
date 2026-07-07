@@ -88,13 +88,17 @@ export default async function StudioPage() {
         <div className="wrap-wide">
           <div className={styles.about}>
             <div className={styles.aboutCopy}>
-              <SectionHead eyebrow="Our story" title="Two friends, two machines" />
+              <SectionHead
+                eyebrow="Our story"
+                title="Two friends, two machines"
+              />
               <p>
-                We started Boots &rsquo;n&rsquo; Bandit in 2016 above a barber&rsquo;s
-                with two machines and a lot of nerve. Word spread, the diary
-                filled, and we grew into the shop you see today — seven artists
-                on Newcastle Avenue, still chasing that same feeling of someone
-                walking out delighted with something they&rsquo;ll wear forever.
+                We started Boots &rsquo;n&rsquo; Bandit in 2016 above a
+                barber&rsquo;s with two machines and a lot of nerve. Word
+                spread, the diary filled, and we grew into the shop you see
+                today — seven artists on Newcastle Avenue, still chasing that
+                same feeling of someone walking out delighted with something
+                they&rsquo;ll wear forever.
               </p>
             </div>
             <Plate seed="studio-about" ratio="4/3" />
@@ -135,7 +139,10 @@ export default async function StudioPage() {
             {VALUES.map((v) => {
               const Icon = v.icon;
               return (
-                <div key={v.title} className={`card card-pad ${styles.valueCard}`}>
+                <div
+                  key={v.title}
+                  className={`card card-pad ${styles.valueCard}`}
+                >
                   <Icon className="ic" />
                   <h3>{v.title}</h3>
                   <p>{v.desc}</p>
@@ -219,10 +226,14 @@ export default async function StudioPage() {
             </div>
             <div className="card card-pad">
               <p className="muted" style={{ margin: 0 }}>
-                Ready to book something in? An enquiry is the quickest way to get
-                a free 15-minute consultation with the right artist.
+                Ready to book something in? An enquiry is the quickest way to
+                get a free 15-minute consultation with the right artist.
               </p>
-              <Link href="/enquire" className="btn btn-sm" style={{ marginTop: 16 }}>
+              <Link
+                href="/enquire"
+                className="btn btn-sm"
+                style={{ marginTop: 16 }}
+              >
                 Make an enquiry
               </Link>
             </div>
@@ -238,7 +249,10 @@ export default async function StudioPage() {
             <h2 className="display chrome" style={{ margin: "10px 0" }}>
               Gift vouchers
             </h2>
-            <p className="muted" style={{ maxWidth: 480, margin: "0 auto 18px" }}>
+            <p
+              className="muted"
+              style={{ maxWidth: 480, margin: "0 auto 18px" }}
+            >
               Any amount, never expires. The perfect present for the person
               who&rsquo;s &ldquo;always wanted one&rdquo;.
             </p>

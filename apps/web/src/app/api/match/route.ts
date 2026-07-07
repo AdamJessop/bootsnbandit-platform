@@ -19,7 +19,15 @@ const limiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
 const schema = z.object({
   vibe: z.enum(["trad", "fine", "dark", "play", "real", "geo"]).nullish(),
   subject: z
-    .enum(["animal", "floral", "portrait", "words", "pattern", "anime", "unsure"])
+    .enum([
+      "animal",
+      "floral",
+      "portrait",
+      "words",
+      "pattern",
+      "anime",
+      "unsure",
+    ])
     .nullish(),
   colour: z.enum(["bw", "bold", "touch"]).nullish(),
   placement: z.string().nullish(),
@@ -30,7 +38,10 @@ const schema = z.object({
 export async function POST(req: Request): Promise<Response> {
   try {
     if (!limiter.hit(clientIp(req))) {
-      return jsonError(429, "Too many requests — please try again in a minute.");
+      return jsonError(
+        429,
+        "Too many requests — please try again in a minute.",
+      );
     }
     const input = await parseBody(req, schema);
     const answers: MatchAnswers = {

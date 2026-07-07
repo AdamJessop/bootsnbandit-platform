@@ -279,8 +279,8 @@ export interface LoyaltyPerk {
 export async function getLoyaltyConfig() {
   const cfg = await prisma.loyaltyConfig.findFirst({ where: { active: true } });
   if (!cfg) return null;
-  const perks = (
-    Array.isArray(cfg.perks) ? cfg.perks : []
-  ) as unknown as LoyaltyPerk[];
+  const perks = (Array.isArray(cfg.perks)
+    ? cfg.perks
+    : []) as unknown as LoyaltyPerk[];
   return { ...cfg, perks };
 }

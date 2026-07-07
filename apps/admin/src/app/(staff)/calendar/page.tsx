@@ -5,6 +5,7 @@ import { CalendarClient } from "./CalendarClient";
 import {
   loadArtistsForUser,
   loadCalendarData,
+  loadCalendarDataAll,
   loadCustomerOptions,
   resolveActiveArtist,
 } from "./data";
@@ -57,8 +58,17 @@ export default async function CalendarPage({
     );
   }
 
+  // "all" (owner-only sentinel from resolveActiveArtist): every artist's
+  // calendar at once, events/leave tagged with their owning artistId.
+  const allStaff = activeArtistId === "all";
   const [{ events, leave }, customers] = await Promise.all([
-    loadCalendarData(activeArtistId, anchor, view),
+    allStaff
+      ? loadCalendarDataAll(
+          artists.map((a) => a.id),
+          anchor,
+          view,
+        )
+      : loadCalendarData(activeArtistId, anchor, view),
     loadCustomerOptions(),
   ]);
 
@@ -73,6 +83,7 @@ export default async function CalendarPage({
         artists={artists.map((a) => ({
           id: a.id,
           name: a.name,
+          hue: a.hue,
           hourlyRatePence: a.hourlyRatePence,
           dayRatePence: a.dayRatePence,
         }))}

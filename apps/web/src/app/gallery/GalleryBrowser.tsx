@@ -101,7 +101,11 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
               big: g.big,
             };
             return (
-              <GalleryTile key={g.id} item={item} onOpen={() => setOpenIdx(i)} />
+              <GalleryTile
+                key={g.id}
+                item={item}
+                onOpen={() => setOpenIdx(i)}
+              />
             );
           })}
         </div>
@@ -119,7 +123,11 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
           </span>
           <p className="muted">No pieces match those filters.</p>
           <div>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={reset}>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={reset}
+            >
               Reset filters
             </button>
           </div>
@@ -128,7 +136,10 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
 
       <Modal open={open != null} onClose={() => setOpenIdx(null)} wide>
         {open && (
-          <div className="grid gap-6" style={{ gridTemplateColumns: "1.1fr 0.9fr" }}>
+          <div
+            className="grid gap-6"
+            style={{ gridTemplateColumns: "1.1fr 0.9fr" }}
+          >
             <Plate
               seed={`gallery-${open.id}`}
               src={open.image ?? undefined}
@@ -141,21 +152,29 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
                 {open.title}
               </h3>
               <div className="row gap-3">
-                <ArtistAvatar artist={{ name: open.artistName ?? "Artist" }} size="sm" />
+                <ArtistAvatar
+                  artist={{ name: open.artistName ?? "Artist" }}
+                  size="sm"
+                />
                 <span className="muted">{open.artistName}</span>
               </div>
               <div className="stack gap-3">
                 {open.placement && (
                   <span className="meta">Placement · {open.placement}</span>
                 )}
-                {open.style && <span className="meta">Style · {open.style}</span>}
+                {open.style && (
+                  <span className="meta">Style · {open.style}</span>
+                )}
               </div>
               <p className="muted">
                 Like this piece? We&rsquo;ll take the spirit of it and make
                 something that&rsquo;s yours — we never copy another
                 person&rsquo;s tattoo.
               </p>
-              <div className="hero-cta" style={{ marginTop: 0, justifyContent: "flex-start" }}>
+              <div
+                className="hero-cta"
+                style={{ marginTop: 0, justifyContent: "flex-start" }}
+              >
                 <Link href={enquireHref(open)} className="btn btn-sm">
                   Enquire about this style
                 </Link>

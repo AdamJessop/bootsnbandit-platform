@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { ArtistCard, Chip, type Artist as ArtistProp } from "@/components/site";
-import { ARTIST_FILTERS, filterArtistsByBooks, type ArtistFilterValue } from "./logic";
+import {
+  ARTIST_FILTERS,
+  filterArtistsByBooks,
+  type ArtistFilterValue,
+} from "./logic";
 
 /**
  * Client island: books-status filter chips over the artist grid. Pure

@@ -123,7 +123,9 @@ export function EnquireWizard({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Something went wrong. Please try again.");
+        throw new Error(
+          data.error ?? "Something went wrong. Please try again.",
+        );
       }
       setDone(true);
     } catch (err) {

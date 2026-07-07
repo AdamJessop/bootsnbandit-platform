@@ -79,7 +79,12 @@ describe("inkling logic — match enquiry from a result", () => {
       matchedStyles: ["Fine-line", "Dotwork & Geometric"],
       bestFit: true,
     };
-    const quiz: QuizState = { ...emptyQuiz(), vibe: "fine", subject: "floral", colour: "bw" };
+    const quiz: QuizState = {
+      ...emptyQuiz(),
+      vibe: "fine",
+      subject: "floral",
+      colour: "bw",
+    };
     const p = buildInklingEnquiryPayload({
       name: "Ada",
       email: "ada@example.com",

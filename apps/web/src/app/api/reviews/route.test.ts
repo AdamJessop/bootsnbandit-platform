@@ -59,7 +59,9 @@ describe("POST /api/reviews", () => {
   it("submits a pending review and returns 201", async () => {
     findUnique.mockResolvedValue({ id: "r1", token: "t1", status: "pending" });
     update.mockResolvedValue({ id: "r1", status: "submitted", rating: 5 });
-    const res = await POST(post({ token: "t1", rating: 5, body: "great work" }));
+    const res = await POST(
+      post({ token: "t1", rating: 5, body: "great work" }),
+    );
     expect(res.status).toBe(201);
     const arg = update.mock.calls[0][0] as {
       where: { id: string };

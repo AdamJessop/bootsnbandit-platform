@@ -72,6 +72,18 @@ describe("resolveActiveArtist", () => {
   it("artist is pinned to their own artistId regardless of request", () => {
     expect(resolveActiveArtist(artist, artists, "a1")).toBe("a2");
   });
+
+  it("owner requesting all gets the all sentinel", () => {
+    expect(resolveActiveArtist(owner, artists, "all")).toBe("all");
+  });
+
+  it("all falls back to the first artist when only one artist exists", () => {
+    expect(resolveActiveArtist(owner, [artists[0]], "all")).toBe("a1");
+  });
+
+  it("non-owner requesting all is pinned to their own artist", () => {
+    expect(resolveActiveArtist(artist, artists, "all")).toBe("a2");
+  });
 });
 
 describe("loadCalendarDataAll", () => {

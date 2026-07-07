@@ -17,6 +17,7 @@ export const SITE_NAV: SiteNavItem[] = [
   { label: "Flash", href: "/flash" },
   { label: "Aftercare", href: "/aftercare" },
   { label: "Studio", href: "/studio" },
+  { label: "Sign in", href: "/account/sign-in" },
 ];
 
 export const STUDIO = {

@@ -51,7 +51,9 @@ export default async function FlashPage() {
           {groups.map((group) => (
             <div key={group.deadline} className={styles.group}>
               <div className={styles.groupHead}>
-                <h2 className={styles.groupTitle}>Live until {group.deadline}</h2>
+                <h2 className={styles.groupTitle}>
+                  Live until {group.deadline}
+                </h2>
                 <span className={styles.groupCount}>
                   {group.items.length} available
                 </span>

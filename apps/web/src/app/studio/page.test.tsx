@@ -16,9 +16,30 @@ vi.mock("../_data", () => ({
     instagramUrl: null,
   })),
   getArtists: vi.fn(async () => [
-    { slug: "sarah", name: "Sarah", status: "CO_OWNER", bio: "Sarah co-founded the studio.", headshot: null, hue: "crimson" },
-    { slug: "cal", name: "Calum", status: "CO_OWNER", bio: "The other half.", headshot: null, hue: "ink" },
-    { slug: "tom", name: "Tom", status: "APPRENTICE", bio: "Learning the ropes.", headshot: null, hue: "teal" },
+    {
+      slug: "sarah",
+      name: "Sarah",
+      status: "CO_OWNER",
+      bio: "Sarah co-founded the studio.",
+      headshot: null,
+      hue: "crimson",
+    },
+    {
+      slug: "cal",
+      name: "Calum",
+      status: "CO_OWNER",
+      bio: "The other half.",
+      headshot: null,
+      hue: "ink",
+    },
+    {
+      slug: "tom",
+      name: "Tom",
+      status: "APPRENTICE",
+      bio: "Learning the ropes.",
+      headshot: null,
+      hue: "teal",
+    },
   ]),
 }));
 

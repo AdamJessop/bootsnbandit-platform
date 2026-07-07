@@ -53,13 +53,18 @@ export async function loadArtistsForUser(
   }));
 }
 
-/** Resolve the artist whose calendar should show first. */
+/**
+ * Resolve the artist whose calendar should show first. Owners may request the
+ * `"all"` sentinel (all-staff calendar) when there is more than one artist;
+ * everyone else is pinned to their own artist.
+ */
 export function resolveActiveArtist(
   user: SessionUser,
   artists: ArtistLite[],
   requested?: string,
 ): string | undefined {
   if (user.role !== "OWNER") return user.artistId ?? artists[0]?.id;
+  if (requested === "all" && artists.length > 1) return "all";
   if (requested && artists.some((a) => a.id === requested)) return requested;
   return artists[0]?.id;
 }

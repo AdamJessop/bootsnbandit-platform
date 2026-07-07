@@ -41,15 +41,13 @@ describe("clientIp", () => {
     new Request("http://x/", { headers });
 
   it("uses the first x-forwarded-for hop", () => {
-    expect(
-      clientIp(req({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" })),
-    ).toBe("203.0.113.9");
+    expect(clientIp(req({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" }))).toBe(
+      "203.0.113.9",
+    );
   });
 
   it("falls back to x-real-ip, then 'unknown'", () => {
-    expect(clientIp(req({ "x-real-ip": "198.51.100.4" }))).toBe(
-      "198.51.100.4",
-    );
+    expect(clientIp(req({ "x-real-ip": "198.51.100.4" }))).toBe("198.51.100.4");
     expect(clientIp(req({}))).toBe("unknown");
   });
 });

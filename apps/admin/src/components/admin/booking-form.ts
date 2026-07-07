@@ -17,9 +17,18 @@ export type BookingStatus =
   | "cancelled"
   | "no_show";
 
+/** Whether the drawer books an existing customer or creates one inline. */
+export type CustomerMode = "existing" | "new";
+
 /** Editable drawer state (strings as they live in form controls). */
 export interface BookingFormState {
   customerId: string;
+  customerMode: CustomerMode;
+  /** Inline new-customer fields (only validated when mode is "new"). */
+  newCustomerName: string;
+  /** "YYYY-MM-DD" from <input type="date">; blank = not given. */
+  newCustomerDob: string;
+  newCustomerEmail: string;
   artistId: string;
   type: BookingType;
   style: string;
@@ -68,9 +77,28 @@ export function parsePounds(input: string): number | null {
 
 export type BookingErrors = Partial<Record<keyof BookingFormState, string>>;
 
+/** Deliberately loose: something@something.tld — the server re-validates. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** "YYYY-MM-DD" → true when it parses to a real calendar date. */
+function isValidDobString(dob: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return false;
+  return !Number.isNaN(new Date(`${dob}T00:00:00.000Z`).getTime());
+}
+
 export function validateDraft(state: BookingFormState): BookingErrors {
   const errors: BookingErrors = {};
-  if (!state.customerId) errors.customerId = "Choose or add a customer.";
+  if (state.customerMode === "new") {
+    if (!state.newCustomerName.trim())
+      errors.newCustomerName = "Enter the customer's name.";
+    if (!EMAIL_RE.test(state.newCustomerEmail.trim()))
+      errors.newCustomerEmail = "Enter a valid email address.";
+    const dob = state.newCustomerDob.trim();
+    if (dob !== "" && !isValidDobString(dob))
+      errors.newCustomerDob = "Enter a valid date of birth.";
+  } else if (!state.customerId) {
+    errors.customerId = "Choose or add a customer.";
+  }
   if (!state.artistId) errors.artistId = "Choose an artist.";
   if (!state.date) errors.date = "Pick a date.";
   if (!state.time) errors.time = "Pick a start time.";
@@ -83,8 +111,19 @@ export function validateDraft(state: BookingFormState): BookingErrors {
   return errors;
 }
 
+/** Inline customer to create alongside the booking (welcome email path). */
+export interface NewCustomerPayload {
+  name: string;
+  email: string;
+  /** "YYYY-MM-DD"; omitted when not given. */
+  dob?: string;
+}
+
 export interface BookingPayload {
-  customerId: string;
+  /** Existing customer — mutually exclusive with `newCustomer`. */
+  customerId?: string;
+  /** Inline new customer — mutually exclusive with `customerId`. */
+  newCustomer?: NewCustomerPayload;
   artistId: string;
   type: BookingType;
   style: string | null;
@@ -97,12 +136,27 @@ export interface BookingPayload {
   status: BookingStatus;
 }
 
+/** customerId XOR newCustomer, from the drawer's customer mode. */
+function customerPart(
+  state: BookingFormState,
+): Pick<BookingPayload, "customerId" | "newCustomer"> {
+  if (state.customerMode !== "new") return { customerId: state.customerId };
+  const dob = state.newCustomerDob.trim();
+  return {
+    newCustomer: {
+      name: state.newCustomerName.trim(),
+      email: state.newCustomerEmail.trim(),
+      ...(dob !== "" ? { dob } : {}),
+    },
+  };
+}
+
 /** Build the /api/bookings request body from validated form state. */
 export function draftToPayload(state: BookingFormState): BookingPayload {
   const start = new Date(`${state.date}T${state.time}:00`);
   const end = new Date(start.getTime() + state.durationMins * 60000);
   return {
-    customerId: state.customerId,
+    ...customerPart(state),
     artistId: state.artistId,
     type: state.type,
     style: state.style.trim() || null,
