@@ -143,3 +143,20 @@ describe("set-password token lifecycle (DB)", () => {
     expect(older.passwordHash).toBeNull();
   });
 });
+
+describe("email normalization (DB)", () => {
+  it("signs in regardless of email casing/whitespace", async () => {
+    if (!(await dbReachable())) return;
+    const base = `${uid("case")}@example.com`;
+    const c = await testDb().customer.create({
+      data: { name: "Cased", email: base },
+    });
+    const token = await mintSetPasswordToken(c.id);
+    await redeemSetPasswordToken(token, "pw-case-123");
+
+    const upper = base.toUpperCase();
+    const hit = await signInCustomer(`  ${upper}  `, "pw-case-123");
+    expect(hit?.id).toBe(c.id);
+    await testDb().customer.delete({ where: { id: c.id } });
+  });
+});

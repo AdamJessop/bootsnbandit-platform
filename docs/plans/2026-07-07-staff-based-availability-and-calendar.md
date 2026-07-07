@@ -1,7 +1,7 @@
 # Staff-Based Availability, Calendar & Session Customer Creation Implementation Plan
 
 Created: 2026-07-07
-Status: COMPLETE
+Status: VERIFIED
 Approved: Yes
 Iterations: 1
 Worktree: No
@@ -180,6 +180,7 @@ _Assume this plan failed. Most likely internal reasons:_
 ## Deferred Issues
 
 - `packages/core/prisma/seed.ts` exceeds the Sentinal 600-line limit (876 lines) and has no companion test — pre-existing condition; this spec only removed lines from it. Splitting the seed script is out of scope.
+- The web sign-in/set-password rate limiter (`apps/web/src/lib/rate-limit.ts`) is in-memory/per-process — sufficient for the current single-instance deployment, but horizontal scaling would need a shared store (e.g. Redis). Known limitation, noted by spec review.
 
 ## Implementation Tasks
 

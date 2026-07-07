@@ -1,0 +1,86 @@
+{
+  "pass_summary": "All 12 tasks are implemented and wired end-to-end: Chair is fully removed, staff/customer dropdowns show labels, an owner all-staff calendar exists, an owner-gated per-artist profile editor exists with correct self-vs-owner gating, inline new-customer booking creation mints a welcome email and defaults new bookings to confirmed, customer auth (scrypt + JWE cookie + set-password token lifecycle with expiry reissue) is built and consumed by gated web sign-in/set-password/passport pages with ownership-checked cancellation requests, and admin surfaces cancellation-request badges. Core package tests (149) pass; the diff is clean of chair/chairId residue and of leaked staff-auth imports on the web origin.",
+  "compliance_score": "high",
+  "quality_score": "high",
+  "goal_score": "achieved",
+  "truths_verified": 12,
+  "truths_total": 12,
+  "issues": [
+    {
+      "severity": "suggestion",
+      "category": "risk_mitigation",
+      "title": "Rate limiter is in-memory / per-process",
+      "description": "apps/web/src/app/account/actions.ts uses createRateLimiter (apps/web/src/lib/rate-limit.ts) which is an in-memory counter. This is fine for the current single-instance dev/deploy target and is tested (actions.test.ts asserts the limiter fires), but it will not share state across multiple server instances/replicas in a scaled deployment, silently weakening the brute-force mitigation the plan's risk table calls for.",
+      "suggested_fix": "Note in deploy docs that horizontal scaling requires swapping to a shared store (e.g. Redis) for the rate limiter, or accept as a known limitation for the current single-instance deployment."
+    },
+    {
+      "severity": "suggestion",
+      "category": "bugs",
+      "title": "signInAction email casing/whitespace not normalized",
+      "description": "apps/web/src/app/account/actions.ts signInSchema only validates email shape via z.string().email(); signInCustomer (packages/core/src/services/customer-auth.ts) does an exact-match `where: { email }` lookup. If a customer's welcome email was created with different casing than what they type at sign-in, sign-in will silently fail with the generic 'incorrect' message.",
+      "suggested_fix": "Normalize email (trim + toLowerCase) consistently at both createCustomerWithWelcome and signInCustomer, or document that email must match exactly as stored."
+    }
+  ],
+  "truths": [
+    {
+      "truth": "grep -c \"Chair|chairId\" schema.prisma returns 0",
+      "status": "verified",
+      "evidence": "packages/core/prisma/schema.prisma diff removes `model Chair`, `Booking.chairId`, and the `chair` relation; repo-wide grep for chairId/prisma.chair outside migrations returns nothing."
+    },
+    {
+      "truth": "studio/resources no longer exists; no prisma.chair references",
+      "status": "verified",
+      "evidence": "`ls apps/admin/.../studio/resources` -> No such file or directory; grep for prisma.chair across apps/packages (excluding migrations) is empty."
+    },
+    {
+      "truth": "items= label-rendering fix applied to CalendarClient, BookingDrawer, AvailabilityEditor",
+      "status": "verified",
+      "evidence": "grep -l \"items=\" matched all three files; CalendarClient.tsx diff shows `items={artistItems}` passed to Select."
+    },
+    {
+      "truth": "All-staff mode + CalendarGrid artist-columns support",
+      "status": "verified",
+      "evidence": "CalendarClient.tsx exports ALL_STAFF sentinel and passes mode/artists to CalendarGrid; CalendarGrid.tsx has `mode?: \"single\" | \"allStaff\"` and `const allStaff = mode === \"allStaff\" && artists.length > 0`."
+    },
+    {
+      "truth": "New-booking default status is confirmed",
+      "status": "verified",
+      "evidence": "booking-drawer-state.ts: `status: booking?.status ?? (booking?.id ? \"pending\" : \"confirmed\")` — new drafts (no id) default to confirmed, edits keep existing status."
+    },
+    {
+      "truth": "Customer dob/passwordHash + CustomerPasswordToken model exist",
+      "status": "verified",
+      "evidence": "schema.prisma diff adds `dob DateTime?`, `passwordHash String?` to Customer and a full CustomerPasswordToken model with @@index([customerId])."
+    },
+    {
+      "truth": "welcome.tsx template exists and is registered in render.ts",
+      "status": "verified",
+      "evidence": "packages/core/src/email/templates/welcome.tsx created (WelcomeEmail component); render.ts buildElement switch has a `case \"welcome\":` branch constructing it."
+    },
+    {
+      "truth": "account/sign-in and account/set-password pages exist",
+      "status": "verified",
+      "evidence": "apps/web/src/app/account/sign-in/page.tsx and apps/web/src/app/account/set-password/page.tsx both created, with co-located tests."
+    },
+    {
+      "truth": "passport page is gated via getCustomerSession/requireCustomer",
+      "status": "verified",
+      "evidence": "apps/web/src/app/passport/page.tsx: `const session = await requireCustomer();` imported from apps/web/src/lib/customer-auth.ts."
+    },
+    {
+      "truth": "cancelRequestedAt present in schema and BookingsTable",
+      "status": "verified",
+      "evidence": "schema.prisma adds `cancelRequestedAt DateTime?` to Booking; BookingsTable.tsx adds a `cancelRequestedAt` field, a `Cancel requested` filter/badge, and a destructive Badge rendered when set."
+    },
+    {
+      "truth": "Unauthenticated GET /passport redirects to sign-in",
+      "status": "verified",
+      "evidence": "requireCustomer() in apps/web/src/lib/customer-auth.ts calls `redirect(\"/account/sign-in\")` when no session cookie decodes; page.test.tsx exercises the gated/ungated cases. Not verified via a live curl (no running dev server in this review), but the code path is unambiguous and Next's redirect() emits a 307."
+    },
+    {
+      "truth": "loyaltyStamps/loyaltyTier wired into gated passport",
+      "status": "verified",
+      "evidence": "passport/page.tsx reads `customer.loyaltyStamps` / `customer.loyaltyTier` (aliased stamps/tier) and renders them in PassportCard and the stats grid, replacing the prior SAMPLE_COLLECTION constants."
+    }
+  ]
+}

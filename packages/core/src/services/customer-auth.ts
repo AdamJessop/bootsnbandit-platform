@@ -1,5 +1,4 @@
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
 import type { Customer } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 
@@ -10,20 +9,31 @@ import { prisma } from "@bnb/core/db";
  * reports the customerId so the caller can mint + email a fresh link.
  */
 
-const scrypt = promisify(scryptCb);
-
 export const SET_PASSWORD_TOKEN_TTL_DAYS = 30;
 
 const SCRYPT_COST = 16384; // N
 const KEY_LEN = 64;
 const SALT_LEN = 16;
 
+// Hand-rolled promise wrapper: promisify() drops the 4-arg (options) overload
+// of crypto.scrypt under strict cross-project compilation.
+function scrypt(
+  password: string,
+  salt: Buffer,
+  keylen: number,
+  options: { N: number },
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCb(password, salt, keylen, options, (err, key) =>
+      err ? reject(err) : resolve(key),
+    );
+  });
+}
+
 /** Hash a password as `scrypt$<saltB64url>$<hashB64url>`. */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_LEN);
-  const hash = (await scrypt(password, salt, KEY_LEN, {
-    N: SCRYPT_COST,
-  })) as Buffer;
+  const hash = await scrypt(password, salt, KEY_LEN, { N: SCRYPT_COST });
   return `scrypt$${salt.toString("base64url")}$${hash.toString("base64url")}`;
 }
 
@@ -37,9 +47,9 @@ export async function verifyPassword(
     if (scheme !== "scrypt" || !saltB64 || !hashB64) return false;
     const salt = Buffer.from(saltB64, "base64url");
     const expected = Buffer.from(hashB64, "base64url");
-    const actual = (await scrypt(password, salt, expected.length, {
+    const actual = await scrypt(password, salt, expected.length, {
       N: SCRYPT_COST,
-    })) as Buffer;
+    });
     return (
       expected.length === actual.length && timingSafeEqual(expected, actual)
     );
@@ -112,14 +122,18 @@ export async function redeemSetPasswordToken(
 
 /**
  * Email + password sign-in. Emails are not unique on Customer, so the newest
- * record with a credential wins; credential-less records never match.
+ * record with a credential wins; credential-less records never match. The
+ * lookup is case-insensitive (welcome emails may have stored mixed casing).
  */
 export async function signInCustomer(
   email: string,
   password: string,
 ): Promise<Customer | null> {
   const customer = await prisma.customer.findFirst({
-    where: { email, passwordHash: { not: null } },
+    where: {
+      email: { equals: email.trim(), mode: "insensitive" },
+      passwordHash: { not: null },
+    },
     orderBy: { createdAt: "desc" },
   });
   if (!customer?.passwordHash) return null;

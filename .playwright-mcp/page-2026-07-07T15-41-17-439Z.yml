@@ -1,0 +1,127 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - text: Now taking enquiries · Summer 2026
+        - generic [ref=e7]: ✦
+      - generic [ref=e8]:
+        - text: Flash drop this Saturday
+        - generic [ref=e9]: ✦
+      - generic [ref=e10]:
+        - text: Free 15-min consultations
+        - generic [ref=e11]: ✦
+      - generic [ref=e12]:
+        - text: Sarah & Marnie · books open
+        - generic [ref=e13]: ✦
+      - generic [ref=e14]:
+        - text: Walk-ins when the chairs are free
+        - generic [ref=e15]: ✦
+      - generic [ref=e16]:
+        - text: Worksop, Nottinghamshire
+        - generic [ref=e17]: ✦
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - text: Now taking enquiries · Summer 2026
+        - generic [ref=e20]: ✦
+      - generic [ref=e21]:
+        - text: Flash drop this Saturday
+        - generic [ref=e22]: ✦
+      - generic [ref=e23]:
+        - text: Free 15-min consultations
+        - generic [ref=e24]: ✦
+      - generic [ref=e25]:
+        - text: Sarah & Marnie · books open
+        - generic [ref=e26]: ✦
+      - generic [ref=e27]:
+        - text: Walk-ins when the chairs are free
+        - generic [ref=e28]: ✦
+      - generic [ref=e29]:
+        - text: Worksop, Nottinghamshire
+        - generic [ref=e30]: ✦
+  - navigation [ref=e31]:
+    - generic [ref=e32]:
+      - link "Boots 'n' Bandit" [ref=e33] [cursor=pointer]:
+        - /url: /
+        - img [ref=e35]
+        - generic [ref=e39]:
+          - generic [ref=e40]: Boots ’n’ Bandit
+          - generic [ref=e41]: Tattoo Studio
+      - generic [ref=e42]:
+        - link "Bandit Pass" [ref=e43] [cursor=pointer]:
+          - /url: /passport
+          - img [ref=e44]
+        - link "Make an enquiry" [ref=e47] [cursor=pointer]:
+          - /url: /enquire
+        - button "Menu" [ref=e48] [cursor=pointer]:
+          - img [ref=e49]
+  - main [ref=e50]:
+    - generic [ref=e52]:
+      - generic [ref=e53]: Bandit Pass
+      - heading "Sign in" [level=1] [ref=e54]
+      - paragraph [ref=e55]: Your bookings, loyalty stamps and aftercare — all in one place.
+    - generic [ref=e57]:
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]: Email
+          - textbox "Email" [ref=e62]
+        - generic [ref=e63]:
+          - generic [ref=e64]: Password
+          - textbox "Password" [ref=e65]
+        - button "Sign in" [ref=e66] [cursor=pointer]
+      - paragraph [ref=e67]: No password yet? Your welcome email has a set-password link — ask the studio to resend it if you can’t find it.
+  - contentinfo [ref=e68]:
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - img [ref=e73]
+          - paragraph [ref=e77]: Heritage tattooing in Worksop. Custom work, flash drops and the Bandit Pass — proper brew included.
+          - generic [ref=e78]:
+            - link "Instagram" [ref=e79] [cursor=pointer]:
+              - /url: https://instagram.com/bootsnbandit
+              - img [ref=e80]
+            - link "Facebook" [ref=e83] [cursor=pointer]:
+              - /url: https://www.facebook.com/profile.php?id=61562021309387
+              - img [ref=e84]
+        - generic [ref=e87]:
+          - heading "Explore" [level=6] [ref=e88]
+          - generic [ref=e89]:
+            - link "Home" [ref=e90] [cursor=pointer]:
+              - /url: /
+            - link "Artists" [ref=e91] [cursor=pointer]:
+              - /url: /artists
+            - link "Gallery" [ref=e92] [cursor=pointer]:
+              - /url: /gallery
+            - link "Inkling" [ref=e93] [cursor=pointer]:
+              - /url: /inkling
+            - link "Enquire" [ref=e94] [cursor=pointer]:
+              - /url: /enquire
+            - link "Flash" [ref=e95] [cursor=pointer]:
+              - /url: /flash
+            - link "Aftercare" [ref=e96] [cursor=pointer]:
+              - /url: /aftercare
+            - link "Studio" [ref=e97] [cursor=pointer]:
+              - /url: /studio
+            - link "Sign in" [ref=e98] [cursor=pointer]:
+              - /url: /account/sign-in
+        - generic [ref=e99]:
+          - heading "Visit" [level=6] [ref=e100]
+          - generic [ref=e101]:
+            - generic [ref=e102]:
+              - img [ref=e103]
+              - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+            - generic [ref=e106]:
+              - img [ref=e107]
+              - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+            - link "01909 000 000" [ref=e110] [cursor=pointer]:
+              - /url: tel:01909000000
+              - img [ref=e111]
+              - text: 01909 000 000
+        - generic [ref=e113]:
+          - heading "The Studio" [level=6] [ref=e114]
+          - paragraph [ref=e115]:
+            - text: Boots 'n' Bandit Tattoo Studio
+            - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+            - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+      - generic [ref=e116]:
+        - generic [ref=e117]: © 2026 Boots 'n' Bandit Tattoo Studio. All rights reserved.
+        - generic [ref=e118]: Fully licensed studio · Worksop, Nottinghamshire

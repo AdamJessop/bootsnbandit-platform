@@ -1,0 +1,187 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - text: Now taking enquiries · Summer 2026
+          - generic [ref=e7]: ✦
+        - generic [ref=e8]:
+          - text: Flash drop this Saturday
+          - generic [ref=e9]: ✦
+        - generic [ref=e10]:
+          - text: Free 15-min consultations
+          - generic [ref=e11]: ✦
+        - generic [ref=e12]:
+          - text: Sarah & Marnie · books open
+          - generic [ref=e13]: ✦
+        - generic [ref=e14]:
+          - text: Walk-ins when the chairs are free
+          - generic [ref=e15]: ✦
+        - generic [ref=e16]:
+          - text: Worksop, Nottinghamshire
+          - generic [ref=e17]: ✦
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - text: Now taking enquiries · Summer 2026
+          - generic [ref=e20]: ✦
+        - generic [ref=e21]:
+          - text: Flash drop this Saturday
+          - generic [ref=e22]: ✦
+        - generic [ref=e23]:
+          - text: Free 15-min consultations
+          - generic [ref=e24]: ✦
+        - generic [ref=e25]:
+          - text: Sarah & Marnie · books open
+          - generic [ref=e26]: ✦
+        - generic [ref=e27]:
+          - text: Walk-ins when the chairs are free
+          - generic [ref=e28]: ✦
+        - generic [ref=e29]:
+          - text: Worksop, Nottinghamshire
+          - generic [ref=e30]: ✦
+    - navigation [ref=e31]:
+      - generic [ref=e32]:
+        - link "Boots 'n' Bandit" [ref=e33] [cursor=pointer]:
+          - /url: /
+          - img [ref=e35]
+          - generic [ref=e39]:
+            - generic [ref=e40]: Boots ’n’ Bandit
+            - generic [ref=e41]: Tattoo Studio
+        - generic [ref=e42]:
+          - link "Bandit Pass" [ref=e43] [cursor=pointer]:
+            - /url: /passport
+            - img [ref=e44]
+          - link "Make an enquiry" [ref=e47] [cursor=pointer]:
+            - /url: /enquire
+          - button "Menu" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+    - main [ref=e50]:
+      - generic [ref=e129]:
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - img [ref=e133]
+            - text: Your Bandit Pass
+          - heading "Welcome back, E2E" [level=1] [ref=e135]
+          - paragraph [ref=e136]: A stamp for every piece you get done. Fill the card, unlock the perks.
+          - button "Sign out" [ref=e138] [cursor=pointer]
+        - generic [ref=e141]:
+          - generic [ref=e142]:
+            - generic [ref=e143]:
+              - generic [ref=e144]: BANDIT PASS
+              - img "Boots 'n' Bandit" [ref=e145]
+            - generic [ref=e149]:
+              - generic [ref=e150]: E2E Tester
+              - generic [ref=e151]: Member since 2026
+            - generic [ref=e161]: Level 0 · 0/8
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - generic [ref=e164]:
+                - img [ref=e165]
+                - text: Your progress
+              - heading "0 stamps in, 8 to go" [level=2] [ref=e167]
+              - paragraph [ref=e168]: Every completed tattoo earns a stamp. Keep collecting to climb the perks ladder.
+            - generic [ref=e169]:
+              - generic [ref=e170]:
+                - generic [ref=e171]: "0"
+                - generic [ref=e172]: Pieces
+              - generic [ref=e173]:
+                - generic [ref=e174]: "0"
+                - generic [ref=e175]: Artists
+              - generic [ref=e176]:
+                - generic [ref=e177]: "0"
+                - generic [ref=e178]: Stamps
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - generic [ref=e182]:
+              - img [ref=e183]
+              - text: Your appointments
+            - heading "Bookings" [level=2] [ref=e185]
+          - paragraph [ref=e186]: Nothing booked yet — your next piece awaits.
+        - generic [ref=e188]:
+          - generic [ref=e189]:
+            - generic [ref=e190]:
+              - img [ref=e191]
+              - text: The rewards
+            - heading "Perks ladder" [level=2] [ref=e193]
+          - generic [ref=e194]:
+            - generic [ref=e195]:
+              - generic [ref=e196]: "2"
+              - generic [ref=e197]:
+                - heading "Birthday treat" [level=3] [ref=e198]
+                - paragraph [ref=e199]: 10% off in your birthday month.
+            - generic [ref=e200]:
+              - generic [ref=e201]: "4"
+              - generic [ref=e202]:
+                - heading "Early flash access" [level=3] [ref=e203]
+                - paragraph [ref=e204]: Claim flash 24h before the public drop.
+            - generic [ref=e205]:
+              - generic [ref=e206]: "6"
+              - generic [ref=e207]:
+                - heading "Priority booking" [level=3] [ref=e208]
+                - paragraph [ref=e209]: Skip the waitlist on open books.
+            - generic [ref=e210]:
+              - generic [ref=e211]: "8"
+              - generic [ref=e212]:
+                - heading "Free small tattoo" [level=3] [ref=e213]
+                - paragraph [ref=e214]: A palm-size piece on the house.
+        - link "Start your next piece" [ref=e217] [cursor=pointer]:
+          - /url: /enquire
+    - contentinfo [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - generic [ref=e71]:
+            - img [ref=e73]
+            - paragraph [ref=e77]: Heritage tattooing in Worksop. Custom work, flash drops and the Bandit Pass — proper brew included.
+            - generic [ref=e78]:
+              - link "Instagram" [ref=e79] [cursor=pointer]:
+                - /url: https://instagram.com/bootsnbandit
+                - img [ref=e80]
+              - link "Facebook" [ref=e83] [cursor=pointer]:
+                - /url: https://www.facebook.com/profile.php?id=61562021309387
+                - img [ref=e84]
+          - generic [ref=e87]:
+            - heading "Explore" [level=6] [ref=e88]
+            - generic [ref=e89]:
+              - link "Home" [ref=e90] [cursor=pointer]:
+                - /url: /
+              - link "Artists" [ref=e91] [cursor=pointer]:
+                - /url: /artists
+              - link "Gallery" [ref=e92] [cursor=pointer]:
+                - /url: /gallery
+              - link "Inkling" [ref=e93] [cursor=pointer]:
+                - /url: /inkling
+              - link "Enquire" [ref=e94] [cursor=pointer]:
+                - /url: /enquire
+              - link "Flash" [ref=e95] [cursor=pointer]:
+                - /url: /flash
+              - link "Aftercare" [ref=e96] [cursor=pointer]:
+                - /url: /aftercare
+              - link "Studio" [ref=e97] [cursor=pointer]:
+                - /url: /studio
+              - link "Sign in" [ref=e98] [cursor=pointer]:
+                - /url: /account/sign-in
+          - generic [ref=e99]:
+            - heading "Visit" [level=6] [ref=e100]
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - img [ref=e103]
+                - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+              - generic [ref=e106]:
+                - img [ref=e107]
+                - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+              - link "01909 000 000" [ref=e110] [cursor=pointer]:
+                - /url: tel:01909000000
+                - img [ref=e111]
+                - text: 01909 000 000
+          - generic [ref=e113]:
+            - heading "The Studio" [level=6] [ref=e114]
+            - paragraph [ref=e115]:
+              - text: Boots 'n' Bandit Tattoo Studio
+              - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+              - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+        - generic [ref=e116]:
+          - generic [ref=e117]: © 2026 Boots 'n' Bandit Tattoo Studio. All rights reserved.
+          - generic [ref=e118]: Fully licensed studio · Worksop, Nottinghamshire
+  - button "Open Next.js Dev Tools" [ref=e124] [cursor=pointer]:
+    - img [ref=e125]
+  - alert [ref=e128]: The Bandit Pass · Boots 'n' Bandit
