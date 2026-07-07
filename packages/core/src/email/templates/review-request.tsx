@@ -36,15 +36,16 @@ export function ReviewRequestEmail(props: ReviewRequestProps) {
       <Text style={heading}>How&apos;s the new piece, {customerName}?</Text>
       <Text style={paragraph}>
         We hope you&apos;re loving your tattoo
-        {artistName ? ` from ${artistName}` : ""}. If you have a spare minute, a short
-        review means the world to us — and helps other people find the studio.
+        {artistName ? ` from ${artistName}` : ""}. If you have a spare minute, a
+        short review means the world to us — and helps other people find the
+        studio.
       </Text>
       <Button href={url} style={button}>
         Leave a review
       </Button>
       <Text style={paragraph}>
-        It only takes a moment, and your link is private to you. Thank you for choosing
-        Boots &apos;n&apos; Bandit.
+        It only takes a moment, and your link is private to you. Thank you for
+        choosing Boots &apos;n&apos; Bandit.
       </Text>
     </EmailLayout>
   );

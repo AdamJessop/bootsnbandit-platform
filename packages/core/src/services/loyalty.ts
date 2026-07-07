@@ -48,7 +48,9 @@ export function tierForStamps(stamps: number, perks: LoyaltyPerk[]): number {
  * Award loyalty stamp(s) to a customer per the active LoyaltyConfig and
  * recompute their tier. Returns the new totals + any perks newly unlocked.
  */
-export async function awardStamp(customerId: string): Promise<AwardStampResult> {
+export async function awardStamp(
+  customerId: string,
+): Promise<AwardStampResult> {
   const config = await prisma.loyaltyConfig.findFirst({
     where: { active: true },
     orderBy: { createdAt: "asc" },

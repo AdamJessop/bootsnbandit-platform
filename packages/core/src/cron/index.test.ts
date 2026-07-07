@@ -9,7 +9,9 @@ const runReminders = vi.fn();
 const runReviewRequests = vi.fn();
 const runLoyaltyRewards = vi.fn();
 
-vi.mock("./reminders", () => ({ runReminders: (...a: unknown[]) => runReminders(...a) }));
+vi.mock("./reminders", () => ({
+  runReminders: (...a: unknown[]) => runReminders(...a),
+}));
 vi.mock("./review-requests", () => ({
   runReviewRequests: (...a: unknown[]) => runReviewRequests(...a),
 }));
@@ -20,7 +22,9 @@ vi.mock("./loyalty-rewards", () => ({
 const { runAllCron } = await import("./index");
 
 beforeEach(() => {
-  runReminders.mockReset().mockResolvedValue({ job: "reminders", sent: 1, skipped: 0 });
+  runReminders
+    .mockReset()
+    .mockResolvedValue({ job: "reminders", sent: 1, skipped: 0 });
   runReviewRequests
     .mockReset()
     .mockResolvedValue({ job: "review_requests", sent: 2, skipped: 1 });

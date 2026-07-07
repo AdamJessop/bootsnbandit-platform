@@ -42,7 +42,10 @@ function lineItems(data: Data): ReceiptLineItem[] {
 }
 
 /** Builds the React element + subject line for a given email type. */
-function buildElement(type: EmailType, data: Data): { subject: string; element: React.ReactElement } {
+function buildElement(
+  type: EmailType,
+  data: Data,
+): { subject: string; element: React.ReactElement } {
   switch (type) {
     case "confirmation":
       return {
@@ -136,7 +139,10 @@ function buildElement(type: EmailType, data: Data): { subject: string; element: 
 }
 
 /** Renders the template for `type` to HTML and returns the subject + html. */
-export async function renderEmail(type: EmailType, data: Data = {}): Promise<RenderedEmail> {
+export async function renderEmail(
+  type: EmailType,
+  data: Data = {},
+): Promise<RenderedEmail> {
   const { subject, element } = buildElement(type, data);
   const html = await render(element);
   return { subject, html };

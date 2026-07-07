@@ -72,14 +72,17 @@ export function AftercareEmail(props: AftercareProps) {
     >
       <Text style={heading}>Look after that new ink, {customerName}.</Text>
       <Text style={paragraph}>
-        The next few weeks decide how your tattoo settles. Here&apos;s the short version
-        of the five healing stages — the full guide, do&apos;s and don&apos;ts and a
-        healing tracker live on our site.
+        The next few weeks decide how your tattoo settles. Here&apos;s the short
+        version of the five healing stages — the full guide, do&apos;s and
+        don&apos;ts and a healing tracker live on our site.
       </Text>
 
       <Section>
         {STAGES.map((s, i) => (
-          <div key={i} style={{ ...stageBox, borderLeft: `3px solid ${s.tone}` }}>
+          <div
+            key={i}
+            style={{ ...stageBox, borderLeft: `3px solid ${s.tone}` }}
+          >
             <Text
               style={{
                 margin: "0 0 2px",
@@ -101,7 +104,14 @@ export function AftercareEmail(props: AftercareProps) {
             >
               {s.title}
             </Text>
-            <Text style={{ margin: 0, fontSize: "13px", lineHeight: "20px", color: colors.body }}>
+            <Text
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                lineHeight: "20px",
+                color: colors.body,
+              }}
+            >
               {s.care}
             </Text>
           </div>
@@ -113,8 +123,8 @@ export function AftercareEmail(props: AftercareProps) {
       </Button>
 
       <Text style={paragraph}>
-        Something not looking right? We offer free touch-ups within 3 months — just reply
-        and we&apos;ll take a look.
+        Something not looking right? We offer free touch-ups within 3 months —
+        just reply and we&apos;ll take a look.
       </Text>
     </EmailLayout>
   );

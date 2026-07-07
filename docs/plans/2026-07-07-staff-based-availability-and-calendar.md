@@ -163,7 +163,7 @@ _Assume this plan failed. Most likely internal reasons:_
 
 ## Progress Tracking
 
-- [ ] Task 1: Schema migration + seed (Wave 1)
+- [x] Task 1: Schema migration + seed (Wave 1) — note: `chairId` removal from `bookings.ts` + `api/bookings/route.ts` pulled forward from Task 2 (Prisma runtime rejected the dropped column; anticipated in Task 1 DoD)
 - [ ] Task 2: Chair/resource code sweep + dashboard stat (Wave 2)
 - [ ] Task 3: Select dropdown label fix (Wave 1)
 - [ ] Task 4: Owner artist-profile editor from Studio (Wave 1)
@@ -175,7 +175,11 @@ _Assume this plan failed. Most likely internal reasons:_
 - [ ] Task 10: Web sign-in / set-password / sign-out (Wave 4)
 - [ ] Task 11: Gated passport account area + cancel requests (Wave 5)
 - [ ] Task 12: Admin surfacing of cancellation requests (Wave 2)
-      **Total Tasks:** 12 | **Completed:** 0 | **Remaining:** 12
+      **Total Tasks:** 12 | **Completed:** 1 | **Remaining:** 11
+
+## Deferred Issues
+
+- `packages/core/prisma/seed.ts` exceeds the Sentinal 600-line limit (876 lines) and has no companion test — pre-existing condition; this spec only removed lines from it. Splitting the seed script is out of scope.
 
 ## Implementation Tasks
 

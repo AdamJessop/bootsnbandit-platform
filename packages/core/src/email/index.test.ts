@@ -23,10 +23,12 @@ describe("sendEmail", () => {
 
   beforeEach(() => {
     createMock.mockReset();
-    createMock.mockImplementation(async ({ data }: { data: { id?: string } }) => ({
-      id: data.id ?? "log_test",
-      ...data,
-    }));
+    createMock.mockImplementation(
+      async ({ data }: { data: { id?: string } }) => ({
+        id: data.id ?? "log_test",
+        ...data,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -51,7 +53,9 @@ describe("sendEmail", () => {
     expect(result.id).toBeTruthy();
 
     expect(createMock).toHaveBeenCalledOnce();
-    const arg = createMock.mock.calls[0][0] as { data: Record<string, unknown> };
+    const arg = createMock.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
     expect(arg.data.customerId).toBe("cust_1");
     expect(arg.data.relatedBookingId).toBe("book_1");
     expect(arg.data.type).toBe("confirmation");
@@ -108,7 +112,9 @@ describe("sendEmail", () => {
 
     expect(result.status).toBe("skipped");
     expect(createMock).toHaveBeenCalledOnce();
-    const arg = createMock.mock.calls[0][0] as { data: Record<string, unknown> };
+    const arg = createMock.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
     expect(arg.data.type).toBe("staff_reply");
     expect(arg.data.customerId).toBe("cust_1");
     expect(arg.data.subject).toBe("About your snake design");

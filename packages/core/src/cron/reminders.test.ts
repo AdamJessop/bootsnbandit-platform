@@ -16,7 +16,9 @@ vi.mock("@bnb/core/db", () => ({
     messageLog: { count: (...a: unknown[]) => messageCount(...a) },
   },
 }));
-vi.mock("@bnb/core/email", () => ({ sendEmail: (...a: unknown[]) => sendEmail(...a) }));
+vi.mock("@bnb/core/email", () => ({
+  sendEmail: (...a: unknown[]) => sendEmail(...a),
+}));
 
 const { runReminders } = await import("./reminders");
 

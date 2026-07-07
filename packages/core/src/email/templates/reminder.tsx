@@ -23,20 +23,19 @@ export function ReminderEmail(props: ReminderProps) {
         {date ? (
           <>
             {" "}
-            on{" "}
-            <strong style={{ color: colors.crimson }}>{date}</strong>
+            on <strong style={{ color: colors.crimson }}>{date}</strong>
           </>
         ) : null}
         .
       </Text>
       <Text style={paragraph}>
-        A good night&apos;s sleep, a proper meal beforehand and plenty of water make a
-        world of difference. Avoid alcohol the night before, and skip the suncream on
-        the area on the day.
+        A good night&apos;s sleep, a proper meal beforehand and plenty of water
+        make a world of difference. Avoid alcohol the night before, and skip the
+        suncream on the area on the day.
       </Text>
       <Text style={paragraph}>
-        If anything&apos;s changed and you need to move things around, just reply to this
-        email and we&apos;ll sort it.
+        If anything&apos;s changed and you need to move things around, just
+        reply to this email and we&apos;ll sort it.
       </Text>
     </EmailLayout>
   );

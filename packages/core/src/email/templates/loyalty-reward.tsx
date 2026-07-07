@@ -20,8 +20,12 @@ const rewardBox: React.CSSProperties = {
 };
 
 export function LoyaltyRewardEmail(props: LoyaltyRewardProps) {
-  const { customerName = "there", rewardLabel = "a Bandit Pass perk", stamps, tierLabel } =
-    props;
+  const {
+    customerName = "there",
+    rewardLabel = "a Bandit Pass perk",
+    stamps,
+    tierLabel,
+  } = props;
   const total = 8;
   return (
     <EmailLayout
@@ -41,18 +45,28 @@ export function LoyaltyRewardEmail(props: LoyaltyRewardProps) {
         >
           You&apos;ve earned
         </Text>
-        <Text style={{ color: "#fbf7f0", fontSize: "22px", fontWeight: 700, margin: 0 }}>
+        <Text
+          style={{
+            color: "#fbf7f0",
+            fontSize: "22px",
+            fontWeight: 700,
+            margin: 0,
+          }}
+        >
           {rewardLabel}
         </Text>
         {typeof stamps === "number" ? (
-          <Text style={{ color: colors.gold, fontSize: "13px", margin: "10px 0 0" }}>
+          <Text
+            style={{ color: colors.gold, fontSize: "13px", margin: "10px 0 0" }}
+          >
             {stamps} of {total} stamps{tierLabel ? ` · ${tierLabel}` : ""}
           </Text>
         ) : null}
       </Section>
       <Text style={paragraph}>
-        Your Bandit Pass keeps stacking with every piece. Mention this reward next time
-        you&apos;re in, or reply to this email and we&apos;ll get it sorted.
+        Your Bandit Pass keeps stacking with every piece. Mention this reward
+        next time you&apos;re in, or reply to this email and we&apos;ll get it
+        sorted.
       </Text>
       <Text style={paragraph}>Thanks for being one of ours.</Text>
     </EmailLayout>

@@ -659,8 +659,6 @@ const TICKER_LINES = [
   "Worksop, Nottinghamshire",
 ];
 
-const CHAIRS = ["Chair 1", "Chair 2", "Chair 3", "Chair 4"];
-
 // ---------------------------------------------------------------------------
 // Seed routine (idempotent upserts)
 // ---------------------------------------------------------------------------
@@ -701,7 +699,8 @@ async function main(): Promise<void> {
   // only; styles are connected via the _ArtistToTattooStyle join below.
   for (const a of ARTISTS) {
     const userId = userIdByEmail.get(a.email);
-    if (!userId) throw new Error(`Missing user for artist ${a.slug} (${a.email})`);
+    if (!userId)
+      throw new Error(`Missing user for artist ${a.slug} (${a.email})`);
     await sql`
       INSERT INTO "Artist" (
         "id", "slug", "userId", "name", "status", "tag", "bio", "specials", "hue",
@@ -834,15 +833,6 @@ async function main(): Promise<void> {
       "tickerLines" = EXCLUDED."tickerLines", "updatedAt" = now()
   `;
 
-  // Chairs
-  for (let i = 0; i < CHAIRS.length; i++) {
-    await sql`
-      INSERT INTO "Chair" ("id", "name", "sortOrder", "updatedAt")
-      VALUES (${createId()}, ${CHAIRS[i]}, ${i}, now())
-      ON CONFLICT ("name") DO UPDATE SET "sortOrder" = EXCLUDED."sortOrder", "updatedAt" = now()
-    `;
-  }
-
   // A calendar feed token per artist (auto-created at enrolment in P4; seed one
   // for every artist so iCal work has data for the whole crew).
   for (const a of ARTISTS) {
@@ -866,7 +856,6 @@ async function main(): Promise<void> {
     "AftercareStage",
     "LoyaltyConfig",
     "SiteSettings",
-    "Chair",
     "User",
     "CalendarFeed",
   ]) {

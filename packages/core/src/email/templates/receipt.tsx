@@ -38,7 +38,12 @@ const refBox: React.CSSProperties = {
 };
 
 export function ReceiptEmail(props: ReceiptProps) {
-  const { customerName = "there", amountPence = 0, bankRef, lineItems = [] } = props;
+  const {
+    customerName = "there",
+    amountPence = 0,
+    bankRef,
+    lineItems = [],
+  } = props;
   return (
     <EmailLayout
       preview={`Your receipt — ${formatGBP(amountPence)}`}
@@ -47,8 +52,10 @@ export function ReceiptEmail(props: ReceiptProps) {
       <Text style={heading}>Thanks, {customerName}.</Text>
       <Text style={paragraph}>
         We&apos;ve recorded your payment of{" "}
-        <strong style={{ color: colors.crimson }}>{formatGBP(amountPence)}</strong>.
-        Here&apos;s your receipt for the records.
+        <strong style={{ color: colors.crimson }}>
+          {formatGBP(amountPence)}
+        </strong>
+        . Here&apos;s your receipt for the records.
       </Text>
 
       {lineItems.length > 0 ? (
@@ -66,12 +73,20 @@ export function ReceiptEmail(props: ReceiptProps) {
           <Hr style={{ borderColor: colors.border, margin: "6px 0" }} />
           <Row>
             <Column>
-              <Text style={{ ...cellLabel, fontWeight: 700, color: colors.ink }}>
+              <Text
+                style={{ ...cellLabel, fontWeight: 700, color: colors.ink }}
+              >
                 Total
               </Text>
             </Column>
             <Column>
-              <Text style={{ ...cellAmount, color: colors.crimson, fontSize: "16px" }}>
+              <Text
+                style={{
+                  ...cellAmount,
+                  color: colors.crimson,
+                  fontSize: "16px",
+                }}
+              >
                 {formatGBP(amountPence)}
               </Text>
             </Column>
@@ -89,8 +104,8 @@ export function ReceiptEmail(props: ReceiptProps) {
       ) : null}
 
       <Text style={paragraph}>
-        Payments are by bank transfer — no card surcharges, ever. Keep this email for
-        your records, or reply if anything looks off.
+        Payments are by bank transfer — no card surcharges, ever. Keep this
+        email for your records, or reply if anything looks off.
       </Text>
     </EmailLayout>
   );

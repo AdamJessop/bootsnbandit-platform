@@ -81,6 +81,7 @@ enum MessageType {
   loyalty_reward
   staff_invite
   staff_reply
+  welcome
 }
 
 enum MessageChannel {
@@ -225,6 +226,8 @@ model Customer {
   name              String
   email             String?
   phone             String?
+  dob               DateTime?
+  passwordHash      String?
   notes             String?
   marketingConsent  Boolean  @default(false)
   loyaltyStamps     Int      @default(0)
@@ -233,13 +236,29 @@ model Customer {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  enquiries   Enquiry[]
-  bookings    Booking[]
-  messages    MessageLog[]
-  reviews     Review[]
+  enquiries      Enquiry[]
+  bookings       Booking[]
+  messages       MessageLog[]
+  reviews        Review[]
+  passwordTokens CustomerPasswordToken[]
 
   @@index([email])
   @@index([phone])
+}
+
+// One-time set-password (account activation) token emailed to a customer.
+// 30-day expiry; using an expired link mints a fresh token and re-sends.
+model CustomerPasswordToken {
+  id         String    @id @default(cuid())
+  customerId String
+  token      String    @unique
+  expiresAt  DateTime
+  redeemedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +303,6 @@ model Booking {
   customerId         String
   artistId           String
   enquiryId          String?
-  chairId            String?
   type               BookingType
   style              String?
   placement          String?
@@ -296,13 +314,13 @@ model Booking {
   status             BookingStatus @default(enquiry)
   notes              String?
   remindersOptIn     Boolean       @default(true)
+  cancelRequestedAt  DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
   customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   artist   Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
   enquiry  Enquiry?  @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
-  chair    Chair?    @relation(fields: [chairId], references: [id], onDelete: SetNull)
   session  Session?
   messages MessageLog[]
   reviews  Review[]
@@ -330,7 +348,7 @@ model Session {
 }
 
 // ---------------------------------------------------------------------------
-// Availability / leave / resources
+// Availability / leave
 // ---------------------------------------------------------------------------
 
 model AvailabilityRule {
@@ -360,17 +378,6 @@ model Leave {
   artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
 
   @@index([artistId, startDate])
-}
-
-model Chair {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  active    Boolean   @default(true)
-  sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  bookings Booking[]
 }
 
 // ---------------------------------------------------------------------------

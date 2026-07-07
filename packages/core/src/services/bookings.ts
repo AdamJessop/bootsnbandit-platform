@@ -27,7 +27,7 @@ export class BookingConflictError extends Error {
   }
 }
 
-// Statuses that occupy the chair (cancelled / no_show do not block).
+// Statuses that occupy the artist's slot (cancelled / no_show do not block).
 const ACTIVE_STATUSES: BookingStatus[] = [
   "enquiry",
   "pending",
@@ -141,7 +141,6 @@ export interface CreateBookingInput {
   customerId: string;
   artistId: string;
   enquiryId?: string | null;
-  chairId?: string | null;
   type: BookingType;
   style?: string | null;
   placement?: string | null;
@@ -169,7 +168,6 @@ export async function createBooking(
       customerId: input.customerId,
       artistId: input.artistId,
       enquiryId: input.enquiryId ?? null,
-      chairId: input.chairId ?? null,
       type: input.type,
       style: input.style ?? null,
       placement: input.placement ?? null,
@@ -193,7 +191,6 @@ export async function createBooking(
 
 export interface UpdateBookingInput {
   artistId?: string;
-  chairId?: string | null;
   type?: BookingType;
   style?: string | null;
   placement?: string | null;
@@ -234,7 +231,6 @@ export async function updateBooking(
     where: { id },
     data: {
       artistId: input.artistId,
-      chairId: input.chairId,
       type: input.type,
       style: input.style,
       placement: input.placement,
@@ -274,14 +270,27 @@ export interface ListBookingsInput {
 export async function listBookings(
   input: ListBookingsInput = {},
 ): Promise<Booking[]> {
-  const { artistId, customerId, status, from, to, take = 100, skip = 0 } = input;
+  const {
+    artistId,
+    customerId,
+    status,
+    from,
+    to,
+    take = 100,
+    skip = 0,
+  } = input;
   return prisma.booking.findMany({
     where: {
       ...(artistId ? { artistId } : {}),
       ...(customerId ? { customerId } : {}),
       ...(status ? { status } : {}),
       ...(from || to
-        ? { start: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
+        ? {
+            start: {
+              ...(from ? { gte: from } : {}),
+              ...(to ? { lte: to } : {}),
+            },
+          }
         : {}),
     },
     orderBy: { start: "asc" },

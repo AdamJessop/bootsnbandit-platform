@@ -18,7 +18,9 @@ vi.mock("@bnb/core/db", () => ({
     review: { create: (...a: unknown[]) => reviewCreate(...a) },
   },
 }));
-vi.mock("@bnb/core/email", () => ({ sendEmail: (...a: unknown[]) => sendEmail(...a) }));
+vi.mock("@bnb/core/email", () => ({
+  sendEmail: (...a: unknown[]) => sendEmail(...a),
+}));
 
 const { runReviewRequests } = await import("./review-requests");
 

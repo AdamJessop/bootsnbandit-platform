@@ -71,7 +71,9 @@ afterAll(async () => {
   if (reachable) {
     // Remove any CalendarFeed we bootstrapped against a seeded artist.
     for (const artistId of created.feedArtistIds) {
-      await prisma.calendarFeed.deleteMany({ where: { artistId } }).catch(() => {});
+      await prisma.calendarFeed
+        .deleteMany({ where: { artistId } })
+        .catch(() => {});
     }
     // Deleting users cascades to their authenticators + staff invites.
     for (const id of created.users) {

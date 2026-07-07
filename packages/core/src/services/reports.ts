@@ -112,9 +112,7 @@ export async function reportOverview(
     const completed = mine.filter((b) => b.status === "completed");
     const revenuePence = completed.reduce(
       (sum, b) =>
-        sum +
-        (b.session?.amountChargedPence ?? 0) +
-        (b.session?.tipPence ?? 0),
+        sum + (b.session?.amountChargedPence ?? 0) + (b.session?.tipPence ?? 0),
       0,
     );
     const bookedMinutes = mine.reduce((sum, b) => sum + b.durationMin, 0);

@@ -1,8 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import {
-  listAvailabilityRules,
-  setAvailabilityRules,
-} from "./availability";
+import { listAvailabilityRules, setAvailabilityRules } from "./availability";
 import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 
 const db = () => testDb();

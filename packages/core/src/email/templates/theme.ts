@@ -23,7 +23,9 @@ export const studio = {
 /** App origin for building absolute links; falls back to the live-ish default. */
 export function appOrigin(): string {
   const fromEnv = process.env.APP_ORIGIN ?? process.env.NEXT_PUBLIC_SITE_URL;
-  return (fromEnv && fromEnv.replace(/\/$/, "")) || "https://bootsnbandit.co.uk";
+  return (
+    (fromEnv && fromEnv.replace(/\/$/, "")) || "https://bootsnbandit.co.uk"
+  );
 }
 
 /**

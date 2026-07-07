@@ -33,7 +33,9 @@ const FROM_ADDRESS =
   process.env.EMAIL_FROM ?? "Boots 'n' Bandit <hello@bootsnbandit.co.uk>";
 
 /** Public send status -> MessageStatus enum value in the DB schema. */
-function toDbStatus(status: SendEmailResult["status"]): "sent" | "failed" | "logged" {
+function toDbStatus(
+  status: SendEmailResult["status"],
+): "sent" | "failed" | "logged" {
   // The schema has no `skipped`; log-only sends are recorded as `logged`.
   return status === "skipped" ? "logged" : status;
 }
@@ -43,7 +45,9 @@ function toDbStatus(status: SendEmailResult["status"]): "sent" | "failed" | "log
  * `RESEND_API_KEY` is configured, otherwise logs only (console + DB). It NEVER
  * throws on a missing key, and ALWAYS attempts to write a MessageLog row.
  */
-export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+export async function sendEmail(
+  input: SendEmailInput,
+): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
 
   // 1. Render the template (best-effort — a render failure must not throw).
@@ -109,7 +113,10 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     });
     id = providerId ?? log.id;
   } catch (err) {
-    console.error(`[email] failed to write MessageLog for "${input.type}":`, err);
+    console.error(
+      `[email] failed to write MessageLog for "${input.type}":`,
+      err,
+    );
     if (!id) id = `unlogged_${Date.now()}`;
   }
 

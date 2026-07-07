@@ -30,7 +30,9 @@ export function EnquiryAckEmail(props: EnquiryAckProps) {
       <Text style={heading}>Thanks for getting in touch, {customerName}.</Text>
       <Text style={paragraph}>
         We&apos;ve received your enquiry and a{" "}
-        {artistName ? `message is on its way to ${artistName}` : "member of the crew"}{" "}
+        {artistName
+          ? `message is on its way to ${artistName}`
+          : "member of the crew"}{" "}
         will get back to you soon — usually within a couple of working days.
       </Text>
       {subjectIdea ? (
@@ -50,9 +52,9 @@ export function EnquiryAckEmail(props: EnquiryAckProps) {
         </Section>
       ) : null}
       <Text style={paragraph}>
-        No deposit needed to enquire — we&apos;ll talk through your idea, placement and a
-        free 15-minute consultation first. Reply any time if you&apos;d like to add to
-        your brief.
+        No deposit needed to enquire — we&apos;ll talk through your idea,
+        placement and a free 15-minute consultation first. Reply any time if
+        you&apos;d like to add to your brief.
       </Text>
     </EmailLayout>
   );

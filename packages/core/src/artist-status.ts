@@ -7,7 +7,10 @@ export const ARTIST_STATUS_LABEL: Record<ArtistStatus, string> = {
   APPRENTICE: "Apprentice",
 };
 
-export const ARTIST_STATUS_OPTIONS: ReadonlyArray<{ value: ArtistStatus; label: string }> = [
+export const ARTIST_STATUS_OPTIONS: ReadonlyArray<{
+  value: ArtistStatus;
+  label: string;
+}> = [
   { value: "CO_OWNER", label: "Co-owner" },
   { value: "RESIDENT", label: "Resident Artist" },
   { value: "APPRENTICE", label: "Apprentice" },

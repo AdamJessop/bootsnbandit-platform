@@ -22,7 +22,6 @@ const createSchema = z.object({
   customerId: z.string().min(1),
   artistId: z.string().min(1),
   enquiryId: z.string().nullish(),
-  chairId: z.string().nullish(),
   type: z.enum(["consult", "session", "flash"]),
   style: z.string().nullish(),
   placement: z.string().nullish(),

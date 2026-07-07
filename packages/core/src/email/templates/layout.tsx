@@ -100,7 +100,9 @@ export function EmailLayout({ preview, eyebrow, children }: LayoutProps) {
               {studio.name} · {studio.tagline}
             </Text>
             <Text style={footerText}>{studio.address}</Text>
-            <Text style={footerText}>{studio.hours} · closed Sun &amp; Mon</Text>
+            <Text style={footerText}>
+              {studio.hours} · closed Sun &amp; Mon
+            </Text>
           </Section>
         </Container>
       </Body>

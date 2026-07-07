@@ -65,10 +65,12 @@ export function ConfirmationEmail(props: ConfirmationProps) {
         ) : null}
       </Section>
       <Text style={paragraph}>
-        Please come well-fed and hydrated, and wear something comfy that gives easy
-        access to the area. Need to rearrange? Just reply to this email.
+        Please come well-fed and hydrated, and wear something comfy that gives
+        easy access to the area. Need to rearrange? Just reply to this email.
       </Text>
-      <Text style={paragraph}>See you soon — the Boots &apos;n&apos; Bandit crew.</Text>
+      <Text style={paragraph}>
+        See you soon — the Boots &apos;n&apos; Bandit crew.
+      </Text>
     </EmailLayout>
   );
 }

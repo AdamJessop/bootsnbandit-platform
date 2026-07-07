@@ -28,7 +28,9 @@ function formatWhen(start: Date): string {
   });
 }
 
-export async function runReminders(now: Date = new Date()): Promise<CronJobResult> {
+export async function runReminders(
+  now: Date = new Date(),
+): Promise<CronJobResult> {
   const horizon = new Date(now.getTime() + WINDOW_HOURS * 3600_000);
 
   const bookings = await prisma.booking.findMany({

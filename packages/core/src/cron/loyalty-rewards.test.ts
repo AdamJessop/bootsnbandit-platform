@@ -18,7 +18,9 @@ vi.mock("@bnb/core/db", () => ({
     messageLog: { count: (...a: unknown[]) => messageCount(...a) },
   },
 }));
-vi.mock("@bnb/core/email", () => ({ sendEmail: (...a: unknown[]) => sendEmail(...a) }));
+vi.mock("@bnb/core/email", () => ({
+  sendEmail: (...a: unknown[]) => sendEmail(...a),
+}));
 
 const { runLoyaltyRewards } = await import("./loyalty-rewards");
 
@@ -38,7 +40,13 @@ beforeEach(() => {
 describe("runLoyaltyRewards", () => {
   it("emails customers who crossed the threshold with no prior reward", async () => {
     customerFindMany.mockResolvedValue([
-      { id: "c1", name: "Ada", email: "ada@x.test", loyaltyStamps: 8, loyaltyTier: 4 },
+      {
+        id: "c1",
+        name: "Ada",
+        email: "ada@x.test",
+        loyaltyStamps: 8,
+        loyaltyTier: 4,
+      },
     ]);
     messageCount.mockResolvedValue(0);
     const res = await runLoyaltyRewards();
@@ -66,7 +74,13 @@ describe("runLoyaltyRewards", () => {
   it("emails a consented customer over the threshold (the query returns them)", async () => {
     // Consented customer → survives the marketingConsent filter → emailed.
     customerFindMany.mockResolvedValue([
-      { id: "c2", name: "Grace", email: "grace@x.test", loyaltyStamps: 9, loyaltyTier: 4 },
+      {
+        id: "c2",
+        name: "Grace",
+        email: "grace@x.test",
+        loyaltyStamps: 9,
+        loyaltyTier: 4,
+      },
     ]);
     messageCount.mockResolvedValue(0);
     const res = await runLoyaltyRewards();
@@ -76,7 +90,13 @@ describe("runLoyaltyRewards", () => {
 
   it("is idempotent: skips customers already emailed a reward", async () => {
     customerFindMany.mockResolvedValue([
-      { id: "c1", name: "Ada", email: "ada@x.test", loyaltyStamps: 8, loyaltyTier: 4 },
+      {
+        id: "c1",
+        name: "Ada",
+        email: "ada@x.test",
+        loyaltyStamps: 8,
+        loyaltyTier: 4,
+      },
     ]);
     messageCount.mockResolvedValue(1);
     const res = await runLoyaltyRewards();

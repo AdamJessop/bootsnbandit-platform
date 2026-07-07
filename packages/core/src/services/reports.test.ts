@@ -16,9 +16,13 @@ describe("reports.reportOverview (DB fixture)", () => {
 
   afterAll(async () => {
     if (cleanup.sessions.length)
-      await db().session.deleteMany({ where: { id: { in: cleanup.sessions } } });
+      await db().session.deleteMany({
+        where: { id: { in: cleanup.sessions } },
+      });
     if (cleanup.bookings.length)
-      await db().booking.deleteMany({ where: { id: { in: cleanup.bookings } } });
+      await db().booking.deleteMany({
+        where: { id: { in: cleanup.bookings } },
+      });
     if (cleanup.customers.length)
       await db().customer.deleteMany({
         where: { id: { in: cleanup.customers } },
@@ -42,7 +46,10 @@ describe("reports.reportOverview (DB fixture)", () => {
         name: `Rep ${tag}`,
         status: "RESIDENT",
         user: {
-          create: { email: `rep-${tag}@example.test`, displayName: `Rep ${tag}` },
+          create: {
+            email: `rep-${tag}@example.test`,
+            displayName: `Rep ${tag}`,
+          },
         },
       },
     });

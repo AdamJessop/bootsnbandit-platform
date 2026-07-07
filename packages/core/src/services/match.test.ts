@@ -102,7 +102,11 @@ describe("buildStyleWeights", () => {
     // fine → [Fine-line, Dotwork & Geometric] ×3
     // floral → [Fine-line, Neo-traditional, Colour] ×2
     // bw → [Blackwork, Realism, Dotwork & Geometric, Fine-line, Lettering] ×1.5
-    const w = buildStyleWeights({ vibe: "fine", subject: "floral", colour: "bw" });
+    const w = buildStyleWeights({
+      vibe: "fine",
+      subject: "floral",
+      colour: "bw",
+    });
     // Fine-line appears in all three: 3 + 2 + 1.5 = 6.5
     expect(w.get("Fine-line")).toBeCloseTo(6.5);
     // Dotwork & Geometric: vibe(3) + colour(1.5) = 4.5
