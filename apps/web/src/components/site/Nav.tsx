@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Award, Menu, X } from "lucide-react";
 import { cn } from "@bnb/core/utils";
 import { SITE_NAV, STUDIO } from "@/lib/site-nav";
-import { Mark } from "./Mark";
 
 /**
  * Sticky public nav: brand mark, primary links (active highlight), Bandit Pass
@@ -24,8 +23,15 @@ export function Nav() {
     <nav className="nav">
       <div className="nav-in">
         <Link href="/" className="brand" aria-label={STUDIO.name}>
-          <span className="brand-mark crimson" aria-hidden>
-            <Mark className="h-[46px] w-[46px] text-bb-crimson" />
+          <span className="brand-mark" aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/bb-logo.png"
+              alt=""
+              width={46}
+              height={46}
+              className="h-[46px] w-[46px] object-contain"
+            />
           </span>
           <span className="brand-txt">
             <b>Boots &rsquo;n&rsquo; Bandit</b>

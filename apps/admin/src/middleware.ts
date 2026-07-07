@@ -39,6 +39,6 @@ export const config = {
   // their own auth + must stay reachable for the sign-in ceremony), the PWA
   // assets, and static files.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons|robots.txt).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons|bb-logo.png|robots.txt).*)",
   ],
 };

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@bnb/core/auth";
-import { Mark } from "@/components/Mark";
 import { SignInForm } from "./SignInForm";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +29,14 @@ export default async function SignInPage({
     <main className="bg-bg-default flex min-h-dvh items-center justify-center px-6 py-16">
       <div className="border-border-default bg-bg-card w-full max-w-sm rounded-xl border p-8 shadow-lg">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Mark className="text-bb-crimson mb-4 h-12 w-12" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bb-logo.png"
+            alt=""
+            width={48}
+            height={48}
+            className="mb-4 h-12 w-12 object-contain"
+          />
           <p className="kicker mb-1">Back of house</p>
           <h1 className="display text-text-primary text-2xl">
             Boots &rsquo;n&rsquo; Bandit

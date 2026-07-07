@@ -29,3 +29,10 @@ describe("Footer", () => {
     expect(html).not.toContain(STUDIO.address);
   });
 });
+
+describe("Footer branding", () => {
+  it("renders the bb-logo image", () => {
+    const html = renderToStaticMarkup(<Footer />);
+    expect(html).toContain("/bb-logo.png");
+  });
+});

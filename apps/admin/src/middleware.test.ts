@@ -66,4 +66,9 @@ describe("admin middleware auth guard", () => {
     expect(config.matcher[0]).toContain("api");
     expect(config.matcher[0]).toContain("sw.js");
   });
+
+  it("excludes the brand logo so it loads on the sign-in screen", async () => {
+    const { config } = await import("./middleware");
+    expect(config.matcher[0]).toContain("bb-logo.png");
+  });
 });

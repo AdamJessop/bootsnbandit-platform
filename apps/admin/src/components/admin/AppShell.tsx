@@ -18,7 +18,6 @@ import {
   type AdminRole,
 } from "@/lib/admin-nav";
 import { signOut } from "@/lib/sign-out";
-import { Mark } from "@/components/Mark";
 import { InstallPrompt } from "@/components/admin/InstallPrompt";
 import {
   DropdownMenu,
@@ -66,7 +65,14 @@ export function AppShell({
           href="/"
           className="flex h-16 items-center gap-2.5 border-b border-border-default px-5"
         >
-          <Mark className="h-7 w-7 text-bb-crimson" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bb-logo.png"
+            alt=""
+            width={28}
+            height={28}
+            className="h-7 w-7 object-contain"
+          />
           <span className="font-termina text-sm font-bold tracking-wide text-text-primary">
             Boots &rsquo;n&rsquo; Bandit
           </span>
@@ -102,7 +108,14 @@ export function AppShell({
       {/* Top bar */}
       <header className="fixed inset-x-0 top-0 z-20 flex h-16 items-center gap-3 border-b border-border-default bg-bg-default/90 px-4 backdrop-blur lg:left-60">
         <Link href="/" className="flex items-center gap-2 lg:hidden">
-          <Mark className="h-6 w-6 text-bb-crimson" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/bb-logo.png"
+            alt="Boots 'n' Bandit"
+            width={24}
+            height={24}
+            className="h-6 w-6 object-contain"
+          />
         </Link>
         <div className="hidden items-center gap-2 rounded-md border border-border-default bg-bg-raised px-3 py-1.5 text-sm text-text-muted sm:flex">
           <Search className="h-4 w-4" />

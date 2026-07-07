@@ -9,11 +9,11 @@
  *    and auth stay correct.
  */
 
-const VERSION = "bnb-studio-v2";
+const VERSION = "bnb-studio-v3";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon.svg"];
+const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

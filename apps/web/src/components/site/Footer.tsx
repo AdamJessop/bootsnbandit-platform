@@ -5,7 +5,6 @@ import {
   SITE_NAV,
   type ShellSettings,
 } from "@/lib/site-nav";
-import { Mark } from "./Mark";
 
 /**
  * Four-column heritage footer: brand + socials, Explore links, Visit
@@ -23,8 +22,15 @@ export function Footer({
       <div className="wrap-wide">
         <div className="foot-grid">
           <div>
-            <span className="flogo crimson inline-block" aria-hidden>
-              <Mark className="h-16 w-16 text-bb-crimson" />
+            <span className="flogo inline-block" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/bb-logo.png"
+                alt=""
+                width={64}
+                height={64}
+                className="h-16 w-16 object-contain"
+              />
             </span>
             <p className="muted max-w-[32ch]">
               Heritage tattooing in Worksop. Custom work, flash drops and the

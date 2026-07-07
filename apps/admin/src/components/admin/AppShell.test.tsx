@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AppShell } from "./AppShell";
 import { bottomNavItems, moreNavItems, visibleNavItems } from "@/lib/admin-nav";
+
+vi.mock("next/navigation", () => ({ usePathname: () => "/" }));
 
 /**
  * The shell renders in the browser (usePathname, sheets, menus). Its logic is
@@ -21,5 +23,15 @@ describe("AppShell module", () => {
         visibleNavItems(role).length,
       );
     }
+  });
+});
+
+describe("AppShell branding", () => {
+  it("renders the bb-logo image in the sidebar brand", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const html = renderToStaticMarkup(
+      <AppShell role="owner">{null}</AppShell>,
+    );
+    expect(html).toContain("/bb-logo.png");
   });
 });
