@@ -9,16 +9,17 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
+import { sendEmail } from "@bnb/core/email";
 import { validateManualEmail, validateNotes } from "./action-helpers";
 
 async function assertCanAccessCustomer(
   customerId: string,
-): Promise<{ email: string | null }> {
+): Promise<{ email: string | null; name: string }> {
   const user = await requireRole();
   if (user.role === "OWNER") {
     const c = await prisma.customer.findUniqueOrThrow({
       where: { id: customerId },
-      select: { email: true },
+      select: { email: true, name: true },
     });
     return c;
   }
@@ -28,7 +29,7 @@ async function assertCanAccessCustomer(
       id: customerId,
       bookings: { some: { artistId: user.artistId ?? "__none__" } },
     },
-    select: { email: true },
+    select: { email: true, name: true },
   });
   return c;
 }
@@ -63,21 +64,32 @@ export async function sendManualEmail(
     return { ok: false, message: "This customer has no email on file." };
   }
 
-  // Manual emails are free-form (no template); record them on the timeline.
-  // When Resend is configured a real send could be wired here later; for now
-  // we log the intent so the timeline reflects it.
-  await prisma.messageLog.create({
+  // Free-form staff message: rendered in the branded staff-reply template and
+  // sent via the email service, which writes the MessageLog row itself
+  // (sent / logged / failed) — no extra log here.
+  const result = await sendEmail({
+    to: customer.email,
+    type: "staff_reply",
+    customerId,
     data: {
-      customerId,
-      type: "confirmation",
-      channel: "email",
+      customerName: customer.name,
       subject: valid.subject,
       body: valid.body,
-      status: "logged",
-      sentAt: new Date(),
     },
   });
+  if (result.status === "failed") {
+    return {
+      ok: false,
+      message: "The email failed to send — check the email integration.",
+    };
+  }
 
   revalidatePath(`/customers/${customerId}`);
-  return { ok: true, message: "Email logged to the timeline." };
+  return {
+    ok: true,
+    message:
+      result.status === "sent"
+        ? "Email sent and logged to the timeline."
+        : "Email logged to the timeline (delivery not configured).",
+  };
 }

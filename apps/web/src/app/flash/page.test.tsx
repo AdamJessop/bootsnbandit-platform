@@ -7,6 +7,7 @@ vi.mock("../_data", () => ({
       id: "f1",
       title: "Pearl Shell",
       artistName: "Amy",
+      image: "/uploads/flash/pearl.jpg",
       hue: "teal",
       size: "~11cm",
       pricePence: 13000,
@@ -19,6 +20,7 @@ vi.mock("../_data", () => ({
       id: "f2",
       title: "Tribal Turtle",
       artistName: "Holly",
+      image: null,
       hue: "ink",
       size: "~10cm",
       pricePence: 14000,
@@ -42,5 +44,13 @@ describe("FlashPage", () => {
     expect(html).toContain("2 of 3 left");
     expect(html).toContain("All claimed");
     expect(html).toContain("/enquire?flash=f1");
+  });
+
+  it("derives the drop banner from the data and renders CMS images", async () => {
+    const { default: FlashPage } = await import("./page");
+    const html = renderToStaticMarkup(await FlashPage());
+    expect(html).toContain("Next drop closes Sat 7 Jun");
+    expect(html).not.toContain("Saturday 7 June"); // old hardcoded date
+    expect(html).toContain('src="/uploads/flash/pearl.jpg"');
   });
 });

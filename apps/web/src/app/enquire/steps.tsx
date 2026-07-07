@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ImagePlus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Chip, Field } from "@/components/site";
 import {
   AVAILABILITY,
+  BUDGET_PRESETS,
   buildConsultMonth,
   CONSULT_TIMES,
   DAYS,
@@ -14,6 +15,7 @@ import {
   type SizeChoice,
   type WizardState,
 } from "./logic";
+import { MoodboardRefs } from "./MoodboardRefs";
 import styles from "./enquire.module.css";
 
 export interface WizardArtist {
@@ -140,53 +142,19 @@ export function IdeaStep({
 
 export function MoodStep({
   refs,
-  onAdd,
-  onRemove,
+  onChange,
 }: {
   refs: string[];
-  onAdd: () => void;
-  onRemove: (i: number) => void;
+  onChange: (refs: string[]) => void;
 }) {
   return (
     <div>
       <h2 className={styles.panelTitle}>Mood board</h2>
       <p className={styles.panelSub}>
-        Capture references so your artist knows the look you&rsquo;re after. We
-        never copy another person&rsquo;s tattoo.
+        Paste links to references so your artist knows the look you&rsquo;re
+        after. We never copy another person&rsquo;s tattoo.
       </p>
-      <button type="button" className="btn btn-ghost" onClick={onAdd}>
-        <ImagePlus className="ic" /> Add a reference
-      </button>
-      {refs.length === 0 ? (
-        <p className={styles.moodEmpty}>No references yet — optional.</p>
-      ) : (
-        <div className={styles.moodGrid}>
-          {refs.map((r, i) => (
-            <div key={r} className={styles.moodTile}>
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                }}
-              >
-                Ref {i + 1}
-              </div>
-              <button
-                type="button"
-                className={styles.moodRemove}
-                aria-label="Remove reference"
-                onClick={() => onRemove(i)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <MoodboardRefs refs={refs} onChange={onChange} idPrefix="enq-moodref" />
     </div>
   );
 }
@@ -343,6 +311,32 @@ export function DetailsStep({ state, set }: { state: WizardState; set: Set }) {
           value={state.email}
           onChange={(e) => set({ email: e.target.value })}
         />
+      </Field>
+      <Field
+        label="Rough budget (£, optional)"
+        htmlFor="budget"
+        hint="A ballpark helps your artist size the piece — never a commitment."
+      >
+        <input
+          id="budget"
+          className="input"
+          inputMode="decimal"
+          placeholder="e.g. 150"
+          value={state.budget}
+          onChange={(e) => set({ budget: e.target.value })}
+        />
+        <div className={styles.chipRow} style={{ marginTop: 8 }}>
+          {BUDGET_PRESETS.map((b) => (
+            <Chip
+              key={b}
+              gold
+              on={state.budget === String(b)}
+              onClick={() => set({ budget: String(b) })}
+            >
+              £{b}
+            </Chip>
+          ))}
+        </div>
       </Field>
       <Field label="Anything else?" htmlFor="notes">
         <textarea

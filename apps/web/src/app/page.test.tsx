@@ -34,6 +34,7 @@ vi.mock("./_data", () => ({
       placement: "Calf",
       artistSlug: "sarah",
       artistName: "Sarah",
+      image: "/uploads/gallery/snake.jpg",
       hue: "crimson",
       big: true,
     },
@@ -43,6 +44,7 @@ vi.mock("./_data", () => ({
       id: "f1",
       title: "Pearl Shell",
       artistName: "Amy",
+      image: null,
       hue: "teal",
       size: "~11cm",
       pricePence: 13000,
@@ -52,6 +54,7 @@ vi.mock("./_data", () => ({
       status: "available",
     },
   ]),
+  getPublishedReviews: vi.fn(async () => []),
 }));
 
 describe("HomePage", () => {
@@ -64,5 +67,27 @@ describe("HomePage", () => {
     expect(html).toContain("Pearl Shell");
     expect(html).toContain("£130"); // 13000 pence formatted
     expect(html).toContain("The Bandit Pass");
+  });
+
+  it("renders CMS gallery images and falls back to sample reviews when too few are published", async () => {
+    const { default: HomePage } = await import("./page");
+    const html = renderToStaticMarkup(await HomePage());
+    expect(html).toContain('src="/uploads/gallery/snake.jpg"');
+    // < 3 published reviews → sample quotes fill the band.
+    expect(html).toContain("Hannah M.");
+  });
+
+  it("uses published reviews when there are at least 3", async () => {
+    const data = await import("./_data");
+    vi.mocked(data.getPublishedReviews).mockResolvedValueOnce([
+      { id: "r1", name: "Real A", artist: "Amy", rating: 5, quote: "Superb." },
+      { id: "r2", name: "Real B", artist: null, rating: 4, quote: "Great." },
+      { id: "r3", name: "Real C", artist: "Cal", rating: 5, quote: "Class." },
+    ]);
+    const { default: HomePage } = await import("./page");
+    const html = renderToStaticMarkup(await HomePage());
+    expect(html).toContain("Real A");
+    expect(html).toContain("Superb.");
+    expect(html).not.toContain("Hannah M.");
   });
 });

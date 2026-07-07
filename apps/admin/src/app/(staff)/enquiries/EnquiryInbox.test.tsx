@@ -17,10 +17,20 @@ const items: EnquiryItem[] = [
     size: "small",
     budgetPence: 15000,
     description: "ladybird",
+    moodboard: ["https://x.test/a.jpg"],
     status: "new",
     source: "web",
     preferredArtistId: "a1",
     createdAtISO: "2026-06-01T10:00:00Z",
+    thread: [
+      {
+        id: "m1",
+        type: "enquiry_ack",
+        status: "sent",
+        subject: "Thanks for your enquiry",
+        whenISO: "2026-06-01T10:01:00Z",
+      },
+    ],
   },
   {
     id: "2",
@@ -31,10 +41,12 @@ const items: EnquiryItem[] = [
     size: null,
     budgetPence: null,
     description: null,
+    moodboard: [],
     status: "converted",
     source: "flash",
     preferredArtistId: null,
     createdAtISO: "2026-06-02T10:00:00Z",
+    thread: [],
   },
 ];
 

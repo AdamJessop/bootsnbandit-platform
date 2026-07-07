@@ -8,6 +8,7 @@ import {
   canAdvance,
   emptyWizardState,
   STEPS,
+  waitlistNote,
   type WizardState,
 } from "./logic";
 import {
@@ -132,13 +133,10 @@ export function EnquireWizard({
     }
   }
 
-  function addReference() {
-    // No upload backend in Phase 8 — capture a deterministic placeholder ref so
-    // the moodboard array is populated and counted. Real uploads land via the
-    // admin ImageUploader (P11).
-    const seed = `ref-${Date.now()}-${state.moodboard.length}`;
-    set({ moodboard: [...state.moodboard, `moodboard:${seed}`] });
-  }
+  // Waitlist note for closed-books artists (e.g. seeded via ?artist=…&wait=1):
+  // the enquiry still sends, it just joins the waitlist.
+  const selectedArtist = artists.find((a) => a.id === state.artistId) ?? null;
+  const waitNote = waitlistNote(selectedArtist);
 
   if (done) {
     const consultLabel =
@@ -185,11 +183,18 @@ export function EnquireWizard({
       <div className={styles.cols}>
         <div className={styles.panel}>
           {step === "Artist" && (
-            <ArtistStep
-              artists={artists}
-              value={state.artistId}
-              onPick={(id) => set({ artistId: id })}
-            />
+            <>
+              <ArtistStep
+                artists={artists}
+                value={state.artistId}
+                onPick={(id) => set({ artistId: id })}
+              />
+              {waitNote && (
+                <p className="meta" role="status" style={{ marginTop: 12 }}>
+                  {waitNote}
+                </p>
+              )}
+            </>
           )}
           {step === "Idea" && (
             <IdeaStep styleOptions={styleOptions} state={state} set={set} />
@@ -197,10 +202,7 @@ export function EnquireWizard({
           {step === "Mood board" && (
             <MoodStep
               refs={state.moodboard}
-              onAdd={addReference}
-              onRemove={(i) =>
-                set({ moodboard: state.moodboard.filter((_, j) => j !== i) })
-              }
+              onChange={(moodboard) => set({ moodboard })}
             />
           )}
           {step === "Consultation" && (

@@ -14,6 +14,7 @@ import { prisma } from "@bnb/core/db";
 import { reportOverview } from "@bnb/core/services/reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPence } from "@/components/admin/booking-form";
+import { buildOwnerAlerts, pendingSoonWindow } from "./today-helpers";
 
 /**
  * Today / Dashboard (BACKOFHOUSE-IA B). Server component. Artists see a personal
@@ -54,28 +55,50 @@ export default async function AdminHomePage() {
 
 async function OwnerToday() {
   const { from, to } = todayWindow();
-  const [todayBookings, newEnquiries, chairs, overview, perArtistToday] =
-    await Promise.all([
-      prisma.booking.count({
-        where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
-      }),
-      prisma.enquiry.count({ where: { status: "new" } }),
-      prisma.chair.count({ where: { active: true } }),
-      reportOverview({ from: monthStart(), to }),
-      prisma.artist.findMany({
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          name: true,
-          bookings: {
-            where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
-            select: { id: true },
-          },
+  const now = new Date();
+  const soon = pendingSoonWindow(now);
+  const [
+    todayBookings,
+    newEnquiries,
+    chairs,
+    overview,
+    perArtistToday,
+    pendingSoon,
+    overdueFollowUps,
+  ] = await Promise.all([
+    prisma.booking.count({
+      where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
+    }),
+    prisma.enquiry.count({ where: { status: "new" } }),
+    prisma.chair.count({ where: { active: true } }),
+    reportOverview({ from: monthStart(), to }),
+    prisma.artist.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        bookings: {
+          where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
+          select: { id: true },
         },
-      }),
-    ]);
+      },
+    }),
+    // Unconfirmed (pending) bookings starting within the next 7 days.
+    prisma.booking.count({
+      where: { status: "pending", start: { gte: soon.from, lte: soon.to } },
+    }),
+    // Overdue review follow-ups: the review request fell due but no
+    // review_request email has been logged against the booking.
+    prisma.session.count({
+      where: {
+        reviewRequestAt: { lte: now },
+        booking: { messages: { none: { type: "review_request" } } },
+      },
+    }),
+  ]);
 
   const chairsUtilised = Math.min(todayBookings, chairs);
+  const alerts = buildOwnerAlerts({ newEnquiries, pendingSoon, overdueFollowUps });
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-7">
@@ -130,12 +153,9 @@ async function OwnerToday() {
         </div>
       </section>
 
-      {newEnquiries > 0 ? (
-        <Alert
-          href="/enquiries"
-          text={`${newEnquiries} new enquiry${newEnquiries === 1 ? "" : "s"} awaiting reply`}
-        />
-      ) : null}
+      {alerts.map((a) => (
+        <Alert key={a.href} href={a.href} text={a.text} />
+      ))}
     </main>
   );
 }

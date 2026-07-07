@@ -3,8 +3,9 @@ import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 
 const db = () => testDb();
 
-const sendEmail = vi.fn((input: { type: string }) =>
-  Promise.resolve({ id: uid("msg"), status: "sent", type: input.type }),
+const sendEmail = vi.fn(
+  (input: { type: string; data: Record<string, unknown> }) =>
+    Promise.resolve({ id: uid("msg"), status: "sent", type: input.type }),
 );
 vi.mock("@bnb/core/email", () => ({ sendEmail }));
 
@@ -41,6 +42,31 @@ describe("createEnquiry (DB + mocked email)", () => {
     expect(enq.customerId).toBeTruthy();
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail.mock.calls[0][0].type).toBe("enquiry_ack");
+    // Regression: the ack must use the keys the template consumes
+    // (customerName/subjectIdea), not the old contactName/style/source shape.
+    const data = sendEmail.mock.calls[0][0].data;
+    expect(data.customerName).toBe("Hannah M");
+    expect(data.subjectIdea).toBe("Small floral piece");
+  });
+
+  it("falls back to style for subjectIdea and resolves the preferred artist's name", async () => {
+    if (!(await dbReachable())) return;
+    sendEmail.mockClear();
+    const artist = await db().artist.findFirstOrThrow();
+    const enq = await createEnquiry({
+      contactName: `Prefer ${uid()}`,
+      contactEmail: `${uid("p")}@example.com`,
+      preferredArtistId: artist.id,
+      style: "Blackwork",
+      // no description → subjectIdea falls back to style
+    });
+    enquiries.push(enq.id);
+    if (enq.customerId) customers.push(enq.customerId);
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const data = sendEmail.mock.calls[0][0].data;
+    expect(data.subjectIdea).toBe("Blackwork");
+    expect(data.artistName).toBe(artist.name);
   });
 
   it("sets source=inkling and stores matchData", async () => {

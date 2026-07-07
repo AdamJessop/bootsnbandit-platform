@@ -7,6 +7,7 @@ import {
   ProfileEditor,
   type ProfileEditorValues,
 } from "./_components/ProfileEditor";
+import { AddPasskeyButton } from "./_components/AddPasskeyButton";
 import { regenerateFeed, removeOwnPasskey, saveProfile } from "./_lib/actions";
 
 /**
@@ -145,6 +146,7 @@ export default async function ProfilePage() {
             ))}
           </ul>
         )}
+        <AddPasskeyButton />
       </section>
     </main>
   );

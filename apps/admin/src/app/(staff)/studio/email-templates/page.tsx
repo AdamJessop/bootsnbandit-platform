@@ -9,62 +9,72 @@ import type { EmailType } from "@bnb/core/email";
  */
 export const dynamic = "force-dynamic";
 
-const SAMPLE: Record<EmailType, { label: string; data: Record<string, unknown> }> =
-  {
-    confirmation: {
-      label: "Booking confirmation",
-      data: {
-        customerName: "Alex",
-        artistName: "Sarah",
-        date: "Sat 4 Jul, 1:00pm",
-        placement: "Forearm",
-      },
+const SAMPLE: Record<
+  EmailType,
+  { label: string; data: Record<string, unknown> }
+> = {
+  confirmation: {
+    label: "Booking confirmation",
+    data: {
+      customerName: "Alex",
+      artistName: "Sarah",
+      date: "Sat 4 Jul, 1:00pm",
+      placement: "Forearm",
     },
-    reminder: {
-      label: "Reminder",
-      data: { customerName: "Alex", artistName: "Sarah", date: "Sat 4 Jul" },
+  },
+  reminder: {
+    label: "Reminder",
+    data: { customerName: "Alex", artistName: "Sarah", date: "Sat 4 Jul" },
+  },
+  receipt: {
+    label: "Receipt",
+    data: {
+      customerName: "Alex",
+      amountPence: 18000,
+      bankRef: "BNB-1042",
+      lineItems: [{ label: "Half-day session", amountPence: 18000 }],
     },
-    receipt: {
-      label: "Receipt",
-      data: {
-        customerName: "Alex",
-        amountPence: 18000,
-        bankRef: "BNB-1042",
-        lineItems: [{ label: "Half-day session", amountPence: 18000 }],
-      },
+  },
+  aftercare: { label: "Aftercare", data: { customerName: "Alex" } },
+  review_request: {
+    label: "Review request",
+    data: { customerName: "Alex", artistName: "Sarah", reviewToken: "demo" },
+  },
+  enquiry_ack: {
+    label: "Enquiry acknowledgement",
+    data: {
+      customerName: "Alex",
+      artistName: "Sarah",
+      subjectIdea: "Snake & dagger",
     },
-    aftercare: { label: "Aftercare", data: { customerName: "Alex" } },
-    review_request: {
-      label: "Review request",
-      data: { customerName: "Alex", artistName: "Sarah", reviewToken: "demo" },
+  },
+  loyalty_reward: {
+    label: "Loyalty reward",
+    data: {
+      customerName: "Alex",
+      rewardLabel: "Free small tattoo",
+      stamps: 8,
+      tierLabel: "Bandit",
     },
-    enquiry_ack: {
-      label: "Enquiry acknowledgement",
-      data: {
-        customerName: "Alex",
-        artistName: "Sarah",
-        subjectIdea: "Snake & dagger",
-      },
+  },
+  staff_invite: {
+    label: "Staff invite",
+    data: {
+      inviteeName: "Jordan",
+      url: "http://localhost:3000/sign-in?invite=demo",
+      role: "ARTIST",
+      expiresAt: "2026-07-01T00:00:00.000Z",
     },
-    loyalty_reward: {
-      label: "Loyalty reward",
-      data: {
-        customerName: "Alex",
-        rewardLabel: "Free small tattoo",
-        stamps: 8,
-        tierLabel: "Bandit",
-      },
+  },
+  staff_reply: {
+    label: "Staff reply",
+    data: {
+      customerName: "Alex",
+      subject: "Re: your enquiry",
+      body: "Hi Alex — Sarah has space next month. Does the 12th work for you?",
     },
-    staff_invite: {
-      label: "Staff invite",
-      data: {
-        inviteeName: "Jordan",
-        url: "http://localhost:3000/sign-in?invite=demo",
-        role: "ARTIST",
-        expiresAt: "2026-07-01T00:00:00.000Z",
-      },
-    },
-  };
+  },
+};
 
 export default async function EmailTemplatesPage() {
   await requireRole("OWNER");

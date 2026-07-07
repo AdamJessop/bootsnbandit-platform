@@ -4,14 +4,14 @@
 
 ## What we're building
 
-A real tattoo studio platform for **Boots 'n' Bandit** (Worksop, Notts), in **two surfaces, one Next.js codebase**:
+A real tattoo studio platform for **Boots 'n' Bandit** (Worksop, Notts), in **two surfaces** — two Next.js apps in one npm-workspaces monorepo sharing `@bnb/core` (see "Monorepo & deployment" below):
 
-1. **Public marketing site** — `(site)` route group. Faithful rebuild of the prototype: Home, Artists, Gallery, Inkling (AI design-assist), Enquire, Flash, Aftercare/FAQ, Studio, Bandit Pass (loyalty). Dark heritage theme.
-2. **Back-of-house staff PWA** — `(admin)` route group. Installable PWA for **artists** and the **studio owner**. Replaces 3rd-party booking tools (Fresha / getink.app). Calendars, CRM, enquiry→booking, session completion + receipts, availability/leave, reporting, and full content management of everything the public site shows.
+1. **Public marketing site** — `apps/web` (apex/www). Faithful rebuild of the prototype: Home, Artists, Gallery, Inkling (AI design-assist), Enquire, Flash, Aftercare/FAQ, Studio, Bandit Pass (loyalty). Dark heritage theme.
+2. **Back-of-house staff PWA** — `apps/admin` (admin subdomain). Installable PWA for **artists** and the **studio owner**. Replaces 3rd-party booking tools (Fresha / getink.app). Calendars, CRM, enquiry→booking, session completion + receipts, availability/leave, reporting, and full content management of everything the public site shows.
 
 ## Confirmed tech stack (user-approved)
 
-- **Framework:** Next.js 15 (App Router) + TypeScript. Route groups `(site)` public, `(admin)` staff PWA, `app/api/*` backend.
+- **Framework:** Next.js 15 (App Router) + TypeScript. Two apps: `apps/web` public (+ public API), `apps/admin` staff PWA (+ staff API); shared domain layer in `packages/core`.
 - **UI:** Tailwind CSS. Public site reuses the prototype's `design-src/styles.css` tokens/components (ported). Admin uses **shadcn/ui** themed to the same dark heritage tokens. Icons: **lucide-react**.
 - **Fonts:** Pirata One + Cinzel (Google Fonts) for display; Termina is the DS face (optional, OTF in design project — fall back to Inter/system if not licensed). Body uses system stack.
 - **Data:** PostgreSQL + **Prisma** ORM. Local dev via Docker Postgres.
@@ -64,7 +64,7 @@ The codebase is an **npm-workspaces monorepo** (`workspaces: ["apps/*","packages
 | App | Domain | Host project | Key env |
 | --- | ------ | ------------ | ------- |
 | `apps/web` | `bootsnbandit.<tld>` + `www` | web project (root dir `apps/web`) | `DATABASE_URL`, `RESEND_API_KEY`, `APP_ORIGIN=https://bootsnbandit.<tld>` |
-| `apps/admin` | `admin.bootsnbandit.<tld>` | admin project (root dir `apps/admin`) | `DATABASE_URL`, `RESEND_API_KEY`, `CRON_SECRET`, `SESSION_SECRET`, `APP_ORIGIN=https://admin.bootsnbandit.<tld>`, `RP_ID=admin.bootsnbandit.<tld>`, `SESSION_COOKIE=bb_admin_session`, `AUTH_REDIRECT=/` |
+| `apps/admin` | `admin.bootsnbandit.<tld>` | admin project (root dir `apps/admin`) | `DATABASE_URL`, `RESEND_API_KEY`, `CRON_SECRET`, `SESSION_SECRET`, `APP_ORIGIN=https://admin.bootsnbandit.<tld>`, `RP_ID=admin.bootsnbandit.<tld>`, `SESSION_COOKIE=bb_admin_session`, `AUTH_REDIRECT=/`, `PUBLIC_SITE_ORIGIN=https://bootsnbandit.<tld>` |
 
 Both apps point at one **shared Postgres**. `transpilePackages: ["@bnb/core"]` + `outputFileTracingRoot` (monorepo root) are set in each app's `next.config.ts` so the workspace package is transpiled and traced. Auth/cookie/PWA isolation per subdomain is documented in `docs/SUBDOMAIN-ISOLATION.md` (host-only `bb_admin_session`, admin-scoped WebAuthn RP-ID, admin-only installable PWA). Run DB migrations once from CI/one host against the shared database (`npm run db:migrate`).
 
@@ -89,6 +89,17 @@ Sentinal exposes **no path-ignore config key** (`sentinal config list` has no ig
 - Wave 4 IN FLIGHT (P7 public site, P8 enquire/inkling/review, P9 admin calendar/front-desk, P10 admin CRM/sessions/reports, P11 admin CMS/studio/PWA) — 5 parallel agents, disjoint dirs; shared admin components owned: P9 CalendarGrid+BookingDrawer, P10 CustomerTimeline+DataTable+ChartWrapper, P11 ImageUploader. Each verifies own slice (tsc/lint/build+own tests); orchestrator runs consolidated full-suite check after all 5 land.
 - NEXT after Wave 4: consolidated integration verify (full npm test may have inter-phase races — clean + re-run); then Wave 5 = P12 (per-artist iCal feed endpoint `/api/calendar/<token>.ics`, Google Calendar stub, CRM cron automations: reminders T-48/24h, aftercare, review T+4d, loyalty; review-capture already in P8). Then sentinal spec-verify of the master plan.
 - Postgres: docker compose, host port 5435. Tailwind v4 tokens in src/app/globals.css. Admin role: AdminRole "owner"|"artist"; DB Role OWNER|ARTIST.
+
+## Full audit sweep + gap build (2026-07-06) — DONE
+
+Four-agent audit of site/backend vs this brief, BACKOFHOUSE-IA, CRON.md, SUBDOMAIN-ISOLATION and `design-src/`. All specs' plans were VERIFIED but 30+ real gaps existed; the high/medium ones were built (tests: 497 → **661**, all green; both apps build + lint clean):
+
+- **Core:** receipt email £0.00/name bug fixed; enquiry-ack content bug fixed; **booking-confirmation email now sends** on transition to confirmed (MessageLog-deduped); customer-facing email links use new `PUBLIC_SITE_ORIGIN` (set it in the admin prod env!); loyalty sends gated on marketing consent; perk emails fire at session completion; `getCurrentUser` re-checks `user.active` (disabled staff lose sessions); new `staff_reply` email type + `MessageType` enum migration; completeSession rejects cancelled/no-show, skips empty-email sends, maps double-complete to 409.
+- **Admin:** sign-out control + add-passkey UI (neither existed); **owner leave-approval panel** (pending leave was previously unapprovable dead-ends); front-desk cross-artist booking CREATE for any staff; cron route accepts GET + `apps/admin/vercel.json` (Vercel Cron would have 405'd); mobile "More" nav (7 screens were unreachable on phones); enquiry reply + manual customer email now actually send via `staff_reply`; enquiry detail shows mood-board thumbs + message thread + artist/style filters; completed-sessions list with resend-receipt; CRM tags + lifetime-value columns; owner Today alerts (pending soon, overdue follow-ups); install-prompt button; sw.test.js no longer deployed.
+- **Web:** enquire preselect fixed (accepts slug or id; gallery link used wrong param — main funnel silently no-opped); CMS-uploaded gallery/flash images now render (were never selected); `enquiriesOpen` gate enforced (API 403 + books-closed page); ticker/footer fed from SiteSettings; budget field on wizard; mood-board = real URL capture (was fake `moodboard:<timestamp>` strings, both Enquire + Inkling); studio contact form submits; per-IP rate limiting on all public POSTs; dead staff-auth GET removed + guard test (no `@bnb/core/auth` imports in web); sitemap artist slugs, branded 404, DB-fed home reviews, derived flash-drop banner.
+- **Docs/infra:** CRON.md corrected (admin origin/:3001, `packages/core/src/cron`, GET note); brief opening updated to monorepo reality; per-app `.env.example` now deploy-complete; root `db:*` scripts fixed for Prisma 7 (delegate to `@bnb/core`); global `:focus-visible` rings both apps.
+
+**Deferred (recommendations, not built):** front-desk presence persistence (needs schema); calendar drag-resize + chair columns; booking-drawer deposit/reminders flags + customer combobox; DB-backed email-template editing (K3); sign-out-everywhere (needs session versioning); `Service` model for the "5 services" studio fact (product decision); real consult-slot availability on public enquire (still deterministic placeholder); public mood-board *upload* backend (URL capture shipped); per-customer Bandit Pass view; `isWithinAvailability` wiring into booking create; `completedByUserId`; loyalty reward reset/redemption model; Google Calendar two-way sync (brief: later).
 
 ## Backend app separation (monorepo + subdomains) — DONE
 - **All 5 phases complete.** P1 workspaces + `@bnb/core` (`f0f715b`), P2 web (`743a1e5`), P3 admin (`927b887`), **P4 auth/cookie/PWA isolation + P5 cutover** (this entry).

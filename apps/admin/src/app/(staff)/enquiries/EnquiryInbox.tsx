@@ -33,7 +33,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
 import { formatPence } from "@/components/admin/money";
 import { enquiryStatusLabel, formatDateTime } from "../_shared/labels";
-import { countByStatus } from "./enquiry-helpers";
+import {
+  countByStatus,
+  distinctStyles,
+  filterEnquiries,
+  type ThreadEntry,
+} from "./enquiry-helpers";
+import { MoodboardSection, ThreadSection } from "./EnquiryDetailSections";
 import {
   assignEnquiry,
   closeEnquiry,
@@ -50,16 +56,21 @@ export interface EnquiryItem {
   size: string | null;
   budgetPence: number | null;
   description: string | null;
+  moodboard: string[];
   status: EnquiryStatus;
   source: EnquirySource;
   preferredArtistId: string | null;
   createdAtISO: string;
+  /** Past messages on the customer's timeline (newest first). */
+  thread: ThreadEntry[];
 }
 
 export interface ArtistOption {
   id: string;
   name: string;
 }
+
+const ALL = "__all__";
 
 const STATUS_ORDER: EnquiryStatus[] = [
   "new",
@@ -78,23 +89,60 @@ export function EnquiryInbox({
   canConvert: boolean;
 }) {
   const [tab, setTab] = useState<EnquiryStatus>("new");
+  const [artistFilter, setArtistFilter] = useState(ALL);
+  const [styleFilter, setStyleFilter] = useState(ALL);
   const counts = useMemo(() => countByStatus(items), [items]);
-  const visible = items.filter((i) => i.status === tab);
+  const styles = useMemo(() => distinctStyles(items), [items]);
+  const visible = filterEnquiries(
+    items.filter((i) => i.status === tab),
+    {
+      artistId: artistFilter === ALL ? null : artistFilter,
+      style: styleFilter === ALL ? null : styleFilter,
+    },
+  );
 
   return (
     <div className="space-y-5">
-      <Tabs value={tab} onValueChange={(v) => setTab(v as EnquiryStatus)}>
-        <TabsList>
-          {STATUS_ORDER.map((s) => (
-            <TabsTrigger key={s} value={s}>
-              {enquiryStatusLabel(s)}
-              <span className="ml-1.5 tabular-nums text-text-muted">
-                {counts[s]}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center gap-3">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as EnquiryStatus)}>
+          <TabsList>
+            {STATUS_ORDER.map((s) => (
+              <TabsTrigger key={s} value={s}>
+                {enquiryStatusLabel(s)}
+                <span className="ml-1.5 tabular-nums text-text-muted">
+                  {counts[s]}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <Select value={artistFilter} onValueChange={(v) => setArtistFilter(v ?? ALL)}>
+          <SelectTrigger className="w-40" aria-label="Filter by artist">
+            <SelectValue placeholder="All artists" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All artists</SelectItem>
+            {artists.map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={styleFilter} onValueChange={(v) => setStyleFilter(v ?? ALL)}>
+          <SelectTrigger className="w-40" aria-label="Filter by style">
+            <SelectValue placeholder="All styles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All styles</SelectItem>
+            {styles.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {visible.length === 0 ? (
         <div className="rounded-lg border border-border-default bg-bg-card p-8 text-center text-sm text-text-muted">
@@ -192,6 +240,9 @@ function EnquiryRow({
             {item.description}
           </p>
         )}
+
+        <MoodboardSection urls={item.moodboard} />
+        <ThreadSection thread={item.thread} />
 
         {/* Assign */}
         <section className="space-y-2">

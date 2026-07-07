@@ -1,5 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
-import sitemap from "./sitemap";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const prisma = vi.hoisted(() => ({
+  artist: {
+    findMany: vi.fn(async () => [{ slug: "sarah" }, { slug: "calum" }]),
+  },
+}));
+vi.mock("@bnb/core/db", () => ({ prisma }));
+
+const { default: sitemap } = await import("./sitemap");
 
 const original = process.env.APP_ORIGIN;
 afterEach(() => {
@@ -8,9 +16,9 @@ afterEach(() => {
 });
 
 describe("public sitemap", () => {
-  it("lists the core public routes under APP_ORIGIN", () => {
+  it("lists the core public routes under APP_ORIGIN", async () => {
     process.env.APP_ORIGIN = "https://example.test";
-    const urls = sitemap().map((e) => e.url);
+    const urls = (await sitemap()).map((e) => e.url);
     expect(urls).toContain("https://example.test");
     expect(urls).toContain("https://example.test/artists");
     expect(urls).toContain("https://example.test/gallery");
@@ -22,8 +30,23 @@ describe("public sitemap", () => {
     expect(urls).toContain("https://example.test/passport");
   });
 
-  it("does not expose staff routes", () => {
-    const urls = sitemap().map((e) => e.url);
+  it("includes artist detail pages from the DB", async () => {
+    process.env.APP_ORIGIN = "https://example.test";
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls).toContain("https://example.test/artists/sarah");
+    expect(urls).toContain("https://example.test/artists/calum");
+  });
+
+  it("omits artist pages (but keeps statics) when the DB is unavailable", async () => {
+    process.env.APP_ORIGIN = "https://example.test";
+    prisma.artist.findMany.mockRejectedValueOnce(new Error("no db"));
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls).toContain("https://example.test/artists");
+    expect(urls.some((u) => u.includes("/artists/"))).toBe(false);
+  });
+
+  it("does not expose staff routes", async () => {
+    const urls = (await sitemap()).map((e) => e.url);
     expect(urls.some((u) => u.includes("/admin"))).toBe(false);
   });
 });

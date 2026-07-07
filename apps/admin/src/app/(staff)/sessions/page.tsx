@@ -4,12 +4,15 @@ import { prisma } from "@bnb/core/db";
 import { Badge } from "@/components/ui/badge";
 import { formatPence } from "@/components/admin/money";
 import { formatDateTime } from "../_shared/labels";
+import { CompletedSessionsList } from "./CompletedSessionsList";
+import type { CompletedSessionRow } from "./receipt-resend";
 import { SessionCompleteForm, type PendingSession } from "./SessionCompleteForm";
 
 /**
- * Sessions & Receipts — Today's sessions to complete (BACKOFHOUSE-IA G1/G2).
- * Lists today's confirmed/pending bookings without a completed Session, each
- * with the Complete Session flow. Owners see all artists; artists see self.
+ * Sessions & Receipts (BACKOFHOUSE-IA G1–G3). Today's confirmed/pending
+ * bookings without a completed Session (Complete Session flow), plus recent
+ * completed sessions with a "Resend receipt" action. Owners see all artists;
+ * artists see self.
  */
 export const dynamic = "force-dynamic";
 
@@ -20,19 +23,34 @@ export default async function SessionsPage() {
 
   const now = new Date();
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      ...(artistId ? { artistId } : {}),
-      status: { in: ["pending", "confirmed"] },
-      session: null,
-      start: { gte: startOfDay(now), lte: endOfDay(now) },
-    },
-    orderBy: { start: "asc" },
-    include: {
-      customer: { select: { name: true } },
-      artist: { select: { name: true } },
-    },
-  });
+  const [bookings, completedSessions] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        ...(artistId ? { artistId } : {}),
+        status: { in: ["pending", "confirmed"] },
+        session: null,
+        start: { gte: startOfDay(now), lte: endOfDay(now) },
+      },
+      orderBy: { start: "asc" },
+      include: {
+        customer: { select: { name: true } },
+        artist: { select: { name: true } },
+      },
+    }),
+    prisma.session.findMany({
+      where: artistId ? { booking: { artistId } } : {},
+      orderBy: { completedAt: "desc" },
+      take: 50,
+      include: {
+        booking: {
+          select: {
+            customer: { select: { name: true } },
+            artist: { select: { name: true } },
+          },
+        },
+      },
+    }),
+  ]);
 
   const sessions: PendingSession[] = bookings.map((b) => ({
     bookingId: b.id,
@@ -41,6 +59,16 @@ export default async function SessionsPage() {
     startISO: b.start.toISOString(),
     type: b.type,
     priceEstimatePence: b.priceEstimatePence,
+  }));
+
+  const completed: CompletedSessionRow[] = completedSessions.map((s) => ({
+    sessionId: s.id,
+    customerName: s.booking.customer.name,
+    artistName: s.booking.artist.name,
+    completedAtISO: s.completedAt.toISOString(),
+    amountChargedPence: s.amountChargedPence,
+    tipPence: s.tipPence,
+    receiptSentAtISO: s.receiptSentAt?.toISOString() ?? null,
   }));
 
   return (
@@ -86,6 +114,16 @@ export default async function SessionsPage() {
           ))
         )}
       </div>
+
+      <section className="mt-12">
+        <h2 className="mb-1 font-termina text-sm uppercase tracking-wide text-text-secondary">
+          Completed
+        </h2>
+        <p className="mb-4 text-sm text-text-muted">
+          Recent completed sessions — view or re-send a receipt.
+        </p>
+        <CompletedSessionsList rows={completed} />
+      </section>
     </main>
   );
 }

@@ -4,7 +4,7 @@ import { Flame } from "lucide-react";
 import { ornDot, Plate, ArtistAvatar } from "@/components/site";
 import { getFlash } from "../_data";
 import { formatPence } from "../_format";
-import { groupByDeadline, flashStock } from "./logic";
+import { groupByDeadline, flashStock, nextDropDeadline } from "./logic";
 import styles from "./flash.module.css";
 
 export const metadata: Metadata = {
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 export default async function FlashPage() {
   const flash = await getFlash();
   const groups = groupByDeadline(flash);
+  const nextDeadline = nextDropDeadline(flash);
 
   return (
     <div className="page">
@@ -37,13 +38,15 @@ export default async function FlashPage() {
 
       <section className="section">
         <div className="wrap-wide">
-          <div className={styles.countdown}>
-            <Flame className={styles.countdownIc} aria-hidden />
-            <div className={styles.countdownBody}>
-              <b>Next drop closes Saturday 7 June</b>
-              <small>New flash every Friday at 6pm.</small>
+          {nextDeadline && (
+            <div className={styles.countdown}>
+              <Flame className={styles.countdownIc} aria-hidden />
+              <div className={styles.countdownBody}>
+                <b>Next drop closes {nextDeadline}</b>
+                <small>New flash every Friday at 6pm.</small>
+              </div>
             </div>
-          </div>
+          )}
 
           {groups.map((group) => (
             <div key={group.deadline} className={styles.group}>
@@ -66,7 +69,12 @@ export default async function FlashPage() {
                         <span className={`flash-stock ${stockClass}`}>
                           {gone ? "All claimed" : `${left} of ${f.total} left`}
                         </span>
-                        <Plate paper ratio="1/1" className="flash-card-art" />
+                        <Plate
+                          paper
+                          src={f.image ?? undefined}
+                          ratio="1/1"
+                          className="flash-card-art"
+                        />
                       </div>
                       <div className="flash-card-body">
                         <span className="flash-title-sm">{f.title}</span>

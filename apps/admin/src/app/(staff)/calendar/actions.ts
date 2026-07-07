@@ -10,9 +10,11 @@ import {
 
 /**
  * Server actions for the calendar/front-desk surfaces (Phase 9). These persist
- * booking create/move/edit by calling the Phase-6 booking service directly,
- * applying the same owner-or-self RBAC as /api/bookings. Conflicts (overlapping
- * booking or approved leave) surface a friendly message the client can toast.
+ * booking create/move/edit by calling the Phase-6 booking service directly.
+ * RBAC: any signed-in staff member may CREATE a booking for any artist (the
+ * front-desk promise — whoever answers the phone books it in), while
+ * update/move stay owner-or-self. Conflicts (overlapping booking or approved
+ * leave) surface a friendly message the client can toast.
  */
 
 export interface ActionResult {
@@ -40,12 +42,15 @@ export interface SaveBookingInput
   end: string;
 }
 
-/** Create a booking (drawer create / quick-add). */
+/**
+ * Create a booking (drawer create / quick-add). Any active signed-in staff
+ * member may create for any artist — front-desk quick-add is a shared duty.
+ */
 export async function saveBookingAction(
   input: SaveBookingInput,
 ): Promise<ActionResult> {
   try {
-    await assertCanEditArtist(input.artistId);
+    await requireRole();
     const booking = await createBooking({
       ...input,
       start: new Date(input.start),

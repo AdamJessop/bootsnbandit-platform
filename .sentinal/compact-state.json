@@ -1,0 +1,6 @@
+{
+  "activePlan": "/home/adam/dev/bootsnbandit/docs/plans/2026-06-19-backend-app-separation.md",
+  "memoryContext": "## Sentinal Memory Context\n\n**Project:** /home/adam/dev/bootsnbandit\n**Memory Range:** 2026-06-19 to 2026-06-19\n\n### Key Decisions\n- Configuration change: tsconfig.json (2026-06-19)\n- Configuration change: package.json (2026-06-19)\n- Configuration change: tsconfig.json (2026-06-19)\n- Configuration change: package.json (2026-06-19)\n- Configuration change: package.json (2026-06-19)\n\n### Recent Discoveries\n- New architectural file: index.ts (2026-06-19)",
+  "timestamp": "2026-06-19T18:37:13.860Z",
+  "cwd": "/home/adam/dev/bootsnbandit"
+}

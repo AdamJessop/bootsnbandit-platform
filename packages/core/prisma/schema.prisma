@@ -80,6 +80,7 @@ enum MessageType {
   enquiry_ack
   loyalty_reward
   staff_invite
+  staff_reply
 }
 
 enum MessageChannel {

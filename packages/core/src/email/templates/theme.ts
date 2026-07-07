@@ -26,6 +26,17 @@ export function appOrigin(): string {
   return (fromEnv && fromEnv.replace(/\/$/, "")) || "https://bootsnbandit.co.uk";
 }
 
+/**
+ * Public web-site origin for CUSTOMER-facing links (aftercare guide, review
+ * pages…). Emails are sent from the admin app, whose APP_ORIGIN points at
+ * admin.<domain> where those pages don't exist — so customer links must use
+ * the public site's origin instead. Staff-facing links keep `appOrigin()`.
+ */
+export function publicSiteOrigin(): string {
+  const fromEnv = process.env.PUBLIC_SITE_ORIGIN;
+  return (fromEnv && fromEnv.replace(/\/$/, "")) || "http://localhost:3000";
+}
+
 /** pence -> "£12.34" */
 export function formatGBP(pence: number): string {
   const safe = Number.isFinite(pence) ? pence : 0;

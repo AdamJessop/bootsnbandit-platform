@@ -5,10 +5,13 @@ idempotent cron jobs that read booking/session state and send the right email at
 the right time. There is **no live scheduler dependency** — the jobs are plain
 functions exposed behind one HTTP endpoint that any external scheduler can hit.
 
+The endpoint lives on the **admin app** (`apps/admin`) — in prod that is
+`https://admin.bootsnbandit.<tld>`, in dev `http://localhost:3001`.
+
 ## Endpoint
 
 ```
-POST /api/cron/run
+POST /api/cron/run   (GET also accepted — Vercel Cron invokes with GET)
 ```
 
 Guarded by the `CRON_SECRET` environment variable. The caller must present the
@@ -42,7 +45,8 @@ Summary body:
 
 ## Jobs
 
-All jobs live in `src/lib/cron/*.ts` and are unit-tested. **Every job is
+All jobs live in `packages/core/src/cron/*.ts` (route:
+`apps/admin/src/app/api/cron/run/route.ts`) and are unit-tested. **Every job is
 idempotent** — it dedupes by checking for an existing `MessageLog` of that type
 for the booking/customer before sending, so the sweep is safe to run as often as
 you like (hourly is recommended).
@@ -55,11 +59,12 @@ you like (hourly is recommended).
    pending `Review` (capability token) and send the `/review/<token>` link.
 3. **loyalty_rewards** (`loyalty-rewards.ts`) — customers who have crossed the
    active `LoyaltyConfig.rewardThreshold` and have never received a
-   `loyalty_reward` email → reward email. (The per-session stamp award + perk
-   emails already fire at session completion; this is the safety-net sweep.)
+   `loyalty_reward` email → reward email, **gated on the customer's marketing
+   consent**. (The per-session stamp award + perk emails fire at session
+   completion; this is the safety-net sweep.)
 
 > Receipt and aftercare emails fire synchronously at session completion
-> (`lib/services/sessions.ts`), so they are not part of the sweep.
+> (`packages/core/src/services/sessions.ts`), so they are not part of the sweep.
 
 ## Scheduling
 
@@ -68,14 +73,15 @@ you like (hourly is recommended).
 Run hourly. Example `crontab -e` line:
 
 ```cron
-0 * * * * curl -fsS -X POST https://bootsnbandit.co.uk/api/cron/run \
+0 * * * * curl -fsS -X POST https://admin.bootsnbandit.co.uk/api/cron/run \
   -H "x-cron-secret: $CRON_SECRET" > /dev/null
 ```
 
 ### Vercel Cron
 
-Add to `vercel.json` (the schedule hits the route; Vercel automatically sends the
-project's `CRON_SECRET` as a Bearer token when the env var is set):
+`apps/admin/vercel.json` ships the schedule (the route accepts GET, which is how
+Vercel Cron invokes paths; Vercel automatically sends the project's
+`CRON_SECRET` as a Bearer token when the env var is set):
 
 ```json
 {
@@ -90,6 +96,6 @@ the route).
 ### Local testing
 
 ```bash
-curl -X POST http://localhost:3000/api/cron/run \
+curl -X POST http://localhost:3001/api/cron/run \
   -H "x-cron-secret: $CRON_SECRET"
 ```

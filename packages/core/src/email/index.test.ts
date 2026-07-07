@@ -91,6 +91,31 @@ describe("sendEmail", () => {
     ).resolves.toMatchObject({ status: expect.any(String) });
   });
 
+  it("sends staff_reply like any other type, including the MessageLog write", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { sendEmail } = await import("./index");
+
+    const result = await sendEmail({
+      to: "ada@example.com",
+      type: "staff_reply",
+      customerId: "cust_1",
+      data: {
+        customerName: "Ada",
+        subject: "About your snake design",
+        body: "First line.\n\nSecond paragraph.",
+      },
+    });
+
+    expect(result.status).toBe("skipped");
+    expect(createMock).toHaveBeenCalledOnce();
+    const arg = createMock.mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(arg.data.type).toBe("staff_reply");
+    expect(arg.data.customerId).toBe("cust_1");
+    expect(arg.data.subject).toBe("About your snake design");
+    expect(arg.data.body).toContain("First line.");
+    expect(arg.data.body).toContain("Second paragraph.");
+  });
+
   it("renders the correct template body for the given type", async () => {
     delete process.env.RESEND_API_KEY;
     const { sendEmail } = await import("./index");

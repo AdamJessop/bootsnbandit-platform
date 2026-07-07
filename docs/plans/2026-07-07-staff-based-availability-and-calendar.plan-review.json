@@ -1,0 +1,28 @@
+{
+  "review_summary": "Plan aligns well with the user request and all clarifications; the core Base UI `items` assumption and the CalendarClient activeArtistId bug were both verified against actual code. A few gaps remain around loyalty-points requirement coverage, rate limiting on new web routes, and the DOB collection wording for owners/admins vs staff.",
+  "alignment_score": "high",
+  "risk_level": "medium",
+  "issues": [
+    {
+      "severity": "should_fix",
+      "category": "requirement_coverage",
+      "title": "Loyalty points visibility not explicitly verified in DoD/Truths",
+      "description": "Clarification states customers must be able to 'track loyalty points' on the gated passport. Task 11 DoD says 'Signed-in customer sees their stamps, perks, and bookings' and Domain context mentions `Customer.loyaltyStamps/loyaltyTier` — this is present but there is no explicit Goal Verification Truth or grep check confirming loyalty data is wired into the passport page (unlike Truth 9/11 for gating). All other major features have a corresponding Truth-table grep; this one doesn't.",
+      "suggested_fix": "Add a Goal Verification Truth, e.g. `grep -n \"loyaltyStamps\\|loyaltyTier\" apps/web/src/app/passport/page.tsx` matches, to make this requirement independently checkable like the others."
+    },
+    {
+      "severity": "should_fix",
+      "category": "risk_quality",
+      "title": "No rate-limit call-out for set-password token redemption endpoint",
+      "description": "Task 10 mentions rate-limiting sign-in and set-password actions via `apps/web/src/lib/rate-limit.ts`, but this existing module's behavior/config was not verified, and there's no DoD line confirming it's actually applied vs. just mentioned in prose. Given this is a new unauthenticated public-facing credential endpoint, an unmitigated brute-force/token-guessing risk on `/account/set-password` isn't captured in the Risks table (only Base UI, Chair sweep, duplicate emails, cross-origin, and overlay readability are listed).",
+      "suggested_fix": "Add an explicit DoD checkbox under Task 10 (e.g. 'rate-limit applied and covered by a test that hammering sign-in/set-password triggers the limiter') and add a row to the Risks table for token/credential brute-forcing on the new public endpoints."
+    },
+    {
+      "severity": "suggestion",
+      "category": "scope_alignment",
+      "title": "Owner-only artist profile route reuses ProfileEditor status field — verify non-owner artists can't reach `/studio/staff/[id]` by URL",
+      "description": "Task 4 DoD says 'Non-owner hitting the route is redirected (requireRole)' which is good, but the plan doesn't call out testing that a staff member editing their OWN id via `/studio/staff/<ownUserId>` (as non-owner) is also correctly blocked/redirected rather than accidentally succeeding since it's their own data.",
+      "suggested_fix": "Add a test case: non-owner staff hitting `/studio/staff/<their-own-id>` is redirected just like hitting another artist's id, confirming the owner-gate isn't accidentally bypassed by self-id matching logic."
+    }
+  ]
+}

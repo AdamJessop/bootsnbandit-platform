@@ -10,9 +10,10 @@ import {
   Star,
   Ticket,
 } from "lucide-react";
-import { ornDot, SectionHead, Plate, Field } from "@/components/site";
+import { ornDot, SectionHead, Plate } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
 import { getSiteSettings, getArtists } from "../_data";
+import { ContactForm } from "./ContactForm";
 import styles from "./studio.module.css";
 
 export const metadata: Metadata = {
@@ -214,20 +215,7 @@ export default async function StudioPage() {
           <div className={styles.contactGrid}>
             <div>
               <SectionHead eyebrow="Say hello" title="Get in touch" />
-              <form>
-                <Field label="Your name">
-                  <input className="input" name="name" autoComplete="name" />
-                </Field>
-                <Field label="Email or phone">
-                  <input className="input" name="contact" />
-                </Field>
-                <Field label="Message">
-                  <textarea className="textarea" name="message" />
-                </Field>
-                <Link href="/enquire" className="btn">
-                  Send message
-                </Link>
-              </form>
+              <ContactForm enquiriesOpen={settings?.enquiriesOpen ?? true} />
             </div>
             <div className="card card-pad">
               <p className="muted" style={{ margin: 0 }}>

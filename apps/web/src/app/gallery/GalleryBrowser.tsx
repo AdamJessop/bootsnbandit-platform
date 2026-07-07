@@ -12,7 +12,7 @@ import {
   ArtistAvatar,
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
-import { filterGallery, stepIndex } from "./logic";
+import { enquireHref, filterGallery, stepIndex } from "./logic";
 
 export interface BrowserItem {
   id: string;
@@ -21,6 +21,8 @@ export interface BrowserItem {
   placement: string | null;
   artistSlug: string | null;
   artistName: string | null;
+  /** Admin-uploaded photo; falls back to the procedural Plate when null. */
+  image?: string | null;
   big: boolean;
 }
 
@@ -95,6 +97,7 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
               title: g.title,
               style: g.style ?? undefined,
               artistName: g.artistName ?? undefined,
+              src: g.image ?? undefined,
               big: g.big,
             };
             return (
@@ -128,6 +131,7 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
           <div className="grid gap-6" style={{ gridTemplateColumns: "1.1fr 0.9fr" }}>
             <Plate
               seed={`gallery-${open.id}`}
+              src={open.image ?? undefined}
               ratio="4/5"
               cap={[open.title, open.style ?? undefined]}
             />
@@ -152,12 +156,7 @@ export function GalleryBrowser({ items, styles, artists }: Props) {
                 person&rsquo;s tattoo.
               </p>
               <div className="hero-cta" style={{ marginTop: 0, justifyContent: "flex-start" }}>
-                <Link
-                  href={`/enquire?artist=${open.artistSlug ?? ""}&style=${encodeURIComponent(
-                    open.style ?? "",
-                  )}&subject=${encodeURIComponent(open.title)}`}
-                  className="btn btn-sm"
-                >
+                <Link href={enquireHref(open)} className="btn btn-sm">
                   Enquire about this style
                 </Link>
                 {open.artistSlug && (

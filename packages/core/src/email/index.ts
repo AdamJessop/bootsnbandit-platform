@@ -1,5 +1,6 @@
 /* CONTRACT (Phase 5 implements the body + templates; Phase 6 calls sendEmail).
    Keep this signature; add templates/clients in src/lib/email as needed. */
+import type { MessageType } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import { renderEmail } from "./render";
 
@@ -11,7 +12,8 @@ export type EmailType =
   | "review_request"
   | "enquiry_ack"
   | "loyalty_reward"
-  | "staff_invite";
+  | "staff_invite"
+  | "staff_reply";
 
 export interface SendEmailInput {
   to: string;
@@ -97,7 +99,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       data: {
         customerId: input.customerId ?? null,
         relatedBookingId: input.relatedBookingId ?? null,
-        type: input.type,
+        type: input.type as MessageType,
         channel: "email",
         subject: subject || null,
         body: html || null,

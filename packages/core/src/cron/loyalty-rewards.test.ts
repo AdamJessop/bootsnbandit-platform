@@ -53,6 +53,27 @@ describe("runLoyaltyRewards", () => {
     expect(res.sent).toBe(1);
   });
 
+  it("only sweeps marketing-consented customers (consent gate in the query)", async () => {
+    customerFindMany.mockResolvedValue([]);
+    await runLoyaltyRewards();
+    expect(customerFindMany).toHaveBeenCalledOnce();
+    const query = customerFindMany.mock.calls[0][0] as {
+      where: { marketingConsent?: boolean };
+    };
+    expect(query.where.marketingConsent).toBe(true);
+  });
+
+  it("emails a consented customer over the threshold (the query returns them)", async () => {
+    // Consented customer → survives the marketingConsent filter → emailed.
+    customerFindMany.mockResolvedValue([
+      { id: "c2", name: "Grace", email: "grace@x.test", loyaltyStamps: 9, loyaltyTier: 4 },
+    ]);
+    messageCount.mockResolvedValue(0);
+    const res = await runLoyaltyRewards();
+    expect(sendEmail).toHaveBeenCalledOnce();
+    expect(res.sent).toBe(1);
+  });
+
   it("is idempotent: skips customers already emailed a reward", async () => {
     customerFindMany.mockResolvedValue([
       { id: "c1", name: "Ada", email: "ada@x.test", loyaltyStamps: 8, loyaltyTier: 4 },

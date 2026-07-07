@@ -1,11 +1,137 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildConvertInput, validateReply } from "./enquiry-helpers";
 
 /**
- * actions.ts is "use server" (requireRole/prisma/services/email — server-only,
- * not importable under vitest). Its input contracts are the pure helpers below;
- * DB/email side-effects are covered by the build + manual QA.
+ * Enquiry triage actions. The pure input contracts live in enquiry-helpers;
+ * replyToEnquiry's send/log behaviour is unit-tested here with the server
+ * modules mocked (auth, prisma, email service).
  */
+
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@bnb/core/auth", () => ({ requireRole: vi.fn() }));
+vi.mock("@bnb/core/db", () => ({
+  prisma: {
+    enquiry: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    messageLog: { create: vi.fn() },
+  },
+}));
+vi.mock("@bnb/core/email", () => ({ sendEmail: vi.fn() }));
+vi.mock("@bnb/core/services/enquiries", () => ({
+  updateEnquiryStatus: vi.fn(),
+}));
+vi.mock("@bnb/core/services/bookings", () => ({
+  BookingConflictError: class BookingConflictError extends Error {},
+  createBooking: vi.fn(),
+}));
+
+const { requireRole } = await import("@bnb/core/auth");
+const { prisma } = await import("@bnb/core/db");
+const { sendEmail } = await import("@bnb/core/email");
+const { updateEnquiryStatus } = await import("@bnb/core/services/enquiries");
+const { replyToEnquiry } = await import("./actions");
+
+const OWNER = {
+  id: "u1",
+  email: "o@x",
+  role: "OWNER" as const,
+  displayName: "Owner",
+};
+
+const ENQUIRY = {
+  id: "e1",
+  customerId: "c1",
+  contactEmail: "amy@example.com",
+  contactName: "Amy",
+  preferredArtistId: "art1",
+  style: "fine line",
+  placement: "arm",
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(requireRole).mockResolvedValue(OWNER);
+  vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue(
+    ENQUIRY as never,
+  );
+  vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "sent" });
+});
+
+describe("replyToEnquiry", () => {
+  it("emails the customer via sendEmail (staff_reply) and marks replied", async () => {
+    const res = await replyToEnquiry("e1", { message: "Hi Amy, yes we can!" });
+
+    expect(res.ok).toBe(true);
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: "amy@example.com",
+      type: "staff_reply",
+      customerId: "c1",
+      data: { customerName: "Amy", body: "Hi Amy, yes we can!" },
+    });
+    // sendEmail writes the MessageLog itself — no double-logging here.
+    expect(prisma.messageLog.create).not.toHaveBeenCalled();
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+  });
+
+  it("reports a log-only outcome when email delivery is not configured", async () => {
+    vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "skipped" });
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/logged/i);
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+  });
+
+  it("falls back to a log-only reply when the enquiry has no email", async () => {
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      contactEmail: null,
+    } as never);
+
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/no email on file/i);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(prisma.messageLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        customerId: "c1",
+        type: "staff_reply",
+        status: "logged",
+        body: "Hello",
+      }),
+    });
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+  });
+
+  it("surfaces a failed send and does not mark the enquiry replied", async () => {
+    vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "failed" });
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/failed/i);
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
+  });
+
+  it("rejects an empty reply without sending", async () => {
+    const res = await replyToEnquiry("e1", { message: "   " });
+    expect(res.ok).toBe(false);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("still forbids artists from replying to another artist's enquiry (RBAC)", async () => {
+    vi.mocked(requireRole).mockResolvedValue({
+      id: "u2",
+      email: "a@x",
+      role: "ARTIST",
+      displayName: "Artist",
+      artistId: "someone_else",
+    } as never);
+
+    await expect(replyToEnquiry("e1", { message: "Hi" })).rejects.toThrow(
+      /forbidden/i,
+    );
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe("enquiry actions input contracts", () => {
   it("rejects an empty reply", () => {
     expect(validateReply({ message: "" }).ok).toBe(false);

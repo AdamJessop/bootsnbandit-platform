@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import { BookingConflictError } from "@bnb/core/services/bookings";
 import { FlashUnavailableError } from "@bnb/core/services/flash";
+import { SessionCompletionError } from "@bnb/core/services/sessions";
 
 /**
  * Shared API route helpers: typed JSON parsing with zod and a single
@@ -75,6 +76,9 @@ export function handleApiError(err: unknown): Response {
     return jsonError(409, err.message);
   }
   if (err instanceof FlashUnavailableError) {
+    return jsonError(409, err.message);
+  }
+  if (err instanceof SessionCompletionError) {
     return jsonError(409, err.message);
   }
 

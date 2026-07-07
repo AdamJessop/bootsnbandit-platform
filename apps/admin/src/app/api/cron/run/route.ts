@@ -2,13 +2,15 @@ import { runAllCron } from "@bnb/core/cron";
 import { json } from "@bnb/core/http";
 
 /**
- * POST /api/cron/run — runs every CRM cron automation (reminders, review
+ * /api/cron/run — runs every CRM cron automation (reminders, review
  * requests, loyalty rewards) and returns a summary count.
  *
  * Guarded by the `CRON_SECRET`: the caller must present it in the
  * `x-cron-secret` header (or `Authorization: Bearer <secret>`). This is the
- * endpoint an external scheduler (system cron / Vercel Cron) hits — see
- * `docs/CRON.md`. Every job is idempotent, so repeated calls are safe.
+ * endpoint an external scheduler hits — see `docs/CRON.md`. Exposed as both
+ * POST (system cron / manual curl) and GET (Vercel Cron invokes with GET and
+ * sends `Authorization: Bearer <CRON_SECRET>` — see apps/admin/vercel.json).
+ * Every job is idempotent, so repeated calls are safe.
  */
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,7 @@ function presentedSecret(req: Request): string | null {
   return null;
 }
 
-export async function POST(req: Request): Promise<Response> {
+async function handleRun(req: Request): Promise<Response> {
   const expected = process.env.CRON_SECRET?.trim();
   if (!expected) {
     return json({ error: "CRON_SECRET is not configured" }, 503);
@@ -33,4 +35,12 @@ export async function POST(req: Request): Promise<Response> {
 
   const summary = await runAllCron();
   return json(summary, 200);
+}
+
+export async function POST(req: Request): Promise<Response> {
+  return handleRun(req);
+}
+
+export async function GET(req: Request): Promise<Response> {
+  return handleRun(req);
 }

@@ -1,5 +1,6 @@
 import type { Booking, BookingStatus, BookingType } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
+import { sendEmail } from "@bnb/core/email";
 
 /**
  * Booking lifecycle service with a leave-aware conflict check.
@@ -86,6 +87,56 @@ async function assertFree(query: ConflictQuery): Promise<void> {
   if (hit) throw new BookingConflictError(hit.kind);
 }
 
+/** en-GB long date for the confirmation email (mirrors cron/reminders). */
+function formatWhen(start: Date): string {
+  return start.toLocaleString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Sends the `confirmation` email for a booking that just entered `confirmed`.
+ * Skips when the customer has no email address; dedupes via MessageLog so a
+ * booking is only ever confirmed once (matches the cron/reminders pattern).
+ * `sendEmail` never throws, so this can't fail the booking write.
+ */
+async function sendConfirmationEmail(bookingId: string): Promise<void> {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      customer: { select: { name: true, email: true } },
+      artist: { select: { name: true } },
+    },
+  });
+  if (!booking) return;
+
+  const email = booking.customer.email?.trim();
+  if (!email) return;
+
+  // Idempotency: skip if a confirmation was already logged for this booking.
+  const existing = await prisma.messageLog.count({
+    where: { relatedBookingId: booking.id, type: "confirmation" },
+  });
+  if (existing > 0) return;
+
+  await sendEmail({
+    to: email,
+    type: "confirmation",
+    customerId: booking.customerId,
+    relatedBookingId: booking.id,
+    data: {
+      customerName: booking.customer.name,
+      artistName: booking.artist.name,
+      date: formatWhen(booking.start),
+      placement: booking.placement ?? undefined,
+    },
+  });
+}
+
 export interface CreateBookingInput {
   customerId: string;
   artistId: string;
@@ -113,7 +164,7 @@ export async function createBooking(
     end: input.end,
   });
 
-  return prisma.booking.create({
+  const booking = await prisma.booking.create({
     data: {
       customerId: input.customerId,
       artistId: input.artistId,
@@ -132,6 +183,12 @@ export async function createBooking(
       remindersOptIn: input.remindersOptIn ?? true,
     },
   });
+
+  if (booking.status === "confirmed") {
+    await sendConfirmationEmail(booking.id);
+  }
+
+  return booking;
 }
 
 export interface UpdateBookingInput {
@@ -173,7 +230,7 @@ export async function updateBooking(
     await assertFree({ artistId, start, end, excludeBookingId: id });
   }
 
-  return prisma.booking.update({
+  const updated = await prisma.booking.update({
     where: { id },
     data: {
       artistId: input.artistId,
@@ -191,6 +248,13 @@ export async function updateBooking(
       remindersOptIn: input.remindersOptIn,
     },
   });
+
+  // Transition INTO `confirmed` → send the confirmation email (deduped).
+  if (input.status === "confirmed" && existing.status !== "confirmed") {
+    await sendConfirmationEmail(updated.id);
+  }
+
+  return updated;
 }
 
 export async function getBooking(id: string): Promise<Booking | null> {

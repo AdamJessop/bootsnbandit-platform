@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Pirata_One, Cinzel, Inter } from "next/font/google";
 import "./globals.css";
 import "./site.css";
+import { prisma } from "@bnb/core/db";
+import { mergeShellSettings } from "@/lib/site-nav";
 import { Nav } from "@/components/site/Nav";
 import { Ticker } from "@/components/site/Ticker";
 import { Footer } from "@/components/site/Footer";
@@ -39,14 +41,26 @@ export const metadata: Metadata = {
   },
 };
 
+/** CMS SiteSettings for the shell; null (→ fallbacks) when the DB is away. */
+async function loadShellSettings() {
+  try {
+    return await prisma.siteSettings.findFirst();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Public marketing site root layout (apex origin). Owns the heritage theme
  * `<html>` shell + brand fonts, pulls in the global + prototype CSS, and wraps
- * every public page in the crimson Ticker, sticky Nav and 4-col Footer.
+ * every public page in the crimson Ticker, sticky Nav and 4-col Footer. The
+ * Ticker lines and Footer studio details come from the CMS SiteSettings,
+ * falling back to the hardcoded constants per-field.
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const shell = mergeShellSettings(await loadShellSettings());
   return (
     <html
       lang="en"
@@ -56,10 +70,10 @@ export default function RootLayout({
     >
       <body>
         <div className="relative z-[1] min-h-dvh">
-          <Ticker />
+          <Ticker lines={shell.tickerLines} />
           <Nav />
           <main>{children}</main>
-          <Footer />
+          <Footer studio={shell} />
         </div>
       </body>
     </html>

@@ -51,6 +51,7 @@ export default async function ArtistDetailPage({ params }: PageProps) {
     style: g.style ?? undefined,
     placement: g.placement ?? undefined,
     artistName: g.artistName ?? undefined,
+    src: g.image ?? undefined,
     big: g.big,
   }));
   const open = artist.books !== "closed";

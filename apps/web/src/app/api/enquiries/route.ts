@@ -1,17 +1,19 @@
 import { z } from "zod";
-import { requireRole } from "@bnb/core/auth";
+import { prisma } from "@bnb/core/db";
 import {
   createEnquiry,
-  listEnquiries,
   type CreateEnquiryInput,
 } from "@bnb/core/services/enquiries";
-import { handleApiError, json, parseBody, parseQuery } from "@bnb/core/http";
+import { handleApiError, json, jsonError, parseBody } from "@bnb/core/http";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 /**
- * /api/enquiries
- *  - POST: public lead capture (Enquire form / Inkling). Unauthenticated.
- *  - GET:  admin enquiry inbox. Requires a signed-in staff user.
+ * POST /api/enquiries — public lead capture (Enquire form / Inkling / studio
+ * contact). Unauthenticated; rate-limited per IP and gated on the CMS
+ * `enquiriesOpen` toggle. The staff inbox lives on the admin origin only.
  */
+
+const limiter = createRateLimiter({ limit: 5, windowMs: 60_000 });
 
 const createSchema = z.object({
   contactName: z.string().min(1),
@@ -31,36 +33,23 @@ const createSchema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    if (!limiter.hit(clientIp(req))) {
+      return jsonError(429, "Too many enquiries — please try again in a minute.");
+    }
+    const settings = await prisma.siteSettings.findFirst({
+      select: { enquiriesOpen: true },
+    });
+    if (settings && !settings.enquiriesOpen) {
+      return jsonError(
+        403,
+        "Our books are closed at the moment — we're not taking new enquiries right now. Check back soon.",
+      );
+    }
     const input = await parseBody(req, createSchema);
     const enquiry = await createEnquiry(
       input as unknown as CreateEnquiryInput,
     );
     return json({ enquiry }, 201);
-  } catch (err) {
-    return handleApiError(err);
-  }
-}
-
-const listSchema = z.object({
-  status: z.enum(["new", "replied", "converted", "closed"]).optional(),
-  source: z.enum(["web", "flash", "inkling"]).optional(),
-  preferredArtistId: z.string().optional(),
-  take: z.coerce.number().int().min(1).max(200).optional(),
-  skip: z.coerce.number().int().min(0).optional(),
-});
-
-export async function GET(req: Request): Promise<Response> {
-  try {
-    const user = await requireRole();
-    const query = parseQuery(req.url, listSchema);
-    // PII guard: owners see the whole inbox; non-owners are scoped to enquiries
-    // that prefer their artist. A non-owner without an artistId sees nobody.
-    const scoped =
-      user.role === "OWNER"
-        ? query
-        : { ...query, preferredArtistId: user.artistId ?? "__none__" };
-    const enquiries = await listEnquiries(scoped);
-    return json({ enquiries });
   } catch (err) {
     return handleApiError(err);
   }

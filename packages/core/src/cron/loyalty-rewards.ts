@@ -27,6 +27,9 @@ export async function runLoyaltyRewards(): Promise<CronJobResult> {
     where: {
       loyaltyStamps: { gte: threshold },
       email: { not: null },
+      // Loyalty rewards are marketing content — consented customers only.
+      // (Transactional emails — confirmation/receipt/etc — remain exempt.)
+      marketingConsent: true,
     },
     select: {
       id: true,

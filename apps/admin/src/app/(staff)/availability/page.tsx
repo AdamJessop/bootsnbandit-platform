@@ -5,12 +5,14 @@ import {
   AvailabilityEditor,
   type AvailabilityArtist,
 } from "./AvailabilityEditor";
+import { PendingLeavePanel, type PendingLeaveItem } from "./PendingLeavePanel";
 import type { AvailabilityRule } from "./availability-helpers";
 
 /**
  * Availability & Leave (BACKOFHOUSE-IA H1/H2). Owners pick any artist; artists
  * edit themselves. Shows current declared leave (approved leave blocks the
- * calendar via the leave-aware conflict check).
+ * calendar via the leave-aware conflict check). Owners also see a pending-leave
+ * inbox covering every artist, with Approve / Reject actions.
  */
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,22 @@ export default async function AvailabilityPage() {
       ])
     : [[], []];
 
+  // Owner-only pending-leave inbox: every artist's unresolved requests.
+  const pendingLeave: PendingLeaveItem[] = owner
+    ? (
+        await prisma.leave.findMany({
+          where: { status: "pending", endDate: { gte: new Date() } },
+          orderBy: { startDate: "asc" },
+          include: { artist: { select: { name: true } } },
+        })
+      ).map((l) => ({
+        id: l.id,
+        artistName: l.artist.name,
+        range: `${formatDay(l.startDate)} – ${formatDay(l.endDate)}`,
+        reason: l.reason,
+      }))
+    : [];
+
   return (
     <main className="mx-auto max-w-[900px] px-6 py-10">
       <p className="kicker mb-2">Back of house</p>
@@ -65,6 +83,11 @@ export default async function AvailabilityPage() {
         </div>
       ) : (
         <>
+          {owner && (
+            <div className="mt-8">
+              <PendingLeavePanel items={pendingLeave} />
+            </div>
+          )}
           <div className="mt-8">
             <AvailabilityEditor
               artists={artistOptions}

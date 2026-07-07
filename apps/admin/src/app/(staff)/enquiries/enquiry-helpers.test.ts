@@ -1,8 +1,107 @@
 import { describe, expect, it } from "vitest";
 import {
   buildConvertInput,
+  buildThreadMap,
+  distinctStyles,
+  filterEnquiries,
+  looksLikeImageUrl,
   validateReply,
+  type ThreadMessage,
 } from "./enquiry-helpers";
+
+describe("looksLikeImageUrl", () => {
+  it("matches common image extensions (query strings included)", () => {
+    expect(looksLikeImageUrl("https://x.test/a.jpg")).toBe(true);
+    expect(looksLikeImageUrl("https://x.test/a.JPEG")).toBe(true);
+    expect(looksLikeImageUrl("https://x.test/a.webp?w=100&h=100")).toBe(true);
+    expect(looksLikeImageUrl("/uploads/moodboard/a.png")).toBe(true);
+  });
+
+  it("rejects non-image references", () => {
+    expect(looksLikeImageUrl("https://pinterest.com/pin/123")).toBe(false);
+    expect(looksLikeImageUrl("https://x.test/a.pdf")).toBe(false);
+    expect(looksLikeImageUrl("not a url")).toBe(false);
+  });
+});
+
+describe("buildThreadMap", () => {
+  const msg = (over: Partial<ThreadMessage>): ThreadMessage => ({
+    id: "m1",
+    customerId: "c1",
+    type: "staff_reply",
+    status: "sent",
+    subject: "Re: enquiry",
+    sentAtISO: "2026-06-01T10:00:00Z",
+    createdAtISO: "2026-06-01T09:59:00Z",
+    ...over,
+  });
+
+  it("groups messages per customer, preserving order", () => {
+    const map = buildThreadMap([
+      msg({ id: "m1", customerId: "c1" }),
+      msg({ id: "m2", customerId: "c2" }),
+      msg({ id: "m3", customerId: "c1", type: "enquiry_ack" }),
+    ]);
+    expect(map.get("c1")?.map((t) => t.id)).toEqual(["m1", "m3"]);
+    expect(map.get("c2")?.map((t) => t.id)).toEqual(["m2"]);
+  });
+
+  it("uses sentAt when present, else createdAt, and skips customer-less rows", () => {
+    const map = buildThreadMap([
+      msg({ id: "m1", sentAtISO: null }),
+      msg({ id: "m2", customerId: null }),
+    ]);
+    expect(map.get("c1")).toEqual([
+      expect.objectContaining({ id: "m1", whenISO: "2026-06-01T09:59:00Z" }),
+    ]);
+    expect(map.size).toBe(1);
+  });
+
+  it("caps each customer's thread", () => {
+    const many = Array.from({ length: 5 }, (_, i) =>
+      msg({ id: `m${i}` }),
+    );
+    expect(buildThreadMap(many, 3).get("c1")).toHaveLength(3);
+  });
+});
+
+describe("filterEnquiries + distinctStyles", () => {
+  const items = [
+    { id: "1", preferredArtistId: "a1", style: "Fine line" },
+    { id: "2", preferredArtistId: "a2", style: "fine line" },
+    { id: "3", preferredArtistId: null, style: "Blackwork" },
+    { id: "4", preferredArtistId: "a1", style: null },
+  ];
+
+  it("passes everything through with no filters", () => {
+    expect(
+      filterEnquiries(items, { artistId: null, style: null }),
+    ).toHaveLength(4);
+  });
+
+  it("filters by preferred artist", () => {
+    expect(
+      filterEnquiries(items, { artistId: "a1", style: null }).map((i) => i.id),
+    ).toEqual(["1", "4"]);
+  });
+
+  it("filters by style case-insensitively, and combines with artist", () => {
+    expect(
+      filterEnquiries(items, { artistId: null, style: "fine line" }).map(
+        (i) => i.id,
+      ),
+    ).toEqual(["1", "2"]);
+    expect(
+      filterEnquiries(items, { artistId: "a2", style: "FINE LINE" }).map(
+        (i) => i.id,
+      ),
+    ).toEqual(["2"]);
+  });
+
+  it("derives distinct styles (case-insensitive, sorted, no blanks)", () => {
+    expect(distinctStyles(items)).toEqual(["Blackwork", "Fine line"]);
+  });
+});
 
 describe("validateReply", () => {
   it("requires a non-empty message", () => {

@@ -65,3 +65,14 @@ export function validateDay(day: DayState): boolean {
   if (!day.enabled) return true;
   return day.end > day.start;
 }
+
+/**
+ * Toast copy after POST /api/leave succeeds. Artist-declared leave is created
+ * `pending` and only blocks the calendar once an owner approves it — say so,
+ * instead of claiming the calendar is already marked unavailable.
+ */
+export function leaveDeclaredMessage(status: string | undefined): string {
+  return status === "pending"
+    ? "Leave requested — an owner must approve it before it blocks the calendar."
+    : "Leave declared — calendar marked unavailable.";
+}

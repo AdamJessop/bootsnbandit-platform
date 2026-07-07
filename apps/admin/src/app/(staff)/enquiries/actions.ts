@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
+import { sendEmail } from "@bnb/core/email";
 import { BookingConflictError, createBooking } from "@bnb/core/services/bookings";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import { buildConvertInput, validateReply } from "./enquiry-helpers";
@@ -46,26 +47,55 @@ export async function replyToEnquiry(
   const enquiry = await loadEnquiryScoped(enquiryId);
   const valid = validateReply(input);
   if (!valid.ok) return { ok: false, message: valid.error };
+
   if (!enquiry.contactEmail) {
-    return { ok: false, message: "This enquiry has no email to reply to." };
+    // No email on file — record the reply on the timeline only.
+    await prisma.messageLog.create({
+      data: {
+        customerId: enquiry.customerId,
+        type: "staff_reply",
+        channel: "email",
+        subject: "Re: your enquiry",
+        body: valid.message,
+        status: "logged",
+        sentAt: null,
+      },
+    });
+    await updateEnquiryStatus(enquiryId, "replied");
+    revalidatePath("/enquiries");
+    return {
+      ok: true,
+      message: "No email on file — reply logged to the timeline (not sent).",
+    };
   }
 
-  // Free-form reply: record on the customer timeline + mark the enquiry replied.
-  await prisma.messageLog.create({
+  // Send the branded staff-reply email; sendEmail writes the MessageLog row
+  // itself (sent / logged / failed), so no extra log here.
+  const result = await sendEmail({
+    to: enquiry.contactEmail,
+    type: "staff_reply",
+    customerId: enquiry.customerId,
     data: {
-      customerId: enquiry.customerId,
-      type: "enquiry_ack",
-      channel: "email",
-      subject: "Re: your enquiry",
+      customerName: enquiry.contactName,
       body: valid.message,
-      status: "logged",
-      sentAt: new Date(),
     },
   });
+  if (result.status === "failed") {
+    return {
+      ok: false,
+      message: "The reply email failed to send — check the email integration.",
+    };
+  }
   await updateEnquiryStatus(enquiryId, "replied");
 
   revalidatePath("/enquiries");
-  return { ok: true, message: "Reply logged and enquiry marked replied." };
+  return {
+    ok: true,
+    message:
+      result.status === "sent"
+        ? "Reply emailed to the customer and enquiry marked replied."
+        : "Reply logged (email delivery not configured) and enquiry marked replied.",
+  };
 }
 
 export async function assignEnquiry(

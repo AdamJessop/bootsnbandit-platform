@@ -15,11 +15,11 @@
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "prisma generate --schema=packages/core/prisma/schema.prisma",
-    "db:migrate": "prisma migrate dev --schema=packages/core/prisma/schema.prisma",
-    "db:push": "prisma db push --schema=packages/core/prisma/schema.prisma",
-    "db:seed": "tsx packages/core/prisma/seed.ts",
-    "admin:link": "tsx scripts/admin-link.ts"
+    "db:generate": "npm -w @bnb/core run db:generate",
+    "db:migrate": "npm -w @bnb/core run db:migrate",
+    "db:push": "npm -w @bnb/core run db:push",
+    "db:seed": "npm -w @bnb/core run db:seed",
+    "admin:link": "tsx --env-file=.env scripts/admin-link.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

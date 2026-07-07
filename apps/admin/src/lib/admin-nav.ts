@@ -8,7 +8,7 @@
  * - `href`       route under / (admin origin root)
  * - `icon`       lucide icon component
  * - `ownerOnly`  hidden from artists by RoleGate / visibleNavItems
- * - `bottomNav`  surfaced in the mobile bottom bar (max 5)
+ * - `bottomNav`  surfaced in the mobile bottom bar (max 4 + a "More" sheet)
  */
 import {
   LayoutDashboard,
@@ -34,7 +34,7 @@ export interface AdminNavItem {
   href: string;
   icon: LucideIcon;
   ownerOnly?: boolean;
-  /** Show in the mobile bottom bar (≤5 total). */
+  /** Show in the mobile bottom bar (≤4; the 5th slot is the "More" sheet). */
   bottomNav?: boolean;
 }
 
@@ -119,9 +119,23 @@ export function visibleNavItems(role: AdminRole): AdminNavItem[] {
   return ADMIN_NAV.filter((item) => role === "owner" || !item.ownerOnly);
 }
 
-/** Up to 5 items for the mobile bottom bar, role-filtered. */
+/**
+ * Up to 4 items for the mobile bottom bar, role-filtered — the AppShell adds
+ * a 5th "More" slot opening a sheet of the remaining (moreNavItems) sections.
+ */
 export function bottomNavItems(role: AdminRole): AdminNavItem[] {
   return visibleNavItems(role)
     .filter((item) => item.bottomNav)
-    .slice(0, 5);
+    .slice(0, 4);
+}
+
+/**
+ * Role-filtered items NOT in the bottom bar — the mobile "More" sheet. Derived
+ * from the same registry as the sidebar so role gating stays single-sourced,
+ * and together with bottomNavItems covers every visible section (no mobile
+ * dead-ends).
+ */
+export function moreNavItems(role: AdminRole): AdminNavItem[] {
+  const bottomIds = new Set(bottomNavItems(role).map((item) => item.id));
+  return visibleNavItems(role).filter((item) => !bottomIds.has(item.id));
 }

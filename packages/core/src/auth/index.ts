@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { prisma } from "@bnb/core/db";
 import { readSessionCookie } from "./cookies";
 import { sessionPayloadToUser } from "./session";
 
@@ -14,10 +15,20 @@ export interface SessionUser {
   artistId?: string | null;
 }
 
-/** Returns the signed-in staff user, or null. */
+/**
+ * Returns the signed-in staff user, or null. Sessions are stateless JWEs with
+ * a 30-day TTL, so the user row is re-checked on every call (one PK lookup):
+ * a deactivated or deleted staff member is signed out immediately, not when
+ * their cookie expires. Fails closed — no row / inactive → null.
+ */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const payload = await readSessionCookie();
   if (!payload) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { active: true },
+  });
+  if (!user?.active) return null;
   return sessionPayloadToUser(payload);
 }
 

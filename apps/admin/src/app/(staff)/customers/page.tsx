@@ -1,6 +1,7 @@
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { deriveVisits } from "../_shared/labels";
+import { computeLifetimeValue } from "./customers-data";
 import { CustomersTable, type CustomerRow } from "./CustomersTable";
 
 /**
@@ -25,6 +26,7 @@ export default async function CustomersPage() {
       phone: true,
       loyaltyStamps: true,
       loyaltyTier: true,
+      tags: true,
       bookings: {
         where: {
           status: { in: ["enquiry", "pending", "confirmed", "completed"] },
@@ -36,6 +38,28 @@ export default async function CustomersPage() {
     take: 500,
   });
 
+  // Lifetime value: all completed-session amounts for the listed customers in
+  // one query, reduced per customer (no N+1).
+  const customerIds = customers.map((c) => c.id);
+  const completedSessions =
+    customerIds.length > 0
+      ? await prisma.session.findMany({
+          where: {
+            booking: { customerId: { in: customerIds }, status: "completed" },
+          },
+          select: {
+            amountChargedPence: true,
+            booking: { select: { customerId: true } },
+          },
+        })
+      : [];
+  const lifetimeValue = computeLifetimeValue(
+    completedSessions.map((s) => ({
+      customerId: s.booking.customerId,
+      amountPence: s.amountChargedPence,
+    })),
+  );
+
   const rows: CustomerRow[] = customers.map((c) => {
     const { lastVisit, nextVisit } = deriveVisits(c.bookings.map((b) => b.start));
     return {
@@ -45,6 +69,8 @@ export default async function CustomersPage() {
       phone: c.phone ?? "",
       loyaltyStamps: c.loyaltyStamps,
       loyaltyTier: c.loyaltyTier,
+      tags: c.tags,
+      lifetimeValuePence: lifetimeValue.get(c.id) ?? 0,
       lastVisit,
       nextVisit,
     };

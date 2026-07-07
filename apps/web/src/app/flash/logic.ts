@@ -29,6 +29,20 @@ export function groupByDeadline<T extends DeadlineItem>(
   return order.map((deadline) => ({ deadline, items: byKey.get(deadline)! }));
 }
 
+/**
+ * The "next drop closes" banner label: the first non-null deadline in display
+ * (sortOrder) order, or null when no live flash has a deadline — the banner
+ * hides rather than showing a stale hardcoded date.
+ */
+export function nextDropDeadline<T extends DeadlineItem>(
+  items: T[],
+): string | null {
+  for (const item of items) {
+    if (item.deadline) return item.deadline;
+  }
+  return null;
+}
+
 /** Stock state for a flash design: remaining count + gone/low flags. */
 export function flashStock(
   total: number,

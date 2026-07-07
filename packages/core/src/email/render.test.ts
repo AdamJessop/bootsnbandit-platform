@@ -124,6 +124,65 @@ describe("renderEmail", () => {
     expect(subject.toLowerCase()).toContain("invite");
   });
 
+  it("renders staff_reply with paragraphs, preserved line breaks and greeting", async () => {
+    const { subject, html } = await renderEmail("staff_reply", {
+      customerName: "Ada",
+      body: "Thanks for sending the reference over.\nIt looks great.\n\nSarah has space in August — shall we pencil you in?",
+    });
+    expectHtmlBasics(html, subject);
+    expect(subject).toBe("A message from Boots 'n' Bandit");
+    expect(html).toContain("Ada");
+    expect(html).toContain("Thanks for sending the reference over.");
+    // Single newline inside a paragraph → <br />.
+    expect(html).toContain("<br");
+    expect(html).toContain("Sarah has space in August");
+  });
+
+  it("uses the provided subject for staff_reply when given", async () => {
+    const { subject, html } = await renderEmail("staff_reply", {
+      customerName: "Ada",
+      subject: "About your snake design",
+      body: "Quick update on the drawing.",
+    });
+    expect(subject).toBe("About your snake design");
+    expect(html).toContain("Quick update on the drawing.");
+  });
+
+  it("builds customer-facing links from PUBLIC_SITE_ORIGIN, not the (admin) app origin", async () => {
+    const origPublic = process.env.PUBLIC_SITE_ORIGIN;
+    const origApp = process.env.APP_ORIGIN;
+    process.env.PUBLIC_SITE_ORIGIN = "https://public.example";
+    process.env.APP_ORIGIN = "https://admin.example";
+    try {
+      const aftercare = await renderEmail("aftercare", { customerName: "Ada" });
+      expect(aftercare.html).toContain("https://public.example/aftercare");
+      expect(aftercare.html).not.toContain("https://admin.example");
+
+      const review = await renderEmail("review_request", {
+        customerName: "Ada",
+        reviewToken: "tok_abc123",
+      });
+      expect(review.html).toContain("https://public.example/review/tok_abc123");
+      expect(review.html).not.toContain("https://admin.example");
+    } finally {
+      if (origPublic === undefined) delete process.env.PUBLIC_SITE_ORIGIN;
+      else process.env.PUBLIC_SITE_ORIGIN = origPublic;
+      if (origApp === undefined) delete process.env.APP_ORIGIN;
+      else process.env.APP_ORIGIN = origApp;
+    }
+  });
+
+  it("falls back to http://localhost:3000 for customer links when PUBLIC_SITE_ORIGIN is unset", async () => {
+    const origPublic = process.env.PUBLIC_SITE_ORIGIN;
+    delete process.env.PUBLIC_SITE_ORIGIN;
+    try {
+      const { html } = await renderEmail("aftercare", { customerName: "Ada" });
+      expect(html).toContain("http://localhost:3000/aftercare");
+    } finally {
+      if (origPublic !== undefined) process.env.PUBLIC_SITE_ORIGIN = origPublic;
+    }
+  });
+
   it("produces a distinct, non-empty subject for every EmailType", async () => {
     const types: EmailType[] = [
       "confirmation",
@@ -134,6 +193,7 @@ describe("renderEmail", () => {
       "enquiry_ack",
       "loyalty_reward",
       "staff_invite",
+      "staff_reply",
     ];
     const subjects = new Set<string>();
     for (const t of types) {

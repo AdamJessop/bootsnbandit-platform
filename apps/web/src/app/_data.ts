@@ -42,6 +42,8 @@ export interface SiteGalleryItem {
   placement: string | null;
   artistSlug: string | null;
   artistName: string | null;
+  /** Admin-uploaded photo URL; tiles fall back to the procedural Plate. */
+  image: string | null;
   hue: string | null;
   big: boolean;
 }
@@ -50,6 +52,8 @@ export interface SiteFlash {
   id: string;
   title: string;
   artistName: string | null;
+  /** Admin-uploaded design URL; cards fall back to the paper Plate. */
+  image: string | null;
   hue: string | null;
   size: string | null;
   pricePence: number | null;
@@ -146,6 +150,7 @@ function shapeGallery(g: {
   title: string;
   style: string | null;
   placement: string | null;
+  image: string | null;
   hue: string | null;
   featured: boolean;
   artist: { name: string; slug: string } | null;
@@ -157,6 +162,7 @@ function shapeGallery(g: {
     placement: g.placement,
     artistSlug: g.artist?.slug ?? null,
     artistName: g.artist?.name ?? null,
+    image: g.image,
     hue: g.hue,
     big: g.featured,
   };
@@ -193,6 +199,7 @@ export async function getFlash(): Promise<SiteFlash[]> {
     id: f.id,
     title: f.title,
     artistName: f.artist?.name ?? null,
+    image: f.image,
     hue: f.hue,
     size: f.sizeCm,
     pricePence: f.pricePence,
@@ -201,6 +208,41 @@ export async function getFlash(): Promise<SiteFlash[]> {
     deadline: f.deadline,
     status: f.status,
   }));
+}
+
+export interface SiteReview {
+  id: string;
+  /** Customer display name. */
+  name: string;
+  /** First name of the artist the reviewed booking was with (if any). */
+  artist: string | null;
+  quote: string;
+  rating: number;
+}
+
+/** Latest published reviews with a written quote, for the home page. */
+export async function getPublishedReviews(take = 3): Promise<SiteReview[]> {
+  const rows = await prisma.review.findMany({
+    where: { status: "published", body: { not: null } },
+    orderBy: { submittedAt: "desc" },
+    take,
+    select: {
+      id: true,
+      rating: true,
+      body: true,
+      customer: { select: { name: true } },
+      booking: { select: { artist: { select: { name: true } } } },
+    },
+  });
+  return rows
+    .filter((r) => (r.body ?? "").trim().length > 0)
+    .map((r) => ({
+      id: r.id,
+      name: r.customer?.name ?? "A customer",
+      artist: r.booking?.artist ? firstName(r.booking.artist.name) : null,
+      quote: (r.body ?? "").trim(),
+      rating: r.rating ?? 5,
+    }));
 }
 
 /** Ordered list of style names (from the TattooStyle table). */

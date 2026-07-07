@@ -3,6 +3,7 @@ import {
   ADMIN_NAV,
   visibleNavItems,
   bottomNavItems,
+  moreNavItems,
   type AdminRole,
 } from "./admin-nav";
 
@@ -63,5 +64,40 @@ describe("bottomNavItems", () => {
   it("returns at most 5 items for the mobile bottom bar", () => {
     expect(bottomNavItems("owner").length).toBeLessThanOrEqual(5);
     expect(bottomNavItems("artist").length).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("moreNavItems", () => {
+  it("with the bottom bar covers every visible item exactly once (no dead-ends)", () => {
+    for (const role of ["owner", "artist"] as const) {
+      const bottom = bottomNavItems(role).map((i) => i.id);
+      const more = moreNavItems(role).map((i) => i.id);
+      const union = [...bottom, ...more].sort();
+      const visible = visibleNavItems(role)
+        .map((i) => i.id)
+        .sort();
+      expect(union).toEqual(visible); // everything reachable, nothing twice
+    }
+  });
+
+  it("includes the sections missing from the bottom bar", () => {
+    const more = moreNavItems("owner").map((i) => i.id);
+    for (const id of [
+      "enquiries",
+      "sessions",
+      "availability",
+      "reports",
+      "profile",
+      "content",
+      "studio",
+    ]) {
+      expect(more).toContain(id);
+    }
+  });
+
+  it("stays role-gated: artists never see owner-only items in More", () => {
+    const more = moreNavItems("artist").map((i) => i.id);
+    expect(more).not.toContain("content");
+    expect(more).not.toContain("studio");
   });
 });

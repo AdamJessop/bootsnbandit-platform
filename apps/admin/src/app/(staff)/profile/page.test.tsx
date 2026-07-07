@@ -49,6 +49,10 @@ vi.mock("./_lib/actions", () => ({
   regenerateFeed: vi.fn(),
   removeOwnPasskey: vi.fn(),
 }));
+// AddPasskeyButton (client) calls useRouter, which needs a mounted app router.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 describe("ProfilePage", () => {
   it("shows the iCal subscribe URL, profile editor and passkeys", async () => {
@@ -58,6 +62,7 @@ describe("ProfilePage", () => {
     expect(html).toContain("http://localhost:3000/api/calendar/FEEDTOKEN.ics");
     expect(html).toContain("Regenerate URL");
     expect(html).toContain("MacBook");
+    expect(html).toContain("Add a passkey");
     expect(html).toContain("Heritage tattooer");
     expect(html).toContain("Fine-line");
   });

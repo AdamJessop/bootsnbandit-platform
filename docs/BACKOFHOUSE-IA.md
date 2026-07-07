@@ -1,6 +1,6 @@
 # Back-of-House Admin — Information Architecture & Screen Inventory
 
-> Scoping output (ui-ux-pro-max). The staff PWA at `(admin)`. Dark heritage theme, denser than the public site, shadcn/ui. Primary device: tablet/desktop at the studio + artist phones. All touch targets ≥44px, contrast ≥4.5:1, focus rings, 150–300ms transitions, reduced-motion respected.
+> Scoping output (ui-ux-pro-max). The staff PWA (`apps/admin`, admin subdomain). Dark heritage theme, denser than the public site, shadcn/ui. Primary device: tablet/desktop at the studio + artist phones. All touch targets ≥44px, contrast ≥4.5:1, focus rings, 150–300ms transitions, reduced-motion respected.
 
 ## Navigation model
 
@@ -89,7 +89,7 @@
 
 ## CRM automation lifecycle (the "every step" relationship)
 
-enquiry received → auto-ack email · booking confirmed → **confirmation** email · T-48h/T-24h → **reminder** email · session completed → **receipt** + **aftercare** email (aftercare-stage link) · T+3–5d → **review request** email · loyalty thresholds → reward email. All automations: scheduled jobs (cron) reading booking/session state; every send logged to the customer timeline (F2); per-customer marketing consent respected.
+enquiry received → auto-ack email · booking confirmed → **confirmation** email · T-48h/T-24h → **reminder** email (implemented as one idempotent reminder covering the ≤48h window) · session completed → **receipt** + **aftercare** email (aftercare-stage link) · T+3–5d → **review request** email · loyalty thresholds → reward email. All automations: scheduled jobs (cron) reading booking/session state; every send logged to the customer timeline (F2); per-customer marketing consent respected.
 
 ## Component kit (shadcn + heritage tokens)
 

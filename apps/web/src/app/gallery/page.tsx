@@ -23,6 +23,7 @@ export default async function GalleryPage() {
     placement: g.placement,
     artistSlug: g.artistSlug,
     artistName: g.artistName,
+    image: g.image,
     big: g.big,
   }));
 

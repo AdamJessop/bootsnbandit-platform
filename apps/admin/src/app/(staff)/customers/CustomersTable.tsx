@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Client island: the customer directory DataTable (search, loyalty tier,
- * last/next visit). Rows are precomputed server-side; this only wires the
- * generic DataTable + navigation to the per-customer timeline.
+ * Client island: the customer directory DataTable (search, tags, loyalty tier,
+ * lifetime value, last/next visit). Rows are precomputed server-side; this only
+ * wires the generic DataTable + navigation to the per-customer timeline.
  */
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/admin/DataTable";
+import { formatPence } from "@/components/admin/money";
 import { formatDay, loyaltyTierLabel } from "../_shared/labels";
 
 export interface CustomerRow {
@@ -17,6 +18,9 @@ export interface CustomerRow {
   phone: string;
   loyaltyStamps: number;
   loyaltyTier: number;
+  tags: string[];
+  /** Sum of completed session amounts (pence), precomputed server-side. */
+  lifetimeValuePence: number;
   lastVisit: string | null;
   nextVisit: string | null;
 }
@@ -34,6 +38,23 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
       ),
     },
     {
+      key: "tags",
+      header: "Tags",
+      accessor: (r) =>
+        r.tags.length === 0 ? (
+          <span className="text-text-muted">—</span>
+        ) : (
+          <span className="flex flex-wrap gap-1">
+            {r.tags.map((t) => (
+              <Badge key={t} variant="secondary">
+                {t}
+              </Badge>
+            ))}
+          </span>
+        ),
+      csvValue: (r) => r.tags.join("; "),
+    },
+    {
       key: "loyaltyTier",
       header: "Loyalty",
       sortable: true,
@@ -46,6 +67,14 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
         </span>
       ),
       csvValue: (r) => `${loyaltyTierLabel(r.loyaltyTier)} (${r.loyaltyStamps})`,
+    },
+    {
+      key: "lifetimeValuePence",
+      header: "Lifetime value",
+      sortable: true,
+      align: "right",
+      accessor: (r) => formatPence(r.lifetimeValuePence),
+      csvValue: (r) => formatPence(r.lifetimeValuePence),
     },
     {
       key: "lastVisit",

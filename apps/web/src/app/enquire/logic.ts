@@ -151,6 +151,8 @@ export interface WizardState {
   phone: string;
   email: string;
   notes: string;
+  /** Optional rough budget in pounds, as typed (e.g. "150" or "£99.50"). */
+  budget: string;
 }
 
 export function emptyWizardState(): WizardState {
@@ -169,7 +171,110 @@ export function emptyWizardState(): WizardState {
     phone: "",
     email: "",
     notes: "",
+    budget: "",
   };
+}
+
+/** Preset budget chips offered on the Details step (pounds). */
+export const BUDGET_PRESETS = [80, 150, 250, 400] as const;
+
+/**
+ * Parse a "£ pounds" input to integer pence. Tolerates a leading £, thousands
+ * commas and whitespace; empty/invalid/negative input maps to null (the field
+ * is optional).
+ */
+export function parseBudgetPounds(raw: string): number | null {
+  const cleaned = raw.trim().replace(/^£/, "").replace(/,/g, "");
+  if (!cleaned) return null;
+  const pounds = Number(cleaned);
+  if (!Number.isFinite(pounds) || pounds < 0) return null;
+  return Math.round(pounds * 100);
+}
+
+export interface SeedArtistLike {
+  id: string;
+  slug?: string | null;
+}
+
+/**
+ * Resolve the `?artist=` query seed against the wizard's artist list by DB id
+ * OR slug — artist-detail and gallery deep-links pass slugs, while internal
+ * links may pass ids. Unknown/missing params resolve to null (match me).
+ */
+export function resolveSeedArtist<T extends SeedArtistLike>(
+  artists: T[],
+  param: string | null | undefined,
+): T | null {
+  if (!param) return null;
+  return artists.find((a) => a.id === param || a.slug === param) ?? null;
+}
+
+/**
+ * Small note shown in the wizard when the picked artist's books are closed:
+ * the enquiry still goes through, it just joins the waitlist.
+ */
+export function waitlistNote(
+  artist: { name: string; booksStatus: string } | null | undefined,
+): string | null {
+  if (!artist || artist.booksStatus !== "closed") return null;
+  const first = artist.name.split(" ")[0];
+  return `${first}'s books are closed right now — sending this enquiry adds you to the waitlist and we'll be in touch when a space opens.`;
+}
+
+/** Max pasted reference URLs on the mood board. */
+export const MAX_MOODBOARD_REFS = 6;
+
+export type MoodboardAddResult =
+  | { ok: true; refs: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Validate + append a pasted reference URL: must parse as http(s), is trimmed
+ * and normalised, deduped, and capped at MAX_MOODBOARD_REFS.
+ */
+export function addMoodboardRef(
+  current: string[],
+  raw: string,
+): MoodboardAddResult {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Paste an image or page URL first." };
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return {
+      ok: false,
+      error: "That doesn't look like a full URL — include https://",
+    };
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, error: "References must be http(s) links." };
+  }
+  const normalised = url.toString();
+  if (current.includes(normalised)) {
+    return { ok: false, error: "That reference is already on your board." };
+  }
+  if (current.length >= MAX_MOODBOARD_REFS) {
+    return {
+      ok: false,
+      error: `You can add up to ${MAX_MOODBOARD_REFS} references.`,
+    };
+  }
+  return { ok: true, refs: [...current, normalised] };
+}
+
+/** Short display label for a reference chip: host + path, truncated. */
+export function moodboardRefLabel(ref: string): string {
+  let label = ref;
+  try {
+    const u = new URL(ref);
+    label = `${u.hostname}${u.pathname.length > 1 ? u.pathname : ""}`;
+  } catch {
+    // Fall back to the raw string.
+  }
+  return label.length > 40 ? `${label.slice(0, 39)}…` : label;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -211,6 +316,7 @@ export interface EnquiryPayload {
   style: string | null;
   placement: string | null;
   size: string | null;
+  budgetPence: number | null;
   description: string | null;
   moodboard: string[];
   source: "web";
@@ -246,6 +352,7 @@ export function buildEnquiryPayload(state: WizardState): EnquiryPayload {
     style: state.styles.length ? state.styles.join(", ") : null,
     placement: state.placement || null,
     size: state.size || null,
+    budgetPence: parseBudgetPounds(state.budget),
     description: descParts.length ? descParts.join(" ") : null,
     moodboard: state.moodboard,
     source: "web",

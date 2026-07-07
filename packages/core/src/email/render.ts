@@ -9,6 +9,7 @@ import { ReviewRequestEmail } from "./templates/review-request";
 import { EnquiryAckEmail } from "./templates/enquiry-ack";
 import { LoyaltyRewardEmail } from "./templates/loyalty-reward";
 import { StaffInviteEmail } from "./templates/staff-invite";
+import { StaffReplyEmail } from "./templates/staff-reply";
 
 export interface RenderedEmail {
   subject: string;
@@ -115,6 +116,15 @@ function buildElement(type: EmailType, data: Data): { subject: string; element: 
           url: str(data, "url"),
           role: str(data, "role"),
           expiresAt: str(data, "expiresAt"),
+        }),
+      };
+    case "staff_reply":
+      return {
+        subject: str(data, "subject") ?? "A message from Boots 'n' Bandit",
+        element: React.createElement(StaffReplyEmail, {
+          customerName: str(data, "customerName"),
+          body: str(data, "body") ?? "",
+          subject: str(data, "subject"),
         }),
       };
     default: {

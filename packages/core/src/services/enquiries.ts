@@ -58,16 +58,25 @@ export async function createEnquiry(
     },
   });
 
-  // Acknowledge the enquiry by email when we have an address.
+  // Acknowledge the enquiry by email when we have an address. The template
+  // consumes { customerName, artistName, subjectIdea } — map our fields to it.
   if (input.contactEmail) {
+    let artistName: string | undefined;
+    if (input.preferredArtistId) {
+      const artist = await prisma.artist.findUnique({
+        where: { id: input.preferredArtistId },
+        select: { name: true },
+      });
+      artistName = artist?.name;
+    }
     await sendEmail({
       to: input.contactEmail,
       type: "enquiry_ack",
       customerId: customer.id,
       data: {
-        contactName: input.contactName,
-        style: input.style ?? null,
-        source: enquiry.source,
+        customerName: input.contactName,
+        artistName,
+        subjectIdea: input.description ?? input.style ?? undefined,
       },
     });
   }

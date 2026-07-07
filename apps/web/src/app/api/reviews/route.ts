@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { prisma } from "@bnb/core/db";
-import { ApiError, handleApiError, json, parseBody } from "@bnb/core/http";
+import {
+  ApiError,
+  handleApiError,
+  json,
+  jsonError,
+  parseBody,
+} from "@bnb/core/http";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
 /**
  * POST /api/reviews — public review capture from `/review/[token]`.
@@ -10,6 +17,8 @@ import { ApiError, handleApiError, json, parseBody } from "@bnb/core/http";
  * Phase-8 ownership lane).
  */
 
+const limiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
+
 const schema = z.object({
   token: z.string().min(1),
   rating: z.number().int().min(1).max(5),
@@ -18,6 +27,9 @@ const schema = z.object({
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    if (!limiter.hit(clientIp(req))) {
+      return jsonError(429, "Too many requests — please try again in a minute.");
+    }
     const input = await parseBody(req, schema);
 
     const review = await prisma.review.findUnique({

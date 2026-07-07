@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterGallery, stepIndex } from "./logic";
+import { enquireHref, filterGallery, stepIndex } from "./logic";
 
 const ITEMS = [
   { id: "1", style: "Fine-line", artistSlug: "sarah" },
@@ -47,5 +47,23 @@ describe("stepIndex", () => {
 
   it("returns 0 for an empty set", () => {
     expect(stepIndex(0, 1, 0)).toBe(0);
+  });
+});
+
+describe("enquireHref", () => {
+  it("links artist by slug and style via the plural styles= param", () => {
+    expect(enquireHref({ artistSlug: "sarah", style: "Fine-line" })).toBe(
+      "/enquire?artist=sarah&styles=Fine-line",
+    );
+  });
+
+  it("omits missing fields", () => {
+    expect(enquireHref({ artistSlug: "sarah", style: null })).toBe(
+      "/enquire?artist=sarah",
+    );
+    expect(enquireHref({ artistSlug: null, style: "Realism" })).toBe(
+      "/enquire?styles=Realism",
+    );
+    expect(enquireHref({})).toBe("/enquire");
   });
 });

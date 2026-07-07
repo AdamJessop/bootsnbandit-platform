@@ -26,3 +26,21 @@ export function stepIndex(index: number, delta: number, length: number): number 
   if (length <= 0) return 0;
   return (((index + delta) % length) + length) % length;
 }
+
+export interface EnquireLinkItem {
+  artistSlug?: string | null;
+  style?: string | null;
+}
+
+/**
+ * Build the /enquire deep-link for a lightbox piece. The artist is passed by
+ * slug (enquire resolves id-or-slug) and the style uses the plural `styles=`
+ * param the enquire page actually reads.
+ */
+export function enquireHref(item: EnquireLinkItem): string {
+  const params = new URLSearchParams();
+  if (item.artistSlug) params.set("artist", item.artistSlug);
+  if (item.style) params.set("styles", item.style);
+  const qs = params.toString();
+  return qs ? `/enquire?${qs}` : "/enquire";
+}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button, Section, Text } from "@react-email/components";
 import { EmailLayout, heading, paragraph } from "./layout";
-import { appOrigin, colors } from "./theme";
+import { colors, publicSiteOrigin } from "./theme";
 
 export interface AftercareProps {
   customerName?: string;
@@ -63,7 +63,8 @@ const button: React.CSSProperties = {
 
 export function AftercareEmail(props: AftercareProps) {
   const { customerName = "there" } = props;
-  const url = `${appOrigin()}/aftercare`;
+  // Customer-facing link → public web site, not the (admin) app origin.
+  const url = `${publicSiteOrigin()}/aftercare`;
   return (
     <EmailLayout
       preview="Looking after your new tattoo — the 5 healing stages"

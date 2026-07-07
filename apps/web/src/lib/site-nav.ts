@@ -36,3 +36,52 @@ export const TICKER_LINES: string[] = [
   "Free 15-minute consultations every week",
   "Fully licensed · single-use needles · hospital-grade sterilisation",
 ];
+
+/** The CMS SiteSettings fields the shell (Ticker/Footer) cares about. */
+export interface ShellSettingsInput {
+  studioName?: string | null;
+  addressLine?: string | null;
+  city?: string | null;
+  county?: string | null;
+  postcode?: string | null;
+  hoursText?: string | null;
+  phone?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  tickerLines?: string[] | null;
+}
+
+export interface ShellSettings {
+  name: string;
+  address: string;
+  hours: string;
+  phone: string;
+  instagram: string;
+  facebook: string;
+  tickerLines: string[];
+}
+
+/**
+ * Merge the CMS SiteSettings row over the hardcoded STUDIO/TICKER_LINES
+ * constants. Empty/missing CMS fields fall back per-field, so a partially
+ * filled settings row never blanks part of the shell. Null input (no DB row,
+ * or the DB unreachable at build time) yields the pure fallbacks.
+ */
+export function mergeShellSettings(
+  s: ShellSettingsInput | null | undefined,
+): ShellSettings {
+  const address = [s?.addressLine, s?.city, s?.county, s?.postcode]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
+  const tickerLines = (s?.tickerLines ?? []).filter((l) => l.trim().length > 0);
+  return {
+    name: s?.studioName?.trim() || STUDIO.name,
+    address: address || STUDIO.address,
+    hours: s?.hoursText?.trim() || STUDIO.hours,
+    phone: s?.phone?.trim() || STUDIO.phone,
+    instagram: s?.instagramUrl?.trim() || STUDIO.instagram,
+    facebook: s?.facebookUrl?.trim() || STUDIO.facebook,
+    tickerLines: tickerLines.length > 0 ? tickerLines : TICKER_LINES,
+  };
+}

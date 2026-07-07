@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ImagePlus } from "lucide-react";
+import { Check } from "lucide-react";
 import { Field } from "@/components/site";
 import { buildInklingEnquiryPayload } from "./logic";
+import { MoodboardRefs } from "../enquire/MoodboardRefs";
 import type { InklingArtist } from "./InklingTabs";
 import styles from "../enquire/enquire.module.css";
 
@@ -17,10 +18,6 @@ export function MoodBoard({ artists }: { artists: InklingArtist[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-
-  function addRef() {
-    setRefs((r) => [...r, `moodboard:${Date.now()}-${r.length}`]);
-  }
 
   const canSend =
     name.trim().length > 0 &&
@@ -75,37 +72,7 @@ export function MoodBoard({ artists }: { artists: InklingArtist[] }) {
         Gather inspiration into one board, then send it to the studio. We never
         copy another person&rsquo;s tattoo — references guide the look only.
       </p>
-      <button type="button" className="btn btn-ghost" onClick={addRef}>
-        <ImagePlus className="ic" /> Add a reference
-      </button>
-      {refs.length > 0 && (
-        <div className={styles.moodGrid}>
-          {refs.map((r, i) => (
-            <div key={r} className={styles.moodTile}>
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "var(--text-muted)",
-                  fontSize: 12,
-                }}
-              >
-                Ref {i + 1}
-              </div>
-              <button
-                type="button"
-                className={styles.moodRemove}
-                aria-label="Remove reference"
-                onClick={() => setRefs(refs.filter((_, j) => j !== i))}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <MoodboardRefs refs={refs} onChange={setRefs} idPrefix="mb-moodref" />
 
       <div style={{ marginTop: 24 }}>
         <Field label="Send to" htmlFor="mb-artist">

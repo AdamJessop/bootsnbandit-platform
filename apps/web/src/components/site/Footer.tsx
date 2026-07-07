@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { Camera, Globe, MapPin, Clock, Phone } from "lucide-react";
-import { SITE_NAV, STUDIO } from "@/lib/site-nav";
+import {
+  mergeShellSettings,
+  SITE_NAV,
+  type ShellSettings,
+} from "@/lib/site-nav";
 import { Mark } from "./Mark";
 
 /**
  * Four-column heritage footer: brand + socials, Explore links, Visit
- * (address/hours/phone) and Studio address block.
+ * (address/hours/phone) and Studio address block. `studio` carries the CMS
+ * SiteSettings merged over the hardcoded fallbacks (see mergeShellSettings);
+ * omitting it renders the pure fallbacks.
  */
-export function Footer() {
+export function Footer({
+  studio = mergeShellSettings(null),
+}: {
+  studio?: ShellSettings;
+}) {
   return (
     <footer className="foot">
       <div className="wrap-wide">
@@ -22,14 +32,14 @@ export function Footer() {
             </p>
             <div className="social-row mt-4">
               <a
-                href={STUDIO.instagram}
+                href={studio.instagram}
                 className="icon-btn"
                 aria-label="Instagram"
               >
                 <Camera className="ic" />
               </a>
               <a
-                href={STUDIO.facebook}
+                href={studio.facebook}
                 className="icon-btn"
                 aria-label="Facebook"
               >
@@ -53,16 +63,16 @@ export function Footer() {
             <h6>Visit</h6>
             <div className="foot-links">
               <span className="row gap-3">
-                <MapPin className="ic text-bb-gold" /> {STUDIO.address}
+                <MapPin className="ic text-bb-gold" /> {studio.address}
               </span>
               <span className="row gap-3">
-                <Clock className="ic text-bb-gold" /> {STUDIO.hours}
+                <Clock className="ic text-bb-gold" /> {studio.hours}
               </span>
               <a
-                href={`tel:${STUDIO.phone.replace(/\s/g, "")}`}
+                href={`tel:${studio.phone.replace(/\s/g, "")}`}
                 className="row gap-3"
               >
-                <Phone className="ic text-bb-gold" /> {STUDIO.phone}
+                <Phone className="ic text-bb-gold" /> {studio.phone}
               </a>
             </div>
           </div>
@@ -70,18 +80,18 @@ export function Footer() {
           <div>
             <h6>The Studio</h6>
             <p className="muted">
-              {STUDIO.name}
+              {studio.name}
               <br />
-              {STUDIO.address}
+              {studio.address}
               <br />
-              {STUDIO.hours} · Closed Sun &amp; Mon
+              {studio.hours}
             </p>
           </div>
         </div>
 
         <div className="foot-bottom">
           <span>
-            © {new Date().getFullYear()} {STUDIO.name}. All rights reserved.
+            © {new Date().getFullYear()} {studio.name}. All rights reserved.
           </span>
           <span>Fully licensed studio · Worksop, Nottinghamshire</span>
         </div>

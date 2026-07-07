@@ -1,5 +1,6 @@
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
+import { buildThreadMap } from "./enquiry-helpers";
 import {
   EnquiryInbox,
   type ArtistOption,
@@ -31,6 +32,42 @@ export default async function EnquiriesPage() {
     }),
   ]);
 
+  // Message history per customer (past replies / confirmations) for the
+  // detail-thread view. One query for the whole inbox — no per-enquiry reads.
+  const customerIds = [
+    ...new Set(
+      enquiries.map((e) => e.customerId).filter((id): id is string => !!id),
+    ),
+  ];
+  const messages =
+    customerIds.length > 0
+      ? await prisma.messageLog.findMany({
+          where: { customerId: { in: customerIds } },
+          orderBy: { createdAt: "desc" },
+          take: 1000,
+          select: {
+            id: true,
+            customerId: true,
+            type: true,
+            status: true,
+            subject: true,
+            sentAt: true,
+            createdAt: true,
+          },
+        })
+      : [];
+  const threads = buildThreadMap(
+    messages.map((m) => ({
+      id: m.id,
+      customerId: m.customerId,
+      type: m.type,
+      status: m.status,
+      subject: m.subject,
+      sentAtISO: m.sentAt?.toISOString() ?? null,
+      createdAtISO: m.createdAt.toISOString(),
+    })),
+  );
+
   const items: EnquiryItem[] = enquiries.map((e) => ({
     id: e.id,
     contactName: e.contactName,
@@ -40,10 +77,12 @@ export default async function EnquiriesPage() {
     size: e.size,
     budgetPence: e.budgetPence,
     description: e.description,
+    moodboard: e.moodboard,
     status: e.status,
     source: e.source,
     preferredArtistId: e.preferredArtistId,
     createdAtISO: e.createdAt.toISOString(),
+    thread: e.customerId ? (threads.get(e.customerId) ?? []) : [],
   }));
 
   const artistOptions: ArtistOption[] = owner

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button, Text } from "@react-email/components";
 import { EmailLayout, heading, paragraph } from "./layout";
-import { appOrigin, colors } from "./theme";
+import { colors, publicSiteOrigin } from "./theme";
 
 export interface ReviewRequestProps {
   customerName?: string;
@@ -24,9 +24,10 @@ const button: React.CSSProperties = {
 
 export function ReviewRequestEmail(props: ReviewRequestProps) {
   const { customerName = "there", artistName, reviewToken } = props;
+  // Customer-facing link → public web site, not the (admin) app origin.
   const url = reviewToken
-    ? `${appOrigin()}/review/${reviewToken}`
-    : `${appOrigin()}/review`;
+    ? `${publicSiteOrigin()}/review/${reviewToken}`
+    : `${publicSiteOrigin()}/review`;
   return (
     <EmailLayout
       preview="How did we do? Leave a quick review"

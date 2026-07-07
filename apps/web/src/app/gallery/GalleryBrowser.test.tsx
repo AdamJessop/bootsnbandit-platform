@@ -10,6 +10,7 @@ const ITEMS = [
     placement: "Calf",
     artistSlug: "sarah",
     artistName: "Sarah",
+    image: "/uploads/gallery/snake.jpg",
     big: true,
   },
   {
@@ -19,6 +20,7 @@ const ITEMS = [
     placement: "Upper arm",
     artistSlug: "cal",
     artistName: "Calum",
+    image: null,
     big: false,
   },
 ];
@@ -40,5 +42,16 @@ describe("GalleryBrowser", () => {
     expect(html).toContain("2 pieces");
     expect(html).toContain("Ornamental snake");
     expect(html).toContain("Pennywise portrait");
+  });
+
+  it("renders CMS-uploaded images on tiles (procedural fallback otherwise)", () => {
+    const html = renderToStaticMarkup(
+      <GalleryBrowser
+        items={ITEMS}
+        styles={["Fine-line", "Realism"]}
+        artists={[{ slug: "sarah", name: "Sarah" }]}
+      />,
+    );
+    expect(html).toContain('src="/uploads/gallery/snake.jpg"');
   });
 });

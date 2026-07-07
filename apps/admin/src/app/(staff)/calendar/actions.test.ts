@@ -47,8 +47,18 @@ describe("saveBookingAction", () => {
     );
   });
 
-  it("blocks an artist creating for another artist", async () => {
+  it("lets an artist create for a colleague (front-desk quick-add)", async () => {
     requireRole.mockResolvedValue(artist);
+    createBooking.mockResolvedValue({ id: "bk_2" });
+    const res = await saveBookingAction(saveInput); // artistId art_1 ≠ art_self
+    expect(res).toEqual({ ok: true, bookingId: "bk_2" });
+    expect(createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ artistId: "art_1" }),
+    );
+  });
+
+  it("still requires a signed-in staff member", async () => {
+    requireRole.mockRejectedValue(new Error("NEXT_REDIRECT"));
     const res = await saveBookingAction(saveInput);
     expect(res.ok).toBe(false);
     expect(createBooking).not.toHaveBeenCalled();
@@ -76,6 +86,25 @@ describe("updateBookingAction", () => {
     expect(res.ok).toBe(true);
     const [, patch] = updateBooking.mock.calls[0];
     expect((patch as { start: Date }).start).toBeInstanceOf(Date);
+  });
+
+  it("blocks an artist updating another artist's booking", async () => {
+    requireRole.mockResolvedValue(artist);
+    const res = await updateBookingAction({
+      id: "bk_1",
+      artistId: "art_other",
+      start: "2026-06-16T13:00:00.000Z",
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/own calendar/i);
+    expect(updateBooking).not.toHaveBeenCalled();
+  });
+
+  it("lets an artist update their own booking", async () => {
+    requireRole.mockResolvedValue(artist);
+    updateBooking.mockResolvedValue({ id: "bk_1" });
+    const res = await updateBookingAction({ id: "bk_1", artistId: "art_self" });
+    expect(res.ok).toBe(true);
   });
 
   it("surfaces a booking conflict on move", async () => {

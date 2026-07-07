@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Toaster } from "@/components/ui/sonner";
 import {
   WEEKDAYS,
+  leaveDeclaredMessage,
   rulesToWeekState,
   validateDay,
   weekStateToRules,
@@ -112,10 +113,13 @@ export function AvailabilityEditor({
         }),
       });
       if (res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          leave?: { status?: string };
+        } | null;
         setReason("");
         setFrom("");
         setTo("");
-        toast.success("Leave declared — calendar marked unavailable.");
+        toast.success(leaveDeclaredMessage(body?.leave?.status));
       } else {
         const body = (await res.json().catch(() => null)) as {
           error?: string;
@@ -174,7 +178,9 @@ export function AvailabilityEditor({
                   type="time"
                   value={day.start}
                   disabled={!day.enabled}
-                  onChange={(e) => patchDay(d.weekday, { start: e.target.value })}
+                  onChange={(e) =>
+                    patchDay(d.weekday, { start: e.target.value })
+                  }
                   className="w-32 tabular-nums"
                   aria-label={`${d.label} start`}
                 />

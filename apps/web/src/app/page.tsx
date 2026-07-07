@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import {
   Filigree,
-  Mark,
+  Plate,
   SectionHead,
   StatTile,
   ArtistCard,
@@ -23,7 +23,13 @@ import {
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
-import { getArtists, getGallery, getFlash } from "./_data";
+import {
+  getArtists,
+  getGallery,
+  getFlash,
+  getPublishedReviews,
+  type SiteReview,
+} from "./_data";
 import { formatPence } from "./_format";
 import { PassportCard } from "./passport/PassportCard";
 
@@ -53,41 +59,53 @@ function toGalleryProp(
     title: g.title,
     style: g.style ?? undefined,
     artistName: g.artistName ?? undefined,
+    src: g.image ?? undefined,
     big: g.big,
   };
 }
 
-const REVIEWS = [
+/** Sample quotes shown until enough real reviews are published via the CMS. */
+const SAMPLE_REVIEWS: SiteReview[] = [
   {
+    id: "sample-1",
     name: "Hannah M.",
     artist: "Amy",
+    rating: 5,
     quote:
       "My first tattoo and I was terrified — Amy completely put me at ease and the fine-line piece is more delicate than I dared hope.",
   },
   {
+    id: "sample-2",
     name: "Dec R.",
     artist: "Calum",
+    rating: 5,
     quote:
       "Calum mapped a full blackwork half-sleeve over two sessions. Calm, surgical, and it healed perfectly. Already planning the next one.",
   },
   {
+    id: "sample-3",
     name: "Priya K.",
     artist: "Sarah",
+    rating: 5,
     quote:
       "The colour is so saturated people think it's a sticker. Sarah listened to every note and made it ours. Worth every penny.",
   },
 ];
 
 export default async function HomePage() {
-  const [artists, gallery, flash] = await Promise.all([
+  const [artists, gallery, flash, publishedReviews] = await Promise.all([
     getArtists(),
     getGallery(),
     getFlash(),
+    getPublishedReviews(3),
   ]);
 
   const homeArtists = artists.slice(0, 4);
   const homeGallery = gallery.slice(0, 8);
   const homeFlash = flash.slice(0, 3);
+  // Real published reviews once there are enough to fill the band.
+  const reviews =
+    publishedReviews.length >= 3 ? publishedReviews : SAMPLE_REVIEWS;
 
   return (
     <div className="page">
@@ -265,14 +283,11 @@ export default async function HomePage() {
                 return (
                   <Link key={f.id} href="/flash" className="flash-mini">
                     <div className="flash-mini-art">
-                      <div
-                        className="plate paper"
+                      <Plate
+                        paper
+                        src={f.image ?? undefined}
                         style={{ width: "100%", height: "100%" }}
-                      >
-                        <div className="plate-mark" aria-hidden>
-                          <Mark />
-                        </div>
-                      </div>
+                      />
                     </div>
                     <div className="flash-mini-body">
                       <b>{f.title}</b>
@@ -323,17 +338,22 @@ export default async function HomePage() {
         <div className="wrap">
           <SectionHead eyebrow="Kind words" title="What people say" center />
           <div className="review-grid">
-            {REVIEWS.map((r) => (
-              <figure key={r.name} className="card card-pad review-card">
-                <Stars value={5} showValue={false} />
+            {reviews.map((r) => (
+              <figure key={r.id} className="card card-pad review-card">
+                <Stars value={r.rating} showValue={false} />
                 <blockquote>&ldquo;{r.quote}&rdquo;</blockquote>
                 <figcaption className="row gap-3">
                   <ArtistAvatar artist={{ name: r.name }} size="sm" />
                   <span>
                     <b>{r.name}</b>
-                    <span className="muted" style={{ display: "block", fontSize: 12 }}>
-                      with {r.artist}
-                    </span>
+                    {r.artist && (
+                      <span
+                        className="muted"
+                        style={{ display: "block", fontSize: 12 }}
+                      >
+                        with {r.artist}
+                      </span>
+                    )}
                   </span>
                 </figcaption>
               </figure>

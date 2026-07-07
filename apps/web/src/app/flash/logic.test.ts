@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupByDeadline, flashStock } from "./logic";
+import { groupByDeadline, flashStock, nextDropDeadline } from "./logic";
 
 describe("groupByDeadline", () => {
   it("groups flash items by deadline preserving first-seen order", () => {
@@ -16,6 +16,23 @@ describe("groupByDeadline", () => {
   it("buckets null deadlines together", () => {
     const groups = groupByDeadline([{ id: "a", deadline: null }]);
     expect(groups[0].deadline).toBe("Coming soon");
+  });
+});
+
+describe("nextDropDeadline", () => {
+  it("returns the first non-null deadline in display order", () => {
+    expect(
+      nextDropDeadline([
+        { deadline: null },
+        { deadline: "Sat 7 Jun" },
+        { deadline: "Sun 8 Jun" },
+      ]),
+    ).toBe("Sat 7 Jun");
+  });
+
+  it("returns null when no item has a deadline (banner hides)", () => {
+    expect(nextDropDeadline([])).toBeNull();
+    expect(nextDropDeadline([{ deadline: null }, { deadline: undefined }])).toBeNull();
   });
 });
 

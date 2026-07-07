@@ -4,6 +4,7 @@ import {
   rulesToWeekState,
   weekStateToRules,
   validateDay,
+  leaveDeclaredMessage,
 } from "./availability-helpers";
 
 describe("WEEKDAYS", () => {
@@ -48,5 +49,17 @@ describe("validateDay", () => {
       true,
     );
     expect(validateDay({ enabled: false, start: "x", end: "y" })).toBe(true);
+  });
+});
+
+describe("leaveDeclaredMessage", () => {
+  it("says pending leave awaits owner approval (does not claim it blocks)", () => {
+    expect(leaveDeclaredMessage("pending")).toMatch(/owner must approve/i);
+    expect(leaveDeclaredMessage("pending")).not.toMatch(/marked unavailable/i);
+  });
+
+  it("says approved leave already blocks the calendar", () => {
+    expect(leaveDeclaredMessage("approved")).toMatch(/marked unavailable/i);
+    expect(leaveDeclaredMessage(undefined)).toMatch(/marked unavailable/i);
   });
 });
