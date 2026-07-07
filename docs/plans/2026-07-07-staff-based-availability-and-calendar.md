@@ -1,7 +1,7 @@
 # Staff-Based Availability, Calendar & Session Customer Creation Implementation Plan
 
 Created: 2026-07-07
-Status: IN_PROGRESS
+Status: COMPLETE
 Approved: Yes
 Iterations: 1
 Worktree: No
@@ -172,10 +172,10 @@ _Assume this plan failed. Most likely internal reasons:_
 - [x] Task 7: Customer auth core (Wave 2)
 - [x] Task 8: Welcome email template + orchestration service (Wave 3)
 - [x] Task 9: Booking drawer inline customer creation + confirmed default (Wave 4) — new `NewCustomerFields.tsx` extracted for the line limit
-- [ ] Task 10: Web sign-in / set-password / sign-out (Wave 4)
-- [ ] Task 11: Gated passport account area + cancel requests (Wave 5)
+- [x] Task 10: Web sign-in / set-password / sign-out (Wave 4) — note: `core-auth-guard.test.ts` narrowed to allow only the `@bnb/core/auth/customer-session` subpath on the web origin (staff auth barrel still forbidden)
+- [x] Task 11: Gated passport account area + cancel requests (Wave 5)
 - [x] Task 12: Admin surfacing of cancellation requests (Wave 2)
-      **Total Tasks:** 12 | **Completed:** 10 | **Remaining:** 2
+      **Total Tasks:** 12 | **Completed:** 12 | **Remaining:** 0
 
 ## Deferred Issues
 
