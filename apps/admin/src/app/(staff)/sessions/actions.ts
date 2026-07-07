@@ -59,7 +59,8 @@ export async function resendReceipt(sessionId: string): Promise<ActionState> {
   if (result.status === "failed") {
     return {
       ok: false,
-      message: "The receipt email failed to send — check the email integration.",
+      message:
+        "The receipt email failed to send — check the email integration.",
     };
   }
 

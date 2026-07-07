@@ -17,6 +17,13 @@ export function pendingSoonWindow(now: Date = new Date()): DateWindow {
   };
 }
 
+/** Distinct artists with at least one booking today (staff-based utilisation). */
+export function artistsBookedToday(
+  perArtist: { bookings: { id: string }[] }[],
+): number {
+  return perArtist.filter((a) => a.bookings.length > 0).length;
+}
+
 export interface OwnerAlertCounts {
   newEnquiries: number;
   pendingSoon: number;

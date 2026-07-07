@@ -41,7 +41,10 @@ export function buildSessionPayload(input: SessionFormInput): BuildResult {
   if (tipRaw !== "") {
     const tipPence = parsePoundsToPence(tipRaw);
     if (tipPence == null) {
-      return { ok: false, error: "Enter a valid tip amount, or leave it blank." };
+      return {
+        ok: false,
+        error: "Enter a valid tip amount, or leave it blank.",
+      };
     }
     payload.tipPence = tipPence;
   }

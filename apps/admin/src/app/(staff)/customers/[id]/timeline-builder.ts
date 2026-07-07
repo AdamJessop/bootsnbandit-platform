@@ -5,10 +5,7 @@
  */
 import { formatPence } from "@/components/admin/money";
 import type { TimelineEntry } from "@/components/admin/CustomerTimeline";
-import {
-  bookingStatusLabel,
-  enquiryStatusLabel,
-} from "../../_shared/labels";
+import { bookingStatusLabel, enquiryStatusLabel } from "../../_shared/labels";
 import type { BookingStatus, EnquiryStatus } from "@prisma/client";
 
 export interface TimelineSources {

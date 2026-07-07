@@ -109,7 +109,9 @@ describe("POST /api/uploads", () => {
   it("rejects an SVG upload (stored-XSS vector) with 415", async () => {
     const { POST } = await importRoute();
     const svg = new File(
-      ['<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],
+      [
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      ],
       "x.svg",
       { type: "image/svg+xml" },
     );
@@ -122,7 +124,9 @@ describe("POST /api/uploads", () => {
     const { POST } = await importRoute();
     // Client lies: claims PNG but the bytes are an SVG/HTML document.
     const spoof = new File(
-      ['<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],
+      [
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+      ],
       "evil.png",
       { type: "image/png" },
     );

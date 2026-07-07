@@ -4,6 +4,7 @@ import {
   GRID_END_HOUR,
   SLOT_MINUTES,
   applyDragDelta,
+  artistTone,
   blockTone,
   eventBox,
   gridHeightPx,
@@ -126,5 +127,55 @@ describe("blockTone", () => {
     expect(blockTone("session", "completed")).toBe("teal");
     expect(blockTone("session", "cancelled")).toBe("muted");
     expect(blockTone("session", "no_show")).toBe("muted");
+  });
+});
+
+describe("artistTone", () => {
+  const SEED_HUES = [
+    "crimson",
+    "ink",
+    "teal",
+    "rust",
+    "plum",
+    "gold",
+    "steel",
+  ] as const;
+
+  it("maps every known seed hue to a block + swatch class pair", () => {
+    for (const hue of SEED_HUES) {
+      const tone = artistTone(hue, 0);
+      expect(tone.block).toBeTruthy();
+      expect(tone.swatch).toBeTruthy();
+    }
+  });
+
+  it("known hues are colour-faithful (brand token in the class string)", () => {
+    expect(artistTone("crimson", 5).block).toContain("bb-crimson");
+    expect(artistTone("gold", 5).block).toContain("bb-gold");
+    expect(artistTone("teal", 5).block).toContain("bb-teal");
+  });
+
+  it("seed hues are pairwise distinct", () => {
+    const blocks = SEED_HUES.map((h) => artistTone(h, 0).block);
+    expect(new Set(blocks).size).toBe(SEED_HUES.length);
+  });
+
+  it("is deterministic for identical input", () => {
+    expect(artistTone("plum", 3)).toEqual(artistTone("plum", 3));
+    expect(artistTone(null, 2)).toEqual(artistTone(null, 2));
+  });
+
+  it("falls back by index for null/unknown hues, cycling the palette", () => {
+    const a = artistTone(null, 0);
+    const b = artistTone(null, 1);
+    expect(a.block).not.toBe(b.block); // adjacent indices differ
+    expect(artistTone("not-a-hue", 0)).toEqual(a); // unknown ≡ null
+    // deterministic modulo cycle
+    const paletteProbe = Array.from(
+      { length: 12 },
+      (_, i) => artistTone(null, i).block,
+    );
+    const cycle = new Set(paletteProbe).size;
+    expect(artistTone(null, cycle)).toEqual(artistTone(null, 0));
   });
 });

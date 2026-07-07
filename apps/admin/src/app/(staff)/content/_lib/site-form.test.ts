@@ -3,9 +3,9 @@ import { parseSiteForm, parseTickerLines } from "./site-form";
 
 describe("parseTickerLines", () => {
   it("splits on newlines, trims, and drops blanks", () => {
-    expect(parseTickerLines("Walk-ins welcome\n\n  Flash drops Friday  \n")).toEqual(
-      ["Walk-ins welcome", "Flash drops Friday"],
-    );
+    expect(
+      parseTickerLines("Walk-ins welcome\n\n  Flash drops Friday  \n"),
+    ).toEqual(["Walk-ins welcome", "Flash drops Friday"]);
   });
 
   it("returns an empty array for empty input", () => {

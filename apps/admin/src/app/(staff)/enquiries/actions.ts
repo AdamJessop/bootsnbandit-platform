@@ -10,7 +10,10 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
-import { BookingConflictError, createBooking } from "@bnb/core/services/bookings";
+import {
+  BookingConflictError,
+  createBooking,
+} from "@bnb/core/services/bookings";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import { buildConvertInput, validateReply } from "./enquiry-helpers";
 import type { BookingType } from "@prisma/client";
@@ -120,7 +123,12 @@ export async function closeEnquiry(enquiryId: string): Promise<ActionState> {
 
 export async function convertEnquiry(
   enquiryId: string,
-  form: { artistId: string; startISO: string; durationMin: number; type: BookingType },
+  form: {
+    artistId: string;
+    startISO: string;
+    durationMin: number;
+    type: BookingType;
+  },
 ): Promise<ActionState> {
   const user = await requireRole();
   const enquiry = await loadEnquiryScoped(enquiryId);

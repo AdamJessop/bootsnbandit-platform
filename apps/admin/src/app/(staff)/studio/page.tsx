@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Armchair, Mail, Plug, ArrowRight } from "lucide-react";
+import { Users, Mail, Plug, ArrowRight } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 
 /** Studio admin hub (BACKOFHOUSE-IA K). Owner-only. */
@@ -11,12 +11,6 @@ const SECTIONS = [
     label: "Staff & users",
     desc: "Invite staff, set roles, enable/disable, manage passkeys.",
     icon: Users,
-  },
-  {
-    href: "/studio/resources",
-    label: "Resources",
-    desc: "Chairs / stations used for utilisation.",
-    icon: Armchair,
   },
   {
     href: "/studio/email-templates",
@@ -41,7 +35,7 @@ export default async function StudioHubPage() {
         Studio
       </h1>
       <p className="mt-3 max-w-[60ch] text-text-muted">
-        People, resources, templates and integrations.
+        People, templates and integrations.
       </p>
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         {SECTIONS.map((s) => {

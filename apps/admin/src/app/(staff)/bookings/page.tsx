@@ -31,6 +31,7 @@ export default async function BookingsPage() {
     status: b.status,
     startISO: b.start.toISOString(),
     priceEstimatePence: b.priceEstimatePence,
+    cancelRequestedAt: b.cancelRequestedAt?.toISOString() ?? null,
   }));
 
   return (
@@ -40,9 +41,7 @@ export default async function BookingsPage() {
         Bookings
       </h1>
       <p className="mt-2 max-w-[60ch] text-sm text-text-muted">
-        {owner
-          ? "Every appointment across the studio."
-          : "Your appointments."}{" "}
+        {owner ? "Every appointment across the studio." : "Your appointments."}{" "}
         Filter, search, and export.
       </p>
       <div className="mt-8">

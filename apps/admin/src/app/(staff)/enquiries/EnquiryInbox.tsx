@@ -72,12 +72,7 @@ export interface ArtistOption {
 
 const ALL = "__all__";
 
-const STATUS_ORDER: EnquiryStatus[] = [
-  "new",
-  "replied",
-  "converted",
-  "closed",
-];
+const STATUS_ORDER: EnquiryStatus[] = ["new", "replied", "converted", "closed"];
 
 export function EnquiryInbox({
   items,
@@ -93,6 +88,22 @@ export function EnquiryInbox({
   const [styleFilter, setStyleFilter] = useState(ALL);
   const counts = useMemo(() => countByStatus(items), [items]);
   const styles = useMemo(() => distinctStyles(items), [items]);
+  // Let the closed filter triggers render labels, never the raw "__all__"
+  // sentinel or an artist cuid.
+  const artistFilterItems = useMemo(
+    () => [
+      { value: ALL, label: "All artists" },
+      ...artists.map((a) => ({ value: a.id, label: a.name })),
+    ],
+    [artists],
+  );
+  const styleFilterItems = useMemo(
+    () => [
+      { value: ALL, label: "All styles" },
+      ...styles.map((s) => ({ value: s, label: s })),
+    ],
+    [styles],
+  );
   const visible = filterEnquiries(
     items.filter((i) => i.status === tab),
     {
@@ -116,7 +127,11 @@ export function EnquiryInbox({
             ))}
           </TabsList>
         </Tabs>
-        <Select value={artistFilter} onValueChange={(v) => setArtistFilter(v ?? ALL)}>
+        <Select
+          items={artistFilterItems}
+          value={artistFilter}
+          onValueChange={(v) => setArtistFilter(v ?? ALL)}
+        >
           <SelectTrigger className="w-40" aria-label="Filter by artist">
             <SelectValue placeholder="All artists" />
           </SelectTrigger>
@@ -129,7 +144,11 @@ export function EnquiryInbox({
             ))}
           </SelectContent>
         </Select>
-        <Select value={styleFilter} onValueChange={(v) => setStyleFilter(v ?? ALL)}>
+        <Select
+          items={styleFilterItems}
+          value={styleFilter}
+          onValueChange={(v) => setStyleFilter(v ?? ALL)}
+        >
           <SelectTrigger className="w-40" aria-label="Filter by style">
             <SelectValue placeholder="All styles" />
           </SelectTrigger>
@@ -181,6 +200,11 @@ function EnquiryRow({
   const [artistId, setArtistId] = useState(item.preferredArtistId ?? "");
   const [startISO, setStartISO] = useState("");
   const [durationMin, setDurationMin] = useState("60");
+  // Lets the closed assign-select trigger render the artist's name, not the cuid.
+  const artistItems = useMemo(
+    () => artists.map((a) => ({ value: a.id, label: a.name })),
+    [artists],
+  );
 
   function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
     start(async () => {
@@ -232,7 +256,9 @@ function EnquiryRow({
           <Field label="Size" value={item.size} />
           <Field
             label="Budget"
-            value={item.budgetPence != null ? formatPence(item.budgetPence) : null}
+            value={
+              item.budgetPence != null ? formatPence(item.budgetPence) : null
+            }
           />
         </dl>
         {item.description && (
@@ -248,7 +274,11 @@ function EnquiryRow({
         <section className="space-y-2">
           <Label>Assign artist</Label>
           <div className="flex gap-2">
-            <Select value={artistId} onValueChange={(v) => setArtistId(v ?? "")}>
+            <Select
+              items={artistItems}
+              value={artistId}
+              onValueChange={(v) => setArtistId(v ?? "")}
+            >
               <SelectTrigger className="flex-1">
                 <SelectValue placeholder="Choose artist" />
               </SelectTrigger>
@@ -282,7 +312,9 @@ function EnquiryRow({
           />
           <Button
             disabled={pending || !reply.trim()}
-            onClick={() => run(() => replyToEnquiry(item.id, { message: reply }))}
+            onClick={() =>
+              run(() => replyToEnquiry(item.id, { message: reply }))
+            }
           >
             Send reply
           </Button>

@@ -6,7 +6,6 @@ import {
   Palmtree,
   Users,
   Banknote,
-  Armchair,
 } from "lucide-react";
 import { getCurrentUser } from "@bnb/core/auth";
 import { redirect } from "next/navigation";
@@ -14,7 +13,11 @@ import { prisma } from "@bnb/core/db";
 import { reportOverview } from "@bnb/core/services/reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPence } from "@/components/admin/booking-form";
-import { buildOwnerAlerts, pendingSoonWindow } from "./today-helpers";
+import {
+  artistsBookedToday,
+  buildOwnerAlerts,
+  pendingSoonWindow,
+} from "./today-helpers";
 
 /**
  * Today / Dashboard (BACKOFHOUSE-IA B). Server component. Artists see a personal
@@ -48,7 +51,11 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
 export default async function AdminHomePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
-  return user.role === "OWNER" ? <OwnerToday /> : <ArtistToday artistId={user.artistId} />;
+  return user.role === "OWNER" ? (
+    <OwnerToday />
+  ) : (
+    <ArtistToday artistId={user.artistId} />
+  );
 }
 
 /* ----------------------------- Owner dashboard ---------------------------- */
@@ -60,7 +67,7 @@ async function OwnerToday() {
   const [
     todayBookings,
     newEnquiries,
-    chairs,
+    activeArtists,
     overview,
     perArtistToday,
     pendingSoon,
@@ -70,7 +77,7 @@ async function OwnerToday() {
       where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
     }),
     prisma.enquiry.count({ where: { status: "new" } }),
-    prisma.chair.count({ where: { active: true } }),
+    prisma.artist.count({ where: { active: true } }),
     reportOverview({ from: monthStart(), to }),
     prisma.artist.findMany({
       orderBy: { sortOrder: "asc" },
@@ -78,7 +85,10 @@ async function OwnerToday() {
         id: true,
         name: true,
         bookings: {
-          where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
+          where: {
+            start: { gte: from, lte: to },
+            status: { not: "cancelled" },
+          },
           select: { id: true },
         },
       },
@@ -97,8 +107,12 @@ async function OwnerToday() {
     }),
   ]);
 
-  const chairsUtilised = Math.min(todayBookings, chairs);
-  const alerts = buildOwnerAlerts({ newEnquiries, pendingSoon, overdueFollowUps });
+  const artistsBooked = artistsBookedToday(perArtistToday);
+  const alerts = buildOwnerAlerts({
+    newEnquiries,
+    pendingSoon,
+    overdueFollowUps,
+  });
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-7">
@@ -114,9 +128,9 @@ async function OwnerToday() {
           value={String(todayBookings)}
         />
         <Kpi
-          icon={<Armchair />}
-          label="Chairs in use"
-          value={`${chairsUtilised}/${chairs || "—"}`}
+          icon={<Users />}
+          label="Artists booked today"
+          value={`${artistsBooked}/${activeArtists || "—"}`}
         />
         <Kpi
           icon={<Banknote />}
@@ -145,7 +159,8 @@ async function OwnerToday() {
                   {a.name}
                 </Link>
                 <span className="text-sm tabular-nums text-text-muted">
-                  {a.bookings.length} booking{a.bookings.length === 1 ? "" : "s"}
+                  {a.bookings.length} booking
+                  {a.bookings.length === 1 ? "" : "s"}
                 </span>
               </CardContent>
             </Card>
@@ -176,27 +191,47 @@ async function ArtistToday({ artistId }: { artistId?: string | null }) {
 
   const { from, to } = todayWindow();
   const now = new Date();
-  const [todays, nextAppt, enquiriesAwaiting, sessionsToComplete, upcomingLeave] =
-    await Promise.all([
-      prisma.booking.findMany({
-        where: { artistId, start: { gte: from, lte: to }, status: { not: "cancelled" } },
-        orderBy: { start: "asc" },
-        include: { customer: { select: { name: true } } },
-      }),
-      prisma.booking.findFirst({
-        where: { artistId, start: { gte: now }, status: { in: ["pending", "confirmed"] } },
-        orderBy: { start: "asc" },
-        include: { customer: { select: { name: true } } },
-      }),
-      prisma.enquiry.count({ where: { preferredArtistId: artistId, status: "new" } }),
-      prisma.booking.count({
-        where: { artistId, start: { gte: from, lte: to }, status: "confirmed", session: null },
-      }),
-      prisma.leave.findFirst({
-        where: { artistId, status: "approved", endDate: { gte: now } },
-        orderBy: { startDate: "asc" },
-      }),
-    ]);
+  const [
+    todays,
+    nextAppt,
+    enquiriesAwaiting,
+    sessionsToComplete,
+    upcomingLeave,
+  ] = await Promise.all([
+    prisma.booking.findMany({
+      where: {
+        artistId,
+        start: { gte: from, lte: to },
+        status: { not: "cancelled" },
+      },
+      orderBy: { start: "asc" },
+      include: { customer: { select: { name: true } } },
+    }),
+    prisma.booking.findFirst({
+      where: {
+        artistId,
+        start: { gte: now },
+        status: { in: ["pending", "confirmed"] },
+      },
+      orderBy: { start: "asc" },
+      include: { customer: { select: { name: true } } },
+    }),
+    prisma.enquiry.count({
+      where: { preferredArtistId: artistId, status: "new" },
+    }),
+    prisma.booking.count({
+      where: {
+        artistId,
+        start: { gte: from, lte: to },
+        status: "confirmed",
+        session: null,
+      },
+    }),
+    prisma.leave.findFirst({
+      where: { artistId, status: "approved", endDate: { gte: now } },
+      orderBy: { startDate: "asc" },
+    }),
+  ]);
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-7">

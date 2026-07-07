@@ -10,6 +10,7 @@ import { EnquiryAckEmail } from "./templates/enquiry-ack";
 import { LoyaltyRewardEmail } from "./templates/loyalty-reward";
 import { StaffInviteEmail } from "./templates/staff-invite";
 import { StaffReplyEmail } from "./templates/staff-reply";
+import { WelcomeEmail } from "./templates/welcome";
 
 export interface RenderedEmail {
   subject: string;
@@ -118,6 +119,15 @@ function buildElement(
           inviteeName: str(data, "inviteeName") ?? str(data, "customerName"),
           url: str(data, "url"),
           role: str(data, "role"),
+          expiresAt: str(data, "expiresAt"),
+        }),
+      };
+    case "welcome":
+      return {
+        subject: "Welcome to Boots 'n' Bandit — activate your account",
+        element: React.createElement(WelcomeEmail, {
+          customerName: str(data, "customerName"),
+          setPasswordUrl: str(data, "setPasswordUrl"),
           expiresAt: str(data, "expiresAt"),
         }),
       };

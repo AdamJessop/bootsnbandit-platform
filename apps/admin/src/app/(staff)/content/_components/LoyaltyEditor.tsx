@@ -102,7 +102,9 @@ export function LoyaltyEditor({
           name="perksText"
           rows={5}
           defaultValue={perksToText(values.perks)}
-          placeholder={"2 | Birthday treat | A drink on us\n8 | Free small tattoo |"}
+          placeholder={
+            "2 | Birthday treat | A drink on us\n8 | Free small tattoo |"
+          }
         />
       </div>
 

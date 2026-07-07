@@ -8,7 +8,7 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -68,6 +68,12 @@ export function CalendarClient({
   const [pending, startTransition] = useTransition();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<BookingDraft | undefined>(undefined);
+
+  // Lets the closed Select trigger render the artist's name, not the cuid.
+  const artistItems = useMemo(
+    () => artists.map((a) => ({ value: a.id, label: a.name })),
+    [artists],
+  );
 
   const navigate = (next: {
     view?: CalendarView;
@@ -169,7 +175,9 @@ export function CalendarClient({
             variant="outline"
             size="icon"
             aria-label="Next"
-            onClick={() => navigate({ anchor: shiftAnchor(anchorISO, view, 1) })}
+            onClick={() =>
+              navigate({ anchor: shiftAnchor(anchorISO, view, 1) })
+            }
           >
             <ChevronRight />
           </Button>
@@ -189,6 +197,7 @@ export function CalendarClient({
         <div className="ml-auto flex items-center gap-3">
           {canSwitchArtist && artists.length > 1 ? (
             <Select
+              items={artistItems}
               value={activeArtistId}
               onValueChange={(v) => navigate({ artist: v ?? activeArtistId })}
             >

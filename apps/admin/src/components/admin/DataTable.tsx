@@ -6,7 +6,13 @@
  * `data-table-utils` module (unit-tested); this component is the thin React
  * shell around them. The generic prop interface is the stable Wave-4 contract.
  */
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Search } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,9 +88,10 @@ export function DataTable<T>({
   onRowClick,
 }: DataTableProps<T>) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<{ key: keyof T & string; dir: SortDir } | null>(
-    null,
-  );
+  const [sort, setSort] = useState<{
+    key: keyof T & string;
+    dir: SortDir;
+  } | null>(null);
 
   const keys = searchKeys ?? columns.map((c) => c.key);
 

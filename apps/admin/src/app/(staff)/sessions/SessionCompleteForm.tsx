@@ -94,7 +94,8 @@ export function SessionCompleteForm({ session }: { session: PendingSession }) {
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-text-primary">
-                <CheckCircle2 className="size-5 text-bb-teal" /> Session completed
+                <CheckCircle2 className="size-5 text-bb-teal" /> Session
+                completed
               </DialogTitle>
               <DialogDescription>
                 {session.customerName} · {session.artistName}
@@ -102,7 +103,10 @@ export function SessionCompleteForm({ session }: { session: PendingSession }) {
             </DialogHeader>
             <ul className="space-y-2 text-sm text-text-secondary">
               <li className="tabular-nums">
-                Charged <strong className="text-text-primary">{summary.amountLabel}</strong>
+                Charged{" "}
+                <strong className="text-text-primary">
+                  {summary.amountLabel}
+                </strong>
                 {summary.tipLabel ? ` (+ ${summary.tipLabel} tip)` : ""}
               </li>
               <li>✓ Receipt email sent</li>
@@ -130,8 +134,8 @@ export function SessionCompleteForm({ session }: { session: PendingSession }) {
                 Complete session
               </DialogTitle>
               <DialogDescription>
-                {session.customerName} · {session.artistName} · confirm the amount
-                charged (bank transfer).
+                {session.customerName} · {session.artistName} · confirm the
+                amount charged (bank transfer).
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">

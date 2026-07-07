@@ -31,7 +31,14 @@ const createSchema = z.object({
   priceEstimatePence: z.number().int().nonnegative().nullish(),
   depositPence: z.number().int().nonnegative().nullish(),
   status: z
-    .enum(["enquiry", "pending", "confirmed", "completed", "cancelled", "no_show"])
+    .enum([
+      "enquiry",
+      "pending",
+      "confirmed",
+      "completed",
+      "cancelled",
+      "no_show",
+    ])
     .optional(),
   notes: z.string().nullish(),
   remindersOptIn: z.boolean().optional(),
@@ -56,7 +63,14 @@ const listSchema = z.object({
   artistId: z.string().optional(),
   customerId: z.string().optional(),
   status: z
-    .enum(["enquiry", "pending", "confirmed", "completed", "cancelled", "no_show"])
+    .enum([
+      "enquiry",
+      "pending",
+      "confirmed",
+      "completed",
+      "cancelled",
+      "no_show",
+    ])
     .optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),

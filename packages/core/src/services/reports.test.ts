@@ -10,7 +10,6 @@ describe("reports.reportOverview (DB fixture)", () => {
     bookings: [] as string[],
     sessions: [] as string[],
     artists: [] as string[],
-    chairs: [] as string[],
     users: [] as string[],
   };
 
@@ -29,8 +28,6 @@ describe("reports.reportOverview (DB fixture)", () => {
       });
     if (cleanup.artists.length)
       await db().artist.deleteMany({ where: { id: { in: cleanup.artists } } });
-    if (cleanup.chairs.length)
-      await db().chair.deleteMany({ where: { id: { in: cleanup.chairs } } });
     if (cleanup.users.length)
       await db().user.deleteMany({ where: { id: { in: cleanup.users } } });
     await closeTestDb();

@@ -1,4 +1,10 @@
-import { CheckCircle2, XCircle, CalendarClock, Mail, Calendar } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  CalendarClock,
+  Mail,
+  Calendar,
+} from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 
@@ -15,7 +21,11 @@ export default async function IntegrationsPage() {
   const artists = await prisma.artist.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, calendarFeed: { select: { active: true } } },
+    select: {
+      id: true,
+      name: true,
+      calendarFeed: { select: { active: true } },
+    },
   });
 
   const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());

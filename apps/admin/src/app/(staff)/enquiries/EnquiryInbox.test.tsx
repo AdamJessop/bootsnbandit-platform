@@ -1,12 +1,33 @@
-import { describe, expect, it } from "vitest";
-import type { EnquiryItem } from "./EnquiryInbox";
-import { countByStatus } from "./enquiry-helpers";
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 
-/**
- * EnquiryInbox imports the "use server" actions module (server-only, not
- * importable under vitest), so we assert the pure tally helper it relies on
- * rather than importing the component. Rendering is covered by the build.
- */
+// The "use server" actions module imports server-only auth/db/email — stub it
+// so the component module graph loads in node.
+vi.mock("./actions", () => ({
+  assignEnquiry: vi.fn(),
+  closeEnquiry: vi.fn(),
+  convertEnquiry: vi.fn(),
+  replyToEnquiry: vi.fn(),
+}));
+
+// The detail Dialog portals to <body>, which never renders under SSR in the
+// node environment — pass children through so the assign select is visible.
+vi.mock("@/components/ui/dialog", () => {
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  );
+  return {
+    Dialog: Passthrough,
+    DialogContent: Passthrough,
+    DialogDescription: Passthrough,
+    DialogHeader: Passthrough,
+    DialogTitle: Passthrough,
+    DialogTrigger: Passthrough,
+  };
+});
+
+import { EnquiryInbox, type EnquiryItem } from "./EnquiryInbox";
+import { countByStatus } from "./enquiry-helpers";
 const items: EnquiryItem[] = [
   {
     id: "1",
@@ -57,5 +78,28 @@ describe("countByStatus", () => {
     expect(counts.converted).toBe(1);
     expect(counts.replied).toBe(0);
     expect(counts.closed).toBe(0);
+  });
+});
+
+describe("EnquiryInbox closed select labels", () => {
+  it("filter + assign selects show labels/names, not raw values", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={[{ ...items[0], preferredArtistId: "cln4artist1aaaa" }]}
+        artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
+        canConvert
+      />,
+    );
+    const triggers = [
+      ...html.matchAll(/data-slot="select-value"[^>]*>([^<]*)</g),
+    ].map((m) => m[1]);
+    // Artist + style filters default to the "all" sentinel — the trigger must
+    // show the label, never the raw "__all__" value.
+    expect(triggers).toContain("All artists");
+    expect(triggers).toContain("All styles");
+    expect(triggers).not.toContain("__all__");
+    // Assign select is seeded with the preferred artist's cuid.
+    expect(triggers).toContain("Sarah North");
+    expect(triggers).not.toContain("cln4artist1aaaa");
   });
 });

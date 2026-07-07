@@ -58,9 +58,7 @@ describe("buildThreadMap", () => {
   });
 
   it("caps each customer's thread", () => {
-    const many = Array.from({ length: 5 }, (_, i) =>
-      msg({ id: `m${i}` }),
-    );
+    const many = Array.from({ length: 5 }, (_, i) => msg({ id: `m${i}` }));
     expect(buildThreadMap(many, 3).get("c1")).toHaveLength(3);
   });
 });

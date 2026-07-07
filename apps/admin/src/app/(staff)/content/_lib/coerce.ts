@@ -32,7 +32,11 @@ export function coerceFields(
           out[f.name] = f.nullable ? null : 0;
         } else {
           const n = Number(s);
-          out[f.name] = Number.isFinite(n) ? Math.trunc(n) : f.nullable ? null : 0;
+          out[f.name] = Number.isFinite(n)
+            ? Math.trunc(n)
+            : f.nullable
+              ? null
+              : 0;
         }
         break;
       }

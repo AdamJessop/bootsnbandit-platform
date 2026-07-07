@@ -31,11 +31,15 @@ export interface BookingRow {
   status: BookingStatus;
   startISO: string;
   priceEstimatePence: number | null;
+  /** ISO timestamp when the customer requested cancellation (null = none). */
+  cancelRequestedAt: string | null;
 }
 
 export interface BookingFilter {
   status?: BookingStatus;
   type?: BookingType;
+  /** Only rows where the customer has requested cancellation. */
+  cancelRequested?: boolean;
 }
 
 /** Pure filter predicate (unit-tested). */
@@ -46,7 +50,8 @@ export function filterBookingRows(
   return rows.filter(
     (r) =>
       (!filter.status || r.status === filter.status) &&
-      (!filter.type || r.type === filter.type),
+      (!filter.type || r.type === filter.type) &&
+      (!filter.cancelRequested || r.cancelRequestedAt != null),
   );
 }
 
@@ -60,6 +65,8 @@ const STATUSES: BookingStatus[] = [
 ];
 const TYPES: BookingType[] = ["consult", "session", "flash"];
 const ALL = "all";
+/** Pseudo-entry in the status filter: rows with a pending cancel request. */
+const CANCEL_REQUESTED = "cancel_requested";
 
 export function BookingsTable({ rows }: { rows: BookingRow[] }) {
   const [status, setStatus] = useState<string>(ALL);
@@ -68,8 +75,12 @@ export function BookingsTable({ rows }: { rows: BookingRow[] }) {
   const filtered = useMemo(
     () =>
       filterBookingRows(rows, {
-        status: status === ALL ? undefined : (status as BookingStatus),
+        status:
+          status === ALL || status === CANCEL_REQUESTED
+            ? undefined
+            : (status as BookingStatus),
         type: type === ALL ? undefined : (type as BookingType),
+        cancelRequested: status === CANCEL_REQUESTED || undefined,
       }),
     [rows, status, type],
   );
@@ -94,11 +105,19 @@ export function BookingsTable({ rows }: { rows: BookingRow[] }) {
       header: "Status",
       sortable: true,
       accessor: (r) => (
-        <Badge variant={bookingStatusVariant(r.status)}>
-          {bookingStatusLabel(r.status)}
-        </Badge>
+        <span className="flex items-center gap-1.5">
+          <Badge variant={bookingStatusVariant(r.status)}>
+            {bookingStatusLabel(r.status)}
+          </Badge>
+          {r.cancelRequestedAt ? (
+            <Badge variant="destructive">Cancel requested</Badge>
+          ) : null}
+        </span>
       ),
-      csvValue: (r) => bookingStatusLabel(r.status),
+      csvValue: (r) =>
+        r.cancelRequestedAt
+          ? `${bookingStatusLabel(r.status)} (cancel requested)`
+          : bookingStatusLabel(r.status),
     },
     {
       key: "priceEstimatePence",
@@ -126,6 +145,7 @@ export function BookingsTable({ rows }: { rows: BookingRow[] }) {
                 {bookingStatusLabel(s)}
               </SelectItem>
             ))}
+            <SelectItem value={CANCEL_REQUESTED}>Cancel requested</SelectItem>
           </SelectContent>
         </Select>
         <Select value={type} onValueChange={(v) => setType(v ?? ALL)}>

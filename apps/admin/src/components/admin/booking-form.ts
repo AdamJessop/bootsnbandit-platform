@@ -6,10 +6,7 @@
  * component stays a thin shell around them.
  */
 
-import {
-  suggestSessionPricePence,
-  type ArtistRates,
-} from "@bnb/core/pricing";
+import { suggestSessionPricePence, type ArtistRates } from "@bnb/core/pricing";
 
 export type BookingType = "consult" | "session" | "flash";
 export type BookingStatus =

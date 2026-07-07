@@ -15,6 +15,7 @@ import {
   GRID_START_HOUR,
   PX_PER_MIN,
   applyDragDelta,
+  artistTone,
   blockTone,
   eventBox,
   gridHeightPx,
@@ -23,8 +24,10 @@ import {
   pxToSlotStart,
   slotLabels,
   weekDays,
+  type ArtistTone,
   type BlockTone,
 } from "./calendar-layout";
+import { CalendarLegend } from "./CalendarLegend";
 
 export type CalendarView = "day" | "week";
 
@@ -37,12 +40,29 @@ export interface CalendarEvent {
   end: string;
   status?: string;
   customerName?: string;
+  /** Owning artist — used by the all-staff modes. */
+  artistId?: string;
 }
 
 /** A shaded range (artist leave / studio-closed day). */
 export interface CalendarLeave {
   start: string;
   end: string;
+  /** In allStaff day mode, shade only this artist's column when set. */
+  artistId?: string;
+}
+
+/** Artist descriptor for the all-staff modes. */
+export interface CalendarArtist {
+  id: string;
+  name: string;
+  hue: string | null;
+}
+
+/** Per-artist display metadata resolved once per render. */
+interface ArtistOverlay {
+  toneById: Map<string, ArtistTone>;
+  nameById: Map<string, string>;
 }
 
 export interface CalendarGridProps {
@@ -54,10 +74,17 @@ export interface CalendarGridProps {
   events: CalendarEvent[];
   /** Approved-leave ranges to shade. */
   leave?: CalendarLeave[];
+  /** "single" (default) = one artist; "allStaff" = every artist at once. */
+  mode?: "single" | "allStaff";
+  /** Artists rendered in allStaff mode (column/colour order). */
+  artists?: CalendarArtist[];
   /** Drag an event to a new slot (ISO start/end). */
   onMove?: (eventId: string, start: string, end: string) => void;
-  /** Click an empty slot to create a booking (ISO start). */
-  onCreate?: (start: string) => void;
+  /**
+   * Click an empty slot to create a booking (ISO start). In allStaff day
+   * mode the clicked column's artistId is passed as the second argument.
+   */
+  onCreate?: (start: string, artistId?: string) => void;
   /** Click an existing block to edit. */
   onSelect?: (eventId: string) => void;
 }
@@ -80,12 +107,24 @@ export function CalendarGrid({
   date,
   events,
   leave = [],
+  mode = "single",
+  artists = [],
   onMove,
   onCreate,
   onSelect,
 }: CalendarGridProps) {
   const anchor = new Date(date);
   const days = view === "week" ? weekDays(anchor) : [anchor];
+  const allStaff = mode === "allStaff" && artists.length > 0;
+  const overlay: ArtistOverlay | undefined =
+    allStaff && view === "week"
+      ? {
+          toneById: new Map(
+            artists.map((a, i) => [a.id, artistTone(a.hue, i)]),
+          ),
+          nameById: new Map(artists.map((a) => [a.id, a.name])),
+        }
+      : undefined;
 
   return (
     <div className="rounded-lg border border-border-default bg-bg-base">
@@ -101,22 +140,44 @@ export function CalendarGrid({
             </div>
           ))}
         </div>
-        {/* day columns */}
-        <div className="flex flex-1">
-          {days.map((day) => (
-            <DayColumn
-              key={day.toISOString()}
-              day={day}
-              compact={view === "week"}
-              events={events}
-              leave={leave}
-              onMove={onMove}
-              onCreate={onCreate}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
+        {allStaff && view === "day" ? (
+          /* one column per artist on the anchor day */
+          <div className="flex flex-1">
+            {artists.map((a) => (
+              <DayColumn
+                key={a.id}
+                day={anchor}
+                label={a.name}
+                compact={artists.length > 3}
+                events={events.filter((e) => e.artistId === a.id)}
+                leave={leave.filter((l) => !l.artistId || l.artistId === a.id)}
+                createArtistId={a.id}
+                onMove={onMove}
+                onCreate={onCreate}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
+        ) : (
+          /* day columns (single artist, or week overlay across artists) */
+          <div className="flex flex-1">
+            {days.map((day) => (
+              <DayColumn
+                key={day.toISOString()}
+                day={day}
+                compact={view === "week"}
+                events={events}
+                leave={leave}
+                overlay={overlay}
+                onMove={onMove}
+                onCreate={onCreate}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
+        )}
       </div>
+      {overlay ? <CalendarLegend artists={artists} /> : null}
     </div>
   );
 }
@@ -126,6 +187,9 @@ function DayColumn({
   compact,
   events,
   leave,
+  label,
+  createArtistId,
+  overlay,
   onMove,
   onCreate,
   onSelect,
@@ -134,8 +198,14 @@ function DayColumn({
   compact: boolean;
   events: CalendarEvent[];
   leave: CalendarLeave[];
+  /** Header text override (artist name in allStaff day mode). */
+  label?: string;
+  /** Passed through to onCreate as the column's artist (allStaff day mode). */
+  createArtistId?: string;
+  /** Per-artist tint/name lookup (allStaff week overlay). */
+  overlay?: ArtistOverlay;
   onMove?: (id: string, start: string, end: string) => void;
-  onCreate?: (start: string) => void;
+  onCreate?: (start: string, artistId?: string) => void;
   onSelect?: (id: string) => void;
 }) {
   const colRef = useRef<HTMLDivElement>(null);
@@ -148,20 +218,22 @@ function DayColumn({
     if (closed || !onCreate || dragId) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const start = pxToSlotStart(e.clientY - rect.top, day);
-    onCreate(start.toISOString());
+    onCreate(start.toISOString(), createArtistId);
   }
 
   return (
     <div className="flex-1 border-r border-border-default last:border-r-0">
       <div className="flex h-8 items-center justify-center border-b border-border-default text-xs font-medium text-text-secondary">
-        {DAY_LABEL.format(day)}
+        {label ?? DAY_LABEL.format(day)}
       </div>
       <div
         ref={colRef}
         onClick={handleEmptyClick}
         className={cn(
           "relative",
-          closed ? "bg-bg-card/60 [background-image:repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,255,255,0.02)_6px,rgba(255,255,255,0.02)_12px)]" : "cursor-pointer",
+          closed
+            ? "bg-bg-card/60 [background-image:repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,255,255,0.02)_6px,rgba(255,255,255,0.02)_12px)]"
+            : "cursor-pointer",
         )}
         style={{ height: gridHeightPx() }}
       >
@@ -192,6 +264,16 @@ function DayColumn({
             compact={compact}
             colRef={colRef}
             day={day}
+            overlayClass={
+              overlay && ev.artistId
+                ? overlay.toneById.get(ev.artistId)?.block
+                : undefined
+            }
+            artistName={
+              overlay && ev.artistId
+                ? overlay.nameById.get(ev.artistId)
+                : undefined
+            }
             onMoveStart={() => setDragId(ev.id)}
             onMoveEnd={(start, end) => {
               setDragId(null);
@@ -210,6 +292,8 @@ function EventBlock({
   compact,
   colRef,
   day,
+  overlayClass,
+  artistName,
   onMoveStart,
   onMoveEnd,
   onSelect,
@@ -218,6 +302,10 @@ function EventBlock({
   compact: boolean;
   colRef: React.RefObject<HTMLDivElement | null>;
   day: Date;
+  /** Artist-tint classes replacing the status tone (allStaff week overlay). */
+  overlayClass?: string;
+  /** Artist name shown on the block (allStaff week overlay). */
+  artistName?: string;
   onMoveStart: () => void;
   onMoveEnd: (start: string, end: string) => void;
   onSelect: () => void;
@@ -277,11 +365,16 @@ function EventBlock({
       onPointerUp={onPointerUp}
       className={cn(
         "absolute inset-x-1 touch-none overflow-hidden rounded-md border px-2 py-1 text-left text-xs transition-colors",
-        TONE_CLASS[tone],
+        overlayClass ?? TONE_CLASS[tone],
       )}
       style={{ top: box.topPx, height: box.heightPx }}
     >
       <span className="block truncate font-medium">{event.title}</span>
+      {artistName ? (
+        <span className="block truncate text-[10px] opacity-80">
+          {artistName}
+        </span>
+      ) : null}
       {!compact && event.customerName ? (
         <span className="block truncate text-[11px] opacity-80">
           {event.customerName}

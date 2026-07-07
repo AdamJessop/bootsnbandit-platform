@@ -18,7 +18,9 @@ const bookings = [mk("a", 10, 12), mk("b", 13, 15), mk("c", 16, 17)];
 
 describe("currentBooking", () => {
   it("finds the in-progress booking", () => {
-    expect(currentBooking(bookings, new Date(2026, 5, 16, 11, 0))?.id).toBe("a");
+    expect(currentBooking(bookings, new Date(2026, 5, 16, 11, 0))?.id).toBe(
+      "a",
+    );
   });
   it("returns null in a gap", () => {
     expect(currentBooking(bookings, new Date(2026, 5, 16, 12, 30))).toBeNull();

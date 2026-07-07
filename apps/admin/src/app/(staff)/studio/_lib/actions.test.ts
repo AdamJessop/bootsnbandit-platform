@@ -8,7 +8,9 @@ const requireRole = vi.fn();
 const userUpdate = vi.fn();
 const authDelete = vi.fn();
 
-vi.mock("./invite", () => ({ inviteStaff: (...a: unknown[]) => inviteStaff(...a) }));
+vi.mock("./invite", () => ({
+  inviteStaff: (...a: unknown[]) => inviteStaff(...a),
+}));
 vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
@@ -40,7 +42,9 @@ describe("studio staff actions", () => {
 
   it("inviteStaffAction mints + sends an invite (owner-gated)", async () => {
     const { inviteStaffAction } = await import("./actions");
-    await inviteStaffAction(fd({ email: "x@y.z", role: "ARTIST", displayName: "X" }));
+    await inviteStaffAction(
+      fd({ email: "x@y.z", role: "ARTIST", displayName: "X" }),
+    );
     expect(requireRole).toHaveBeenCalledWith("OWNER");
     expect(inviteStaff).toHaveBeenCalledWith({
       email: "x@y.z",

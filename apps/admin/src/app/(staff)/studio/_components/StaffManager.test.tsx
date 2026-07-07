@@ -35,6 +35,30 @@ describe("StaffManager", () => {
     expect(html).toContain("Co-owner");
   });
 
+  it("links artist-linked users to the owner profile editor", () => {
+    const html = renderToStaticMarkup(
+      <StaffManager
+        inviteAction={noop}
+        setRoleAction={noop}
+        setActiveAction={noop}
+        removePasskeyAction={noop}
+        staff={[
+          {
+            id: "u1",
+            email: "sarah@studio.test",
+            displayName: "Sarah",
+            role: "OWNER",
+            active: true,
+            artist: { slug: "sarah", status: "CO_OWNER" },
+            passkeys: [],
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Edit profile");
+    expect(html).toContain('href="/studio/staff/u1"');
+  });
+
   it("flags a staff member with no linked artist profile", () => {
     const html = renderToStaticMarkup(
       <StaffManager
@@ -56,5 +80,8 @@ describe("StaffManager", () => {
       />,
     );
     expect(html).toContain("No artist profile");
+    // no artist → nothing to edit, so no editor link
+    expect(html).not.toContain("Edit profile");
+    expect(html).not.toContain('href="/studio/staff/u2"');
   });
 });

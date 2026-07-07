@@ -7,7 +7,7 @@
  * pick an artist; artists edit themselves. Reloads availability on artist
  * switch.
  */
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,12 @@ export function AvailabilityEditor({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [pending, start] = useTransition();
+
+  // Lets the closed Select trigger render the artist's name, not the cuid.
+  const artistItems = useMemo(
+    () => artists.map((a) => ({ value: a.id, label: a.name })),
+    [artists],
+  );
 
   // Reload availability when the owner switches artist.
   useEffect(() => {
@@ -135,6 +141,7 @@ export function AvailabilityEditor({
         <div className="max-w-xs space-y-1.5">
           <Label>Artist</Label>
           <Select
+            items={artistItems}
             value={artistId}
             onValueChange={(v) => setArtistId(v ?? initialArtistId)}
           >

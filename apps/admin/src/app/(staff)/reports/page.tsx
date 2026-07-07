@@ -81,7 +81,9 @@ export default async function ReportsPage({
   }));
 
   // Revenue trend uses only completed bookings.
-  const completed = bookings.filter((b) => b.revenuePence > 0 || b.status === "completed");
+  const completed = bookings.filter(
+    (b) => b.revenuePence > 0 || b.status === "completed",
+  );
 
   const csvRows: ReportCsvRow[] = overview.perArtist.map((r) => ({
     artistName: r.artistName,

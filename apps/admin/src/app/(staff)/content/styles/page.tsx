@@ -32,7 +32,9 @@ export default async function StylesContentPage() {
       <h1 className="display text-[clamp(24px,4vw,36px)] text-text-primary">
         Styles
       </h1>
-      <p className="mt-2 mb-6 text-text-muted">Manage the tattoo styles list.</p>
+      <p className="mt-2 mb-6 text-text-muted">
+        Manage the tattoo styles list.
+      </p>
       <CrudSection
         fields={FIELDS}
         rows={rows}

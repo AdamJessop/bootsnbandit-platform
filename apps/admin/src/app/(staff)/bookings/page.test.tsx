@@ -16,6 +16,7 @@ describe("BookingsPage filtering", () => {
         status: "completed",
         startISO: "2026-06-01T10:00:00Z",
         priceEstimatePence: null,
+        cancelRequestedAt: null,
       },
     ];
     expect(filterBookingRows(rows, { status: "completed" })).toHaveLength(1);

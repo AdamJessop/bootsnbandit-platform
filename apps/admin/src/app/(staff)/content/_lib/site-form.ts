@@ -64,7 +64,8 @@ export function parseSiteForm(fd: FormData): SiteFormValues {
     facebookUrl: str(fd, "facebookUrl"),
     instagramUrl: str(fd, "instagramUrl"),
     tickerLines,
-    enquiriesOpen: fd.get("enquiriesOpen") === "on" || fd.get("enquiriesOpen") === "true",
+    enquiriesOpen:
+      fd.get("enquiriesOpen") === "on" || fd.get("enquiriesOpen") === "true",
     visualDirection,
   };
 }

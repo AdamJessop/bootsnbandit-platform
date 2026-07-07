@@ -36,8 +36,10 @@ async function assertCanEditArtist(artistId: string): Promise<void> {
   }
 }
 
-export interface SaveBookingInput
-  extends Omit<CreateBookingInput, "start" | "end"> {
+export interface SaveBookingInput extends Omit<
+  CreateBookingInput,
+  "start" | "end"
+> {
   start: string;
   end: string;
 }

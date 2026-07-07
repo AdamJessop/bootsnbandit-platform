@@ -1,5 +1,10 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { closeTestDb, dbReachable, testDb, uid } from "@bnb/core/services/testdb";
+import {
+  closeTestDb,
+  dbReachable,
+  testDb,
+  uid,
+} from "@bnb/core/services/testdb";
 
 vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({

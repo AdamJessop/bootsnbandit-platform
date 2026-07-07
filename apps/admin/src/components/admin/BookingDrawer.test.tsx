@@ -1,4 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+// The Sheet portals its content to <body>, which never renders under SSR in
+// the node environment — pass children through so the form markup is visible.
+vi.mock("@/components/ui/sheet", () => {
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  );
+  return {
+    Sheet: Passthrough,
+    SheetContent: Passthrough,
+    SheetDescription: Passthrough,
+    SheetFooter: Passthrough,
+    SheetHeader: Passthrough,
+    SheetTitle: Passthrough,
+  };
+});
 
 // The drawer pulls next-themes via no path here; it only imports ui primitives,
 // react and the tested pure modules. We assert the component is importable and
@@ -52,6 +69,33 @@ describe("BookingDrawer module", () => {
     const payload = draftToPayload(state);
     expect(payload.durationMin).toBe(90);
     expect(payload.priceEstimatePence).toBe(12000);
+  });
+
+  it("closed customer + artist selects show names, not cuids", () => {
+    const html = renderToStaticMarkup(
+      <BookingDrawer
+        open
+        booking={{
+          id: "bk_1",
+          customerId: "cln4customer1aaa",
+          artistId: "cln4artist1aaaa",
+          type: "session",
+          start: new Date(2026, 5, 16, 12, 0).toISOString(),
+          durationMins: 90,
+        }}
+        customers={[{ id: "cln4customer1aaa", name: "Cassidy Vale" }]}
+        artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
+        onSave={vi.fn().mockResolvedValue(null)}
+        onClose={vi.fn()}
+      />,
+    );
+    const triggers = [
+      ...html.matchAll(/data-slot="select-value"[^>]*>([^<]*)</g),
+    ].map((m) => m[1]);
+    expect(triggers).toContain("Cassidy Vale");
+    expect(triggers).toContain("Sarah North");
+    expect(triggers).not.toContain("cln4customer1aaa");
+    expect(triggers).not.toContain("cln4artist1aaaa");
   });
 
   it("onSave receiving an error string keeps the drawer logic surfacing it", () => {

@@ -75,7 +75,11 @@ export function CustomerActions({
             <Label htmlFor="consent" className="cursor-pointer">
               Marketing consent
             </Label>
-            <Switch id="consent" checked={consent} onCheckedChange={setConsent} />
+            <Switch
+              id="consent"
+              checked={consent}
+              onCheckedChange={setConsent}
+            />
           </div>
           <Button onClick={onSaveNotes} disabled={pending} size="sm">
             Save

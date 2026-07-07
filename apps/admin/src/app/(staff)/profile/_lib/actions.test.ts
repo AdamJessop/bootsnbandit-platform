@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getCurrentUser = vi.fn();
+const requireRole = vi.fn();
 const revalidatePath = vi.fn();
 const artistUpdate = vi.fn();
 const feedUpsert = vi.fn();
@@ -12,6 +13,7 @@ const authDelete = vi.fn();
 
 vi.mock("@bnb/core/auth", () => ({
   getCurrentUser: (...a: unknown[]) => getCurrentUser(...a),
+  requireRole: (...a: unknown[]) => requireRole(...a),
 }));
 vi.mock("@bnb/core/auth/tokens", () => ({ generateToken: () => "NEWTOKEN" }));
 vi.mock("next/cache", () => ({
@@ -38,6 +40,9 @@ describe("profile actions", () => {
       role: "ARTIST",
       artistId: "art1",
     });
+    requireRole
+      .mockReset()
+      .mockResolvedValue({ id: "u1", role: "ARTIST", artistId: "art1" });
     revalidatePath.mockReset();
     artistUpdate.mockReset().mockResolvedValue({});
     feedUpsert.mockReset().mockResolvedValue({ token: "NEWTOKEN" });
@@ -86,6 +91,93 @@ describe("profile actions", () => {
     });
     const { saveProfile } = await import("./actions");
     await expect(saveProfile(fd({ bio: "x" }))).rejects.toThrow();
+  });
+
+  it("saveArtistProfile lets an owner update another artist's profile including status", async () => {
+    getCurrentUser.mockResolvedValue({
+      id: "o1",
+      role: "OWNER",
+      artistId: "ownArt",
+    });
+    requireRole.mockResolvedValue({ id: "o1", role: "OWNER" });
+    const { saveArtistProfile } = await import("./actions");
+    const form = fd({
+      status: "APPRENTICE",
+      bio: "New bio",
+      insta: "@target",
+      headshot: "/uploads/t.png",
+      hourlyRatePounds: "80",
+      dayRatePounds: "500",
+      specials: "Snakes, Skulls",
+    });
+    form.append("styleIds", "s2");
+    await saveArtistProfile("art2", form);
+    expect(requireRole).toHaveBeenCalledWith("OWNER");
+    expect(artistUpdate).toHaveBeenCalledWith({
+      where: { id: "art2" },
+      data: expect.objectContaining({
+        status: "APPRENTICE",
+        bio: "New bio",
+        insta: "@target",
+        headshot: "/uploads/t.png",
+        hourlyRatePence: 8000,
+        dayRatePence: 50000,
+        styles: { set: [{ id: "s2" }] },
+        specials: ["Snakes", "Skulls"],
+      }),
+    });
+  });
+
+  it("saveArtistProfile rejects a non-owner targeting another artist", async () => {
+    getCurrentUser.mockResolvedValue({
+      id: "u1",
+      role: "ARTIST",
+      artistId: "art1",
+    });
+    requireRole.mockRejectedValue(new Error("NEXT_REDIRECT:/"));
+    const { saveArtistProfile } = await import("./actions");
+    await expect(saveArtistProfile("art2", fd({ bio: "x" }))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(requireRole).toHaveBeenCalledWith("OWNER");
+    expect(artistUpdate).not.toHaveBeenCalled();
+  });
+
+  it("saveArtistProfile never writes status for a non-owner editing their own artist", async () => {
+    getCurrentUser.mockResolvedValue({
+      id: "u1",
+      role: "ARTIST",
+      artistId: "art1",
+    });
+    const { saveArtistProfile } = await import("./actions");
+    await saveArtistProfile("art1", fd({ status: "CO_OWNER", bio: "x" }));
+    // self-target is allowed without the OWNER gate...
+    expect(requireRole).not.toHaveBeenCalled();
+    expect(artistUpdate).toHaveBeenCalled();
+    // ...but the owner-only status field is dropped.
+    const data = artistUpdate.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).not.toHaveProperty("status");
+  });
+
+  it("saveArtistProfile ignores an invalid status value", async () => {
+    getCurrentUser.mockResolvedValue({
+      id: "o1",
+      role: "OWNER",
+      artistId: "ownArt",
+    });
+    const { saveArtistProfile } = await import("./actions");
+    await saveArtistProfile("art2", fd({ status: "HACKER", bio: "x" }));
+    const data = artistUpdate.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).not.toHaveProperty("status");
+  });
+
+  it("saveArtistProfile throws when unauthenticated", async () => {
+    getCurrentUser.mockResolvedValue(null);
+    const { saveArtistProfile } = await import("./actions");
+    await expect(saveArtistProfile("art2", fd({ bio: "x" }))).rejects.toThrow(
+      "Unauthorized",
+    );
+    expect(artistUpdate).not.toHaveBeenCalled();
   });
 
   it("regenerateFeed mints a fresh token for the artist's feed", async () => {

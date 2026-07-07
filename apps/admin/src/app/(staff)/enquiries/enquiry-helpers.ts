@@ -144,7 +144,10 @@ export function buildConvertInput(form: ConvertFormInput): ConvertResult {
     return { ok: false, error: "Choose a valid date and time." };
   }
   if (!Number.isInteger(form.durationMin) || form.durationMin <= 0) {
-    return { ok: false, error: "Duration must be a positive number of minutes." };
+    return {
+      ok: false,
+      error: "Duration must be a positive number of minutes.",
+    };
   }
 
   const end = new Date(start.getTime() + form.durationMin * 60_000);

@@ -1,4 +1,6 @@
 export * from "./customers";
+export * from "./customer-auth";
+export * from "./customer-welcome";
 export * from "./enquiries";
 export * from "./bookings";
 export * from "./sessions";

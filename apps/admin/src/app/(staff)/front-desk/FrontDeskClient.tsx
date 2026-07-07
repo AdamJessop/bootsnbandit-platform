@@ -17,7 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@bnb/core/utils";
-import { CalendarGrid, type CalendarEvent } from "@/components/admin/CalendarGrid";
+import {
+  CalendarGrid,
+  type CalendarEvent,
+} from "@/components/admin/CalendarGrid";
 import {
   BookingDrawer,
   type BookingDraft,
@@ -28,11 +31,7 @@ import type {
   BookingType,
 } from "@/components/admin/booking-form";
 import { saveBookingAction } from "../calendar/actions";
-import {
-  currentBooking,
-  nextBooking,
-  type DeskArtist,
-} from "./desk-board";
+import { currentBooking, nextBooking, type DeskArtist } from "./desk-board";
 
 export interface FrontDeskClientProps {
   artists: DeskArtist[];
@@ -85,9 +84,7 @@ export function FrontDeskClient({
     setDrawerOpen(true);
   }
 
-  async function handleSave(
-    payload: BookingPayload,
-  ): Promise<string | null> {
+  async function handleSave(payload: BookingPayload): Promise<string | null> {
     const res = await saveBookingAction(payload);
     if (!res.ok) return res.error ?? "Could not save.";
     toast.success("Booking added");

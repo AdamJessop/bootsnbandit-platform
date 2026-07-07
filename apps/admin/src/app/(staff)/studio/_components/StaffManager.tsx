@@ -1,6 +1,7 @@
 "use client";
 
-import { KeyRound, UserPlus, Trash2, Palette } from "lucide-react";
+import Link from "next/link";
+import { KeyRound, UserPlus, Trash2, Palette, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -137,6 +138,14 @@ export function StaffManager({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {m.artist && (
+                    <Link
+                      href={`/studio/staff/${m.id}`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border-default px-3 text-sm text-text-secondary hover:text-text-primary"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit profile
+                    </Link>
+                  )}
                   <form
                     action={setRoleAction}
                     className="flex items-center gap-1.5"

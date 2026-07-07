@@ -99,7 +99,9 @@ export function CustomerTimeline({ entries }: CustomerTimelineProps) {
                 </time>
               </div>
               {entry.detail && (
-                <p className="mt-1 text-sm text-text-secondary">{entry.detail}</p>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {entry.detail}
+                </p>
               )}
               {entry.status && (
                 <p className="mt-1 text-xs uppercase tracking-wide text-text-muted">

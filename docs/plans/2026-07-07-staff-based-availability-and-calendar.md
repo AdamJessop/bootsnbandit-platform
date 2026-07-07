@@ -164,18 +164,18 @@ _Assume this plan failed. Most likely internal reasons:_
 ## Progress Tracking
 
 - [x] Task 1: Schema migration + seed (Wave 1) — note: `chairId` removal from `bookings.ts` + `api/bookings/route.ts` pulled forward from Task 2 (Prisma runtime rejected the dropped column; anticipated in Task 1 DoD)
-- [ ] Task 2: Chair/resource code sweep + dashboard stat (Wave 2)
-- [ ] Task 3: Select dropdown label fix (Wave 1)
-- [ ] Task 4: Owner artist-profile editor from Studio (Wave 1)
-- [ ] Task 5: CalendarGrid multi-artist modes + data loaders (Wave 1)
+- [x] Task 2: Chair/resource code sweep + dashboard stat (Wave 2) — dashboard KPI is now "Artists booked today" (`artistsBookedToday` helper, unit-tested)
+- [x] Task 3: Select dropdown label fix (Wave 1) — `items` prop approach; also fixed `__all__`/`all` sentinel labels in EnquiryInbox/ReportsView filters
+- [x] Task 4: Owner artist-profile editor from Studio (Wave 1)
+- [x] Task 5: CalendarGrid multi-artist modes + data loaders (Wave 1) — new `CalendarLegend.tsx` extracted for the line limit; API: `mode`/`artists` props, `onCreate(start, artistId?)`, `artistTone()`, `loadCalendarDataAll()`
 - [ ] Task 6: All-staff calendar wiring (Wave 2)
-- [ ] Task 7: Customer auth core (Wave 2)
-- [ ] Task 8: Welcome email template + orchestration service (Wave 3)
+- [x] Task 7: Customer auth core (Wave 2)
+- [x] Task 8: Welcome email template + orchestration service (Wave 3)
 - [ ] Task 9: Booking drawer inline customer creation + confirmed default (Wave 4)
 - [ ] Task 10: Web sign-in / set-password / sign-out (Wave 4)
 - [ ] Task 11: Gated passport account area + cancel requests (Wave 5)
-- [ ] Task 12: Admin surfacing of cancellation requests (Wave 2)
-      **Total Tasks:** 12 | **Completed:** 1 | **Remaining:** 11
+- [x] Task 12: Admin surfacing of cancellation requests (Wave 2)
+      **Total Tasks:** 12 | **Completed:** 8 | **Remaining:** 4
 
 ## Deferred Issues
 

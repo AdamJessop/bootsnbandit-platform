@@ -8,7 +8,13 @@ vi.mock("@bnb/core/db", () => ({
   prisma: {
     galleryItem: {
       findMany: vi.fn(async () => [
-        { id: "g1", title: "Snake", style: "Traditional", featured: true, sortOrder: 0 },
+        {
+          id: "g1",
+          title: "Snake",
+          style: "Traditional",
+          featured: true,
+          sortOrder: 0,
+        },
       ]),
     },
   },

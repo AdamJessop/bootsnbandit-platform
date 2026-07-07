@@ -7,7 +7,9 @@ vi.mock("@bnb/core/auth", () => ({
 vi.mock("@bnb/core/db", () => ({
   prisma: {
     tattooStyle: {
-      findMany: vi.fn(async () => [{ id: "s1", name: "Traditional", sortOrder: 0 }]),
+      findMany: vi.fn(async () => [
+        { id: "s1", name: "Traditional", sortOrder: 0 },
+      ]),
     },
   },
 }));

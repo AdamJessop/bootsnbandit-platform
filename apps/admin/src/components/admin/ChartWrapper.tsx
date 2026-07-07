@@ -101,9 +101,17 @@ export function ChartWrapper({
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           {type === "line" ? (
-            <LineChart data={data} margin={{ top: 5, right: 8, bottom: 0, left: -8 }}>
+            <LineChart
+              data={data}
+              margin={{ top: 5, right: 8, bottom: 0, left: -8 }}
+            >
               <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="label" stroke={AXIS} fontSize={11} tickLine={false} />
+              <XAxis
+                dataKey="label"
+                stroke={AXIS}
+                fontSize={11}
+                tickLine={false}
+              />
               <YAxis stroke={AXIS} fontSize={11} tickLine={false} width={44} />
               <Tooltip
                 formatter={(v) => [valueFormatter(Number(v)), seriesLabel]}
@@ -125,9 +133,17 @@ export function ChartWrapper({
               />
             </LineChart>
           ) : type === "bar" ? (
-            <BarChart data={data} margin={{ top: 5, right: 8, bottom: 0, left: -8 }}>
+            <BarChart
+              data={data}
+              margin={{ top: 5, right: 8, bottom: 0, left: -8 }}
+            >
               <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="label" stroke={AXIS} fontSize={11} tickLine={false} />
+              <XAxis
+                dataKey="label"
+                stroke={AXIS}
+                fontSize={11}
+                tickLine={false}
+              />
               <YAxis stroke={AXIS} fontSize={11} tickLine={false} width={44} />
               <Tooltip
                 formatter={(v) => valueFormatter(Number(v))}
@@ -139,7 +155,12 @@ export function ChartWrapper({
                 }}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: AXIS }} />
-              <Bar dataKey="value" name={seriesLabel} fill={CHART_COLORS[0]} radius={[3, 3, 0, 0]} />
+              <Bar
+                dataKey="value"
+                name={seriesLabel}
+                fill={CHART_COLORS[0]}
+                radius={[3, 3, 0, 0]}
+              />
               {data.some((d) => d.value2 != null) && (
                 <Bar
                   dataKey="value2"
@@ -170,7 +191,10 @@ export function ChartWrapper({
                 paddingAngle={2}
               >
                 {data.map((d, i) => (
-                  <Cell key={d.label} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  <Cell
+                    key={d.label}
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                  />
                 ))}
               </Pie>
             </PieChart>

@@ -34,13 +34,20 @@ describe("CalendarPage", () => {
       artistId: "a1",
     });
     mocks.loadArtistsForUser.mockResolvedValueOnce([
-      { id: "a1", name: "Artist A", hourlyRatePence: 9000, dayRatePence: 60000 },
+      {
+        id: "a1",
+        name: "Artist A",
+        hourlyRatePence: 9000,
+        dayRatePence: 60000,
+      },
     ]);
     mocks.resolveActiveArtist.mockReturnValueOnce("a1");
     mocks.loadCalendarData.mockResolvedValueOnce({ events: [], leave: [] });
     mocks.loadCustomerOptions.mockResolvedValueOnce([]);
 
-    renderToStaticMarkup(await CalendarPage({ searchParams: Promise.resolve({}) }));
+    renderToStaticMarkup(
+      await CalendarPage({ searchParams: Promise.resolve({}) }),
+    );
 
     expect(mocks.CalendarClient).toHaveBeenCalled();
     const props = mocks.CalendarClient.mock.calls[0][0] as {

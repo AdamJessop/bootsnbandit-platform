@@ -6,13 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { artistStatusLabel, type ArtistStatus } from "@bnb/core/artist-status";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  ARTIST_STATUS_OPTIONS,
+  artistStatusLabel,
+  type ArtistStatus,
+} from "@bnb/core/artist-status";
 
 /**
- * Own artist profile + portfolio editor (L1). The signed-in artist edits their
+ * Artist profile + portfolio editor (L1). The signed-in artist edits their
  * bio, socials, numeric £ rates and styles (a checkbox multiselect bound to the
- * TattooStyle list). Their `status` (title) is read-only here — only an owner
- * changes it from Content › Artists. The headshot + style ids are mirrored into
+ * TattooStyle list). Their `status` (title) is read-only in the self view —
+ * owners editing any artist from Studio › Staff pass `statusEditable` to swap
+ * it for a select. The headshot, status + style ids are mirrored into
  * hidden/checkbox inputs so the server action receives them in the FormData.
  */
 
@@ -43,12 +55,15 @@ export function ProfileEditor({
   values,
   styles,
   action,
+  statusEditable = false,
 }: {
   values: ProfileEditorValues;
   styles: StyleOption[];
   action: (fd: FormData) => Promise<void>;
+  statusEditable?: boolean;
 }) {
   const [headshot, setHeadshot] = useState(values.headshot ?? "");
+  const [status, setStatus] = useState<ArtistStatus>(values.status);
 
   return (
     <form action={action} className="max-w-2xl space-y-5">
@@ -56,12 +71,34 @@ export function ProfileEditor({
 
       <div>
         <Label className="mb-1.5 block">Status</Label>
-        <p className="rounded-md border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-secondary">
-          {artistStatusLabel(values.status)}
-          <span className="ml-2 text-xs text-text-muted">
-            (set by an owner in Content › Artists)
-          </span>
-        </p>
+        {statusEditable ? (
+          <>
+            <input type="hidden" name="status" value={status} />
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus((v as ArtistStatus) ?? status)}
+              items={[...ARTIST_STATUS_OPTIONS]}
+            >
+              <SelectTrigger className="h-10 w-full bg-bg-raised">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ARTIST_STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        ) : (
+          <p className="rounded-md border border-border-default bg-bg-raised px-3 py-2 text-sm text-text-secondary">
+            {artistStatusLabel(values.status)}
+            <span className="ml-2 text-xs text-text-muted">
+              (set by an owner in Content › Artists)
+            </span>
+          </p>
+        )}
       </div>
 
       <div>

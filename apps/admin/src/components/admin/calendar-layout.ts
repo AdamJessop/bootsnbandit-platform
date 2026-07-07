@@ -99,7 +99,9 @@ export function applyDragDelta(
   deltaPx: number,
 ): { start: Date; end: Date } {
   const durationMin = Math.round((end.getTime() - start.getTime()) / 60000);
-  const newTopMin = snapMinutes(minutesFromGridTop(start) + deltaPx / PX_PER_MIN);
+  const newTopMin = snapMinutes(
+    minutesFromGridTop(start) + deltaPx / PX_PER_MIN,
+  );
   const maxTop = Math.max(0, gridMinutes() - durationMin);
   const clampedTop = Math.max(0, Math.min(newTopMin, maxTop));
   const newStart = new Date(start);
@@ -138,4 +140,66 @@ export function blockTone(type: string, status?: string): BlockTone {
   if (status === "completed") return "teal";
   if (type === "consult") return "gold";
   return "crimson"; // session + flash
+}
+
+/**
+ * Per-artist colour pair for the all-staff overlay: `block` styles an event
+ * block (tint bg + border), `swatch` is the solid legend chip.
+ */
+export interface ArtistTone {
+  block: string;
+  swatch: string;
+}
+
+/** Known Artist.hue tokens (see seed.ts) → heritage/complementary colours. */
+const HUE_TONES: Record<string, ArtistTone> = {
+  crimson: {
+    block: "bg-bb-crimson/20 border-bb-crimson/60 text-text-primary",
+    swatch: "bg-bb-crimson",
+  },
+  gold: {
+    block: "bg-bb-gold/20 border-bb-gold/60 text-text-primary",
+    swatch: "bg-bb-gold",
+  },
+  teal: {
+    block: "bg-bb-teal/20 border-bb-teal/60 text-text-primary",
+    swatch: "bg-bb-teal",
+  },
+  ink: {
+    block: "bg-[#4b5563]/25 border-[#4b5563]/70 text-text-primary",
+    swatch: "bg-[#4b5563]",
+  },
+  rust: {
+    block: "bg-[#b7410e]/20 border-[#b7410e]/60 text-text-primary",
+    swatch: "bg-[#b7410e]",
+  },
+  plum: {
+    block: "bg-[#8e4585]/20 border-[#8e4585]/60 text-text-primary",
+    swatch: "bg-[#8e4585]",
+  },
+  steel: {
+    block: "bg-[#64748b]/20 border-[#64748b]/60 text-text-primary",
+    swatch: "bg-[#64748b]",
+  },
+};
+
+/** Deterministic fallback order for artists without a recognised hue. */
+const FALLBACK_ORDER = [
+  "crimson",
+  "gold",
+  "teal",
+  "rust",
+  "plum",
+  "steel",
+  "ink",
+] as const;
+
+/**
+ * Colour for an artist in the all-staff calendar. Known `hue` tokens map to
+ * their brand colour; null/unknown hues fall back to a deterministic palette
+ * keyed by the artist's index (cycling modulo the palette length).
+ */
+export function artistTone(hue: string | null, index: number): ArtistTone {
+  if (hue && HUE_TONES[hue]) return HUE_TONES[hue];
+  return HUE_TONES[FALLBACK_ORDER[Math.abs(index) % FALLBACK_ORDER.length]];
 }

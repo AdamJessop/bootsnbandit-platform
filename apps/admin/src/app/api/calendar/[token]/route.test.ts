@@ -34,7 +34,10 @@ afterEach(() => {
 describe("GET /api/calendar/[token].ics", () => {
   it("404s for an unknown/inactive token", async () => {
     feedFindFirst.mockResolvedValue(null);
-    const res = await GET(new Request("http://x/api/calendar/bad.ics"), ctx("bad.ics"));
+    const res = await GET(
+      new Request("http://x/api/calendar/bad.ics"),
+      ctx("bad.ics"),
+    );
     expect(res.status).toBe(404);
     // The .ics suffix must be stripped before the lookup.
     expect(feedFindFirst).toHaveBeenCalledWith({

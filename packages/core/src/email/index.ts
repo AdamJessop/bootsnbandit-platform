@@ -13,7 +13,8 @@ export type EmailType =
   | "enquiry_ack"
   | "loyalty_reward"
   | "staff_invite"
-  | "staff_reply";
+  | "staff_reply"
+  | "welcome";
 
 export interface SendEmailInput {
   to: string;

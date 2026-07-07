@@ -8,7 +8,7 @@
  */
 import { Download } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { ChartDatum } from "@/components/admin/ChartWrapper";
 import { ChartWrapper } from "@/components/admin/ChartWrapper";
 import { formatPence } from "@/components/admin/money";
@@ -30,7 +30,12 @@ export interface ReportsViewProps {
   artistId: string; // "" = all
   artists: { id: string; name: string }[];
   canChooseArtist: boolean;
-  totals: { bookings: number; completed: number; revenuePence: number; utilisationPct: number };
+  totals: {
+    bookings: number;
+    completed: number;
+    revenuePence: number;
+    utilisationPct: number;
+  };
   revenueTrend: ChartDatum[];
   bookingsByStatus: ChartDatum[];
   capacityByArtist: ChartDatum[];
@@ -47,6 +52,16 @@ export function ReportsView(props: ReportsViewProps) {
   const [to, setTo] = useState(props.to);
   const [artistId, setArtistId] = useState(props.artistId || ALL);
   const [pending, start] = useTransition();
+
+  // Lets the closed Select trigger render a label, never the raw "all"
+  // sentinel or an artist cuid.
+  const artistItems = useMemo(
+    () => [
+      { value: ALL, label: "All artists" },
+      ...props.artists.map((a) => ({ value: a.id, label: a.name })),
+    ],
+    [props.artists],
+  );
 
   function apply() {
     const next = new URLSearchParams(params.toString());
@@ -99,7 +114,11 @@ export function ReportsView(props: ReportsViewProps) {
         {props.canChooseArtist && (
           <div className="space-y-1.5">
             <Label>Artist</Label>
-            <Select value={artistId} onValueChange={(v) => setArtistId(v ?? ALL)}>
+            <Select
+              items={artistItems}
+              value={artistId}
+              onValueChange={(v) => setArtistId(v ?? ALL)}
+            >
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>

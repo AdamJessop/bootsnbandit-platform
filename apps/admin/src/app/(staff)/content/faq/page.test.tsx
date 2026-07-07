@@ -8,7 +8,12 @@ vi.mock("@bnb/core/db", () => ({
   prisma: {
     faq: {
       findMany: vi.fn(async () => [
-        { id: "q1", question: "Do you take walk-ins?", answer: "Yes", sortOrder: 0 },
+        {
+          id: "q1",
+          question: "Do you take walk-ins?",
+          answer: "Yes",
+          sortOrder: 0,
+        },
       ]),
     },
   },

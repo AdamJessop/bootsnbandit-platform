@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildOwnerAlerts, pendingSoonWindow } from "./today-helpers";
+import {
+  artistsBookedToday,
+  buildOwnerAlerts,
+  pendingSoonWindow,
+} from "./today-helpers";
 
 describe("pendingSoonWindow", () => {
   it("spans exactly the next 7 days", () => {
@@ -13,7 +17,11 @@ describe("pendingSoonWindow", () => {
 describe("buildOwnerAlerts", () => {
   it("returns no alerts when every count is zero", () => {
     expect(
-      buildOwnerAlerts({ newEnquiries: 0, pendingSoon: 0, overdueFollowUps: 0 }),
+      buildOwnerAlerts({
+        newEnquiries: 0,
+        pendingSoon: 0,
+        overdueFollowUps: 0,
+      }),
     ).toEqual([]);
   });
 
@@ -53,5 +61,21 @@ describe("buildOwnerAlerts", () => {
     expect(alerts).toEqual([
       { href: "/sessions", text: "4 overdue review follow-ups" },
     ]);
+  });
+});
+
+describe("artistsBookedToday", () => {
+  it("counts only artists with at least one booking", () => {
+    expect(
+      artistsBookedToday([
+        { bookings: [{ id: "b1" }, { id: "b2" }] },
+        { bookings: [] },
+        { bookings: [{ id: "b3" }] },
+      ]),
+    ).toBe(2);
+  });
+
+  it("returns 0 for an empty artist list", () => {
+    expect(artistsBookedToday([])).toBe(0);
   });
 });

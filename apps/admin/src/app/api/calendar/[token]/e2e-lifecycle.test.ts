@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addDays } from "date-fns";
-import { closeTestDb, dbReachable, testDb, uid } from "@bnb/core/services/testdb";
+import {
+  closeTestDb,
+  dbReachable,
+  testDb,
+  uid,
+} from "@bnb/core/services/testdb";
 import { createEnquiry } from "@bnb/core/services/enquiries";
 import { createBooking, updateBooking } from "@bnb/core/services/bookings";
 import { completeSession } from "@bnb/core/services/sessions";
@@ -72,9 +77,13 @@ describe("P12 e2e lifecycle (DB)", () => {
         where: { id: { in: cleanup.messages } },
       });
     if (cleanup.sessions.length)
-      await db().session.deleteMany({ where: { id: { in: cleanup.sessions } } });
+      await db().session.deleteMany({
+        where: { id: { in: cleanup.sessions } },
+      });
     if (cleanup.bookings.length)
-      await db().booking.deleteMany({ where: { id: { in: cleanup.bookings } } });
+      await db().booking.deleteMany({
+        where: { id: { in: cleanup.bookings } },
+      });
     if (cleanup.enquiries.length)
       await db().enquiry.deleteMany({
         where: { id: { in: cleanup.enquiries } },

@@ -42,7 +42,8 @@ export function revenueTrendData(bookings: RawBooking[]): ChartDatum[] {
 /** Count of bookings per status (only statuses that occur). */
 export function bookingsByStatusData(bookings: RawBooking[]): ChartDatum[] {
   const counts = new Map<BookingStatus, number>();
-  for (const b of bookings) counts.set(b.status, (counts.get(b.status) ?? 0) + 1);
+  for (const b of bookings)
+    counts.set(b.status, (counts.get(b.status) ?? 0) + 1);
   return STATUS_ORDER.filter((s) => counts.has(s)).map((s) => ({
     label: bookingStatusLabel(s),
     value: counts.get(s) ?? 0,

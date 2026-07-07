@@ -43,7 +43,10 @@ describe("saveSite", () => {
       create: { tickerLines: string[]; enquiriesOpen: boolean };
     };
     expect(arg.where.studioName).toBe("Boots 'n' Bandit");
-    expect(arg.create.tickerLines).toEqual(["Walk-ins welcome", "Flash Friday"]);
+    expect(arg.create.tickerLines).toEqual([
+      "Walk-ins welcome",
+      "Flash Friday",
+    ]);
     expect(arg.create.enquiriesOpen).toBe(true);
     expect(revalidatePath).toHaveBeenCalled();
   });

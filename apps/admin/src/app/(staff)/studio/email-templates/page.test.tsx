@@ -12,7 +12,7 @@ vi.mock("@bnb/core/email/render", () => ({
 }));
 
 describe("EmailTemplatesPage", () => {
-  it("previews each of the 9 templates", async () => {
+  it("previews each of the 10 templates", async () => {
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Email templates");
@@ -20,7 +20,8 @@ describe("EmailTemplatesPage", () => {
     expect(html).toContain("Loyalty reward");
     expect(html).toContain("Staff invite");
     expect(html).toContain("Staff reply");
-    // 9 preview iframes
-    expect(html.match(/<iframe/g)?.length).toBe(9);
+    expect(html).toContain("Customer welcome");
+    // 10 preview iframes
+    expect(html.match(/<iframe/g)?.length).toBe(10);
   });
 });

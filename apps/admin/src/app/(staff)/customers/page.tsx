@@ -61,7 +61,9 @@ export default async function CustomersPage() {
   );
 
   const rows: CustomerRow[] = customers.map((c) => {
-    const { lastVisit, nextVisit } = deriveVisits(c.bookings.map((b) => b.start));
+    const { lastVisit, nextVisit } = deriveVisits(
+      c.bookings.map((b) => b.start),
+    );
     return {
       id: c.id,
       name: c.name,

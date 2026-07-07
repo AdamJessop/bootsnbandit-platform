@@ -21,10 +21,12 @@ describe("validateManualEmail", () => {
 
 describe("validateNotes", () => {
   it("trims and accepts notes + consent", () => {
-    expect(validateNotes({ notes: "  vip  ", marketingConsent: true })).toEqual({
-      notes: "vip",
-      marketingConsent: true,
-    });
+    expect(validateNotes({ notes: "  vip  ", marketingConsent: true })).toEqual(
+      {
+        notes: "vip",
+        marketingConsent: true,
+      },
+    );
   });
 
   it("normalises empty notes to null", () => {

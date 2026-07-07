@@ -2,16 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@bnb/core/db";
-import { getCurrentUser } from "@bnb/core/auth";
+import { getCurrentUser, requireRole } from "@bnb/core/auth";
 import { generateToken } from "@bnb/core/auth/tokens";
+import {
+  ARTIST_STATUS_LABEL,
+  type ArtistStatus,
+} from "@bnb/core/artist-status";
 
 /**
  * My Profile server actions (L). Self-scoped: each action resolves the signed-in
  * user and only mutates rows they own (their linked Artist, their CalendarFeed,
- * their own passkeys) — never another user's data.
+ * their own passkeys) — never another user's data. The one exception is
+ * `saveArtistProfile`, the owner variant used by Studio › Staff › Edit profile,
+ * which gates any non-self target behind `requireRole("OWNER")`.
  */
 
 const PROFILE_PATH = "/profile";
+const STAFF_PATH = "/studio/staff";
 
 async function requireOwnArtist(): Promise<{
   userId: string;
@@ -51,20 +58,55 @@ function pence(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? Math.round(n * 100) : null;
 }
 
+/** The shared FormData → Artist update payload (excludes owner-only status). */
+function profileData(fd: FormData) {
+  return {
+    bio: str(fd, "bio"),
+    insta: str(fd, "insta"),
+    headshot: str(fd, "headshot"),
+    hourlyRatePence: pence(fd, "hourlyRatePounds"),
+    dayRatePence: pence(fd, "dayRatePounds"),
+    styles: { set: ids(fd, "styleIds").map((id) => ({ id })) },
+    specials: arr(fd, "specials"),
+  };
+}
+
+/** Validated status enum value from FormData, or null for missing/unknown. */
+function status(fd: FormData): ArtistStatus | null {
+  const s = str(fd, "status");
+  return s != null && s in ARTIST_STATUS_LABEL ? (s as ArtistStatus) : null;
+}
+
 export async function saveProfile(fd: FormData): Promise<void> {
   const { artistId } = await requireOwnArtist();
   await prisma.artist.update({
     where: { id: artistId },
+    data: profileData(fd),
+  });
+  revalidatePath(PROFILE_PATH);
+}
+
+/**
+ * Owner variant (Studio › Staff › Edit profile): saves an explicit artist's
+ * profile. Any non-self target requires the OWNER role; the status (title)
+ * field is owner-only regardless of target.
+ */
+export async function saveArtistProfile(
+  artistId: string,
+  fd: FormData,
+): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  if (user.artistId !== artistId) await requireRole("OWNER");
+  const newStatus = user.role === "OWNER" ? status(fd) : null;
+  await prisma.artist.update({
+    where: { id: artistId },
     data: {
-      bio: str(fd, "bio"),
-      insta: str(fd, "insta"),
-      headshot: str(fd, "headshot"),
-      hourlyRatePence: pence(fd, "hourlyRatePounds"),
-      dayRatePence: pence(fd, "dayRatePounds"),
-      styles: { set: ids(fd, "styleIds").map((id) => ({ id })) },
-      specials: arr(fd, "specials"),
+      ...(newStatus ? { status: newStatus } : {}),
+      ...profileData(fd),
     },
   });
+  revalidatePath(STAFF_PATH);
   revalidatePath(PROFILE_PATH);
 }
 

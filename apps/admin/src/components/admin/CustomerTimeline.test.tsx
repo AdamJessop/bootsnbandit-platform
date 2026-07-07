@@ -12,9 +12,24 @@ describe("CustomerTimeline contract", () => {
 
   it("sorts entries newest-first by timestamp", () => {
     const entries: TimelineEntry[] = [
-      { id: "1", kind: "enquiry", at: "2026-01-01T00:00:00Z", title: "Enquiry" },
-      { id: "2", kind: "session", at: "2026-03-01T00:00:00Z", title: "Session" },
-      { id: "3", kind: "booking", at: "2026-02-01T00:00:00Z", title: "Booking" },
+      {
+        id: "1",
+        kind: "enquiry",
+        at: "2026-01-01T00:00:00Z",
+        title: "Enquiry",
+      },
+      {
+        id: "2",
+        kind: "session",
+        at: "2026-03-01T00:00:00Z",
+        title: "Session",
+      },
+      {
+        id: "3",
+        kind: "booking",
+        at: "2026-02-01T00:00:00Z",
+        title: "Booking",
+      },
     ];
     expect(sortTimeline(entries).map((e) => e.id)).toEqual(["2", "3", "1"]);
   });

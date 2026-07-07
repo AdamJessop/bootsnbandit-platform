@@ -62,12 +62,15 @@ describe("validateDraft", () => {
   });
 
   it("requires a positive duration", () => {
-    expect(validateDraft(baseState({ durationMins: 0 })).durationMins).toBeTruthy();
+    expect(
+      validateDraft(baseState({ durationMins: 0 })).durationMins,
+    ).toBeTruthy();
   });
 
   it("rejects a malformed price", () => {
     expect(
-      validateDraft(baseState({ priceEstimatePounds: "abc" })).priceEstimatePounds,
+      validateDraft(baseState({ priceEstimatePounds: "abc" }))
+        .priceEstimatePounds,
     ).toBeTruthy();
     // empty price is allowed (optional estimate)
     expect(

@@ -74,6 +74,14 @@ const SAMPLE: Record<
       body: "Hi Alex — Sarah has space next month. Does the 12th work for you?",
     },
   },
+  welcome: {
+    label: "Customer welcome",
+    data: {
+      customerName: "Alex",
+      setPasswordUrl: "http://localhost:3000/account/set-password?token=demo",
+      expiresAt: "2026-08-06T00:00:00.000Z",
+    },
+  },
 };
 
 export default async function EmailTemplatesPage() {

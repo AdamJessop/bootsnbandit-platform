@@ -121,6 +121,54 @@ export async function loadCalendarData(
   };
 }
 
+/**
+ * Bookings + approved leave for many artists at once (all-staff calendar).
+ * Same window semantics as loadCalendarData; every event/leave row is tagged
+ * with its owning artistId so the grid can column/tint per artist.
+ */
+export async function loadCalendarDataAll(
+  artistIds: string[],
+  anchor: Date,
+  view: "day" | "week",
+): Promise<CalendarData> {
+  if (artistIds.length === 0) return { events: [], leave: [] };
+  const { from, to } = rangeWindow(anchor, view);
+  const [perArtist, customers] = await Promise.all([
+    Promise.all(
+      artistIds.map(async (artistId) => {
+        const [bookings, leave] = await Promise.all([
+          listBookings({ artistId, from, to }),
+          listLeave({ artistId, status: "approved", from, to }),
+        ]);
+        return { artistId, bookings, leave };
+      }),
+    ),
+    prisma.customer.findMany({ select: { id: true, name: true } }),
+  ]);
+  const nameById = new Map(customers.map((c) => [c.id, c.name]));
+  return {
+    events: perArtist.flatMap(({ artistId, bookings }) =>
+      bookings.map((b) => ({
+        id: b.id,
+        type: b.type,
+        title: b.style ?? b.type,
+        start: b.start.toISOString(),
+        end: b.end.toISOString(),
+        status: b.status,
+        customerName: nameById.get(b.customerId),
+        artistId,
+      })),
+    ),
+    leave: perArtist.flatMap(({ artistId, leave }) =>
+      leave.map((l) => ({
+        start: l.startDate.toISOString(),
+        end: l.endDate.toISOString(),
+        artistId,
+      })),
+    ),
+  };
+}
+
 /** Customer directory for the booking drawer picker. */
 export async function loadCustomerOptions(): Promise<NamedOption[]> {
   const customers = await prisma.customer.findMany({

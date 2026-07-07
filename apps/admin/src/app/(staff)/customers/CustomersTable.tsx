@@ -63,10 +63,13 @@ export function CustomersTable({ rows }: { rows: CustomerRow[] }) {
           <Badge variant={r.loyaltyTier > 0 ? "default" : "outline"}>
             {loyaltyTierLabel(r.loyaltyTier)}
           </Badge>
-          <span className="tabular-nums text-text-muted">{r.loyaltyStamps}★</span>
+          <span className="tabular-nums text-text-muted">
+            {r.loyaltyStamps}★
+          </span>
         </span>
       ),
-      csvValue: (r) => `${loyaltyTierLabel(r.loyaltyTier)} (${r.loyaltyStamps})`,
+      csvValue: (r) =>
+        `${loyaltyTierLabel(r.loyaltyTier)} (${r.loyaltyStamps})`,
     },
     {
       key: "lifetimeValuePence",

@@ -6,7 +6,10 @@ import { formatPence } from "@/components/admin/money";
 import { formatDateTime } from "../_shared/labels";
 import { CompletedSessionsList } from "./CompletedSessionsList";
 import type { CompletedSessionRow } from "./receipt-resend";
-import { SessionCompleteForm, type PendingSession } from "./SessionCompleteForm";
+import {
+  SessionCompleteForm,
+  type PendingSession,
+} from "./SessionCompleteForm";
 
 /**
  * Sessions & Receipts (BACKOFHOUSE-IA G1–G3). Today's confirmed/pending
@@ -94,7 +97,9 @@ export default async function SessionsPage() {
               className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border-default bg-bg-card px-5 py-4"
             >
               <div>
-                <p className="font-medium text-text-primary">{s.customerName}</p>
+                <p className="font-medium text-text-primary">
+                  {s.customerName}
+                </p>
                 <p className="text-sm text-text-muted">
                   <Badge variant="outline" className="mr-2 capitalize">
                     {s.type}

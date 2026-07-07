@@ -48,7 +48,12 @@ function sniffImageMime(buf: Buffer): string | null {
     return "image/png";
   }
   // JPEG: FF D8 FF
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+  if (
+    buf.length >= 3 &&
+    buf[0] === 0xff &&
+    buf[1] === 0xd8 &&
+    buf[2] === 0xff
+  ) {
     return "image/jpeg";
   }
   // GIF: "GIF87a" / "GIF89a"
@@ -93,7 +98,10 @@ export async function POST(req: Request): Promise<Response> {
     // Reject obviously-unsupported client types early (cheap), but never trust
     // them: the authoritative check is the magic-number sniff below.
     if (!EXT_BY_MIME[file.type]) {
-      return jsonError(415, `Unsupported image type: ${file.type || "unknown"}`);
+      return jsonError(
+        415,
+        `Unsupported image type: ${file.type || "unknown"}`,
+      );
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
@@ -102,7 +110,10 @@ export async function POST(req: Request): Promise<Response> {
     // payloads and content-type spoofing (e.g. an SVG sent as image/png).
     const sniffed = sniffImageMime(bytes);
     if (!sniffed || sniffed !== file.type) {
-      return jsonError(415, "File content does not match a supported image format");
+      return jsonError(
+        415,
+        "File content does not match a supported image format",
+      );
     }
     const ext = EXT_BY_MIME[sniffed];
 

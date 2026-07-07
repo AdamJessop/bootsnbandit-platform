@@ -42,10 +42,7 @@ import {
   type BookingStatus,
   type BookingType,
 } from "./booking-form";
-import {
-  initialState,
-  type BookingDraft,
-} from "./booking-drawer-state";
+import { initialState, type BookingDraft } from "./booking-drawer-state";
 
 export type { BookingDraft } from "./booking-drawer-state";
 
@@ -95,9 +92,7 @@ export function BookingDrawer({
   const [state, setState] = useState<BookingFormState>(() =>
     initialState(booking, defaultArtistId),
   );
-  const [errors, setErrors] = useState<
-    ReturnType<typeof validateDraft>
-  >({});
+  const [errors, setErrors] = useState<ReturnType<typeof validateDraft>>({});
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -130,6 +125,16 @@ export function BookingDrawer({
         : s,
     );
   }, [artists, state.artistId, state.durationMins]);
+
+  // Let the closed Select triggers render names, not cuids.
+  const customerItems = useMemo(
+    () => customers.map((c) => ({ value: c.id, label: c.name })),
+    [customers],
+  );
+  const artistItems = useMemo(
+    () => artists.map((a) => ({ value: a.id, label: a.name })),
+    [artists],
+  );
 
   const isEdit = Boolean(booking?.id);
   const pricePreview = useMemo(() => {
@@ -187,6 +192,7 @@ export function BookingDrawer({
         <div className="flex flex-col gap-4 px-4 pb-2">
           <Field label="Customer" error={errors.customerId}>
             <Select
+              items={customerItems}
               value={state.customerId}
               onValueChange={(v) => set("customerId", v ?? "")}
             >
@@ -205,6 +211,7 @@ export function BookingDrawer({
 
           <Field label="Artist" error={errors.artistId}>
             <Select
+              items={artistItems}
               value={state.artistId}
               onValueChange={(v) => set("artistId", v ?? "")}
             >

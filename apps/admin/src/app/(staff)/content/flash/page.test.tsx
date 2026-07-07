@@ -8,7 +8,13 @@ vi.mock("@bnb/core/db", () => ({
   prisma: {
     flash: {
       findMany: vi.fn(async () => [
-        { id: "f1", title: "Dagger", sizeCm: "8", status: "available", sortOrder: 0 },
+        {
+          id: "f1",
+          title: "Dagger",
+          sizeCm: "8",
+          status: "available",
+          sortOrder: 0,
+        },
       ]),
     },
   },
