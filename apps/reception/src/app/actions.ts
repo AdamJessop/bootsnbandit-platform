@@ -105,6 +105,8 @@ export async function customerCheckinAction(
 const walkInSchema = z.object({
   customerName: z.string().trim().min(1).max(120),
   phone: z.string().trim().max(30).optional(),
+  // Optional but validated when present — powers receipt/aftercare emails.
+  email: z.string().trim().email().max(200).optional(),
   artistId: z.string().min(1),
   startIso: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
     message: "Invalid start time",
@@ -123,12 +125,13 @@ export async function walkInAction(
   if (!(await kioskSignedIn())) return SIGNED_OUT;
   const parsed = walkInSchema.safeParse(input);
   if (!parsed.success) return GENERIC;
-  const { customerName, phone, artistId, startIso, durationMin, type } =
+  const { customerName, phone, email, artistId, startIso, durationMin, type } =
     parsed.data;
   try {
     await createWalkInBooking({
       customerName,
       phone: phone || null,
+      email: email || null,
       artistId,
       start: new Date(startIso),
       durationMin,

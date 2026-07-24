@@ -4,19 +4,19 @@ import { AlertTriangle, ArrowLeft, Check, CheckCircle2 } from "lucide-react";
 import { ArtistAvatar } from "./ArtistAvatar";
 import {
   hhmm,
-  pounds,
-  takingsPence,
   typeLabel,
   type BoardArtist,
   type BoardSession,
 } from "./kiosk-logic";
 
+// No money on this screen: the kiosk faces customers, so per-session amounts
+// and daily takings live in the admin app only.
 function rowStatus(s: BoardSession, now: Date) {
   if (s.completed)
     return (
       <span className="rk-pill done-pill">
         <Check className="ic" style={{ width: 11, height: 11 }} />
-        Complete · {pounds(s.amountChargedPence ?? 0)}
+        Complete
       </span>
     );
   const t = now.getTime();
@@ -49,7 +49,6 @@ export function DayListScreen({
   const flagged = sorted.filter(
     (s) => s.consentFlagged === true && !s.completed,
   ).length;
-  const takings = takingsPence(sorted);
 
   return (
     <div className="rk-screen">
@@ -66,10 +65,6 @@ export function DayListScreen({
               ? ` · ${flagged} consent flag${flagged === 1 ? "" : "s"} to review`
               : ""}
           </div>
-        </div>
-        <div className="rk-takings">
-          <small>Takings today</small>
-          <b>{pounds(takings)}</b>
         </div>
       </div>
       <div className="rk-screen-body">

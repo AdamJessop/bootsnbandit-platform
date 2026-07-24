@@ -87,6 +87,38 @@ describe("board derivations", () => {
     expect(nextSession(notArrived, "a1", now)?.id).toBe("s1");
   });
 
+  it("a checked-in session stays current from arrival until checkout", () => {
+    // Early arrival: checked in before the booked start still shows with the
+    // artist (session runs 10:00–13:00).
+    const early = [
+      sess({ checkedInAt: new Date(2026, 6, 7, 9, 40).toISOString() }),
+    ];
+    expect(currentSession(early, "a1", new Date(2026, 6, 7, 9, 45))?.id).toBe(
+      "s1",
+    );
+
+    // Overrun: still with the artist after the booked end until checked out.
+    expect(currentSession(early, "a1", new Date(2026, 6, 7, 13, 30))?.id).toBe(
+      "s1",
+    );
+
+    // Checked out (completed) drops off entirely.
+    const done = [
+      sess({ checkedInAt: now.toISOString(), completed: true }),
+    ];
+    expect(currentSession(done, "a1", new Date(2026, 6, 7, 13, 30))).toBeNull();
+
+    // With two checked-in sessions, the one overlapping "now" wins.
+    const overlap = sess({ id: "live", checkedInAt: now.toISOString() });
+    const late = sess({
+      id: "waiting",
+      start: new Date(2026, 6, 7, 14, 0).toISOString(),
+      end: new Date(2026, 6, 7, 16, 0).toISOString(),
+      checkedInAt: now.toISOString(),
+    });
+    expect(currentSession([late, overlap], "a1", now)?.id).toBe("live");
+  });
+
   it("progress is clamped between 3 and 100", () => {
     const s = sess({ checkedInAt: now.toISOString() });
     expect(progressPct(s, new Date(2026, 6, 7, 11, 0))).toBe(33);

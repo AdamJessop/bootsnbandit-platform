@@ -8,6 +8,7 @@ import { DURATIONS, hhmm, startSlots, type BoardArtist } from "./kiosk-logic";
 export interface WalkInPayload {
   customerName: string;
   phone?: string;
+  email?: string;
   artistId: string;
   startIso: string;
   durationMin: number;
@@ -30,6 +31,7 @@ export function NewSessionScreen({
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [artistId, setArtistId] = useState<string | null>(null);
   const [durIdx, setDurIdx] = useState(2);
   const [start, setStart] = useState<Date | null>(null);
@@ -47,6 +49,7 @@ export function NewSessionScreen({
     const result = await onCreate({
       customerName: name.trim(),
       phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
       artistId,
       startIso: start.toISOString(),
       durationMin: minutes,
@@ -98,6 +101,21 @@ export function NewSessionScreen({
                 style={{ fontSize: 17, padding: 16 }}
               />
             </div>
+          </div>
+          <div className="field">
+            <label htmlFor="rk-email">Email — receipt &amp; aftercare</label>
+            <input
+              id="rk-email"
+              className="input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              inputMode="email"
+              autoComplete="off"
+              autoCapitalize="none"
+              style={{ fontSize: 17, padding: 16 }}
+            />
           </div>
           <div className="field">
             <label>Artist</label>

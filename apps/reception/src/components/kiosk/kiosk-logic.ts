@@ -86,9 +86,11 @@ export function artistSessions(
 }
 
 /**
- * The session an artist is mid-way through. A session only counts as "in
- * progress" once the customer has checked in; otherwise it stays in the
- * "next" slot until they arrive.
+ * The session an artist has a customer here for. A session counts as
+ * "current" from the moment the customer checks in until they are checked
+ * out (completed) — early arrivals and overruns must stay on the artist's
+ * card so the front desk can always check them out from there. When more
+ * than one checked-in session exists, the one overlapping `now` wins.
  */
 export function currentSession(
   sessions: BoardSession[],
@@ -96,13 +98,15 @@ export function currentSession(
   now: Date,
 ): BoardSession | null {
   const t = now.getTime();
+  const arrived = artistSessions(sessions, artistId).filter(
+    (s) => s.checkedInAt != null,
+  );
   return (
-    artistSessions(sessions, artistId).find(
-      (s) =>
-        s.checkedInAt != null &&
-        new Date(s.start).getTime() <= t &&
-        t < new Date(s.end).getTime(),
-    ) ?? null
+    arrived.find(
+      (s) => new Date(s.start).getTime() <= t && t < new Date(s.end).getTime(),
+    ) ??
+    arrived[0] ??
+    null
   );
 }
 

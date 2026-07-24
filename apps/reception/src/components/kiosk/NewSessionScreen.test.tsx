@@ -40,6 +40,9 @@ describe("NewSessionScreen", () => {
     );
     expect(html).toContain("Customer name");
     expect(html).toContain("Phone (optional)");
+    // Email powers the receipt + aftercare send at checkout.
+    expect(html).toContain("Email");
+    expect(html).toContain("rk-email");
     expect(html).toContain("Sarah");
     expect(html).toContain("Rhodri");
     expect(html).toContain("(out)"); // Rhodri isn't checked in

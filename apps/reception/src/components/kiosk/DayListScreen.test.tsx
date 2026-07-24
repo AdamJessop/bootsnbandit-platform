@@ -71,11 +71,14 @@ describe("DayListScreen", () => {
       />,
     );
     expect(html).toContain("3 booked · 1 complete · 1 consent flag to review");
-    expect(html).toContain("£150"); // takings so far
     expect(html).toContain("Form flagged");
     expect(html).toContain("No form yet");
-    expect(html).toContain("Complete · £150");
+    expect(html).toContain("Complete");
     expect(html).toContain("In session"); // flagged one is arrived + mid-window
     expect(html).toContain("Check out");
+    // Money never appears on the kiosk day list — no per-session amounts and
+    // no daily takings (the front desk screen is customer-visible).
+    expect(html).not.toContain("£");
+    expect(html).not.toContain("Takings");
   });
 });

@@ -764,6 +764,11 @@ textarea {
   flex-shrink: 0;
 }
 .rk-back {
+  /* Sits top-right, clear of the screen heading (markup keeps it first for
+     tap-order, flex order moves it visually). */
+  order: 1;
+  margin-left: auto;
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 9px;

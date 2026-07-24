@@ -4,12 +4,14 @@
  *  - Precache a minimal offline shell on install.
  *  - Navigations (HTML): network-first, falling back to the last-cached page,
  *    then to the offline shell — so read views work offline.
- *  - Static assets (GET, same-origin, non-API): stale-while-revalidate.
- *  - API + non-GET requests are never cached (always hit the network) so writes
- *    and auth stay correct.
+ *  - Immutable static assets ONLY (scripts, styles, images, fonts):
+ *    stale-while-revalidate.
+ *  - EVERYTHING else — API, non-GET, and crucially Next.js RSC data fetches
+ *    (router.refresh() payloads, destination "") — goes straight to the
+ *    network, so views are never one mutation stale.
  */
 
-const VERSION = "bnb-studio-v3";
+const VERSION = "bnb-studio-v4";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const OFFLINE_URL = "/";
@@ -43,6 +45,12 @@ function isApi(url) {
   return url.pathname.startsWith("/api/");
 }
 
+/** True only for immutable static assets that are safe to serve stale. */
+function isStaticAsset(request, url) {
+  if (url.pathname.startsWith("/_next/static/")) return true;
+  return ["script", "style", "image", "font"].includes(request.destination);
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -67,6 +75,11 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+
+  // Anything that isn't an immutable static asset (e.g. RSC data fetches,
+  // which arrive as GET with destination "") must always hit the network —
+  // stale payloads leave the UI one mutation behind.
+  if (!isStaticAsset(request, url)) return;
 
   // Static assets: stale-while-revalidate.
   event.respondWith(
