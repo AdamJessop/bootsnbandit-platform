@@ -3,6 +3,8 @@ import { ornDot } from "@/components/site";
 import { getGallery, getStyles, getArtists } from "../_data";
 import { GalleryBrowser, type BrowserItem } from "./GalleryBrowser";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Gallery · Boots 'n' Bandit",
   description:

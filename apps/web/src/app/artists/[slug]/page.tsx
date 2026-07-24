@@ -12,17 +12,14 @@ import {
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
-import { getArtist, getArtists, getArtistGallery } from "../../_data";
+import { getArtist, getArtistGallery } from "../../_data";
 import { formatPence } from "../../_format";
 import styles from "../artists.module.css";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  const artists = await getArtists();
-  return artists.map((a) => ({ slug: a.slug }));
 }
 
 export async function generateMetadata({

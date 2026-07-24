@@ -7,6 +7,8 @@ import { formatPence } from "../_format";
 import { groupByDeadline, flashStock, nextDropDeadline } from "./logic";
 import styles from "./flash.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Flash Drops · Boots 'n' Bandit",
   description:

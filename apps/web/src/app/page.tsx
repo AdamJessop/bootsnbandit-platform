@@ -35,6 +35,8 @@ import {
 import { formatPence } from "./_format";
 import { PassportCard } from "./passport/PassportCard";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Boots 'n' Bandit · Heritage Tattoo Studio in Worksop",
   description:

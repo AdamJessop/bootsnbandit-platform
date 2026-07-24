@@ -7,6 +7,8 @@ import { HealingTracker } from "./HealingTracker";
 import { FaqAccordion } from "./FaqAccordion";
 import styles from "./aftercare.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Aftercare · Boots 'n' Bandit",
   description:

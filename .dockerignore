@@ -1,0 +1,18 @@
+# Dependencies + build output (rebuilt inside the image)
+node_modules
+**/node_modules
+.next
+**/.next
+**/tsconfig.tsbuildinfo
+
+# VCS / env / local state — env vars come from compose, never baked in
+.git
+.env
+.env.*
+*.env
+
+# Not needed in images
+docs
+design-src
+.claude
+*.md

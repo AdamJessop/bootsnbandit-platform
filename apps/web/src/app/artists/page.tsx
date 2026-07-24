@@ -5,6 +5,8 @@ import { artistStatusLabel } from "@bnb/core/artist-status";
 import { getArtists } from "../_data";
 import { ArtistFilter } from "./ArtistFilter";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Our Artists · Boots 'n' Bandit",
   description:

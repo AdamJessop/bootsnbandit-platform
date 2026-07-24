@@ -16,6 +16,8 @@ import { getSiteSettings, getArtists } from "../_data";
 import { ContactForm } from "./ContactForm";
 import styles from "./studio.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "The Studio · Boots 'n' Bandit",
   description:
