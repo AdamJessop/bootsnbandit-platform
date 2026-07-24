@@ -1,0 +1,35 @@
+# Local smoke-test override for docker-compose.prod.yml — adds a throwaway
+# Postgres and host port bindings so the prod stack can be exercised on a dev
+# box. Never used by Coolify. Usage (see docs/DEPLOY.md):
+#   docker compose -f docker-compose.prod.yml -f docker-compose.local-test.yml \
+#     --env-file local-test.env up --build -d
+
+services:
+  postgres-test:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: bnb_test
+      POSTGRES_USER: bnb
+      POSTGRES_PASSWORD: bnb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bnb -d bnb_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+
+  web:
+    ports:
+      - "3000:3000"
+
+  admin:
+    ports:
+      - "3001:3001"
+
+  reception:
+    ports:
+      - "3002:3002"
