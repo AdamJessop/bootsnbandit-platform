@@ -121,5 +121,6 @@ services:
           sleep "$${CRON_INTERVAL_SECONDS}"
           curl -fsS -X POST -H "x-cron-secret: $${CRON_SECRET}" \
             http://admin:3001/api/cron/run \
+            && echo "" \
             || echo "cron tick failed (will retry next interval)"
         done

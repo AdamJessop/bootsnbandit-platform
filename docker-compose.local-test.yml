@@ -1,8 +1,12 @@
 # Local smoke-test override for docker-compose.prod.yml — adds a throwaway
 # Postgres and host port bindings so the prod stack can be exercised on a dev
-# box. Never used by Coolify. Usage (see docs/DEPLOY.md):
+# box. Never used by Coolify. Uses project name "bnb-smoke" (set below) so it
+# never collides with the dev stack's compose project. Usage (see
+# docs/DEPLOY.md):
 #   docker compose -f docker-compose.prod.yml -f docker-compose.local-test.yml \
 #     --env-file local-test.env up --build -d
+
+name: bnb-smoke
 
 services:
   postgres-test:
