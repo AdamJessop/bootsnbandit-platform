@@ -1,0 +1,125 @@
+# Production stack for Coolify — one compose file, one Dockerfile, four targets.
+#
+# Postgres is NOT in this stack: it is a separate Coolify-managed database
+# resource, reached via DATABASE_URL. The dev database lives in
+# docker-compose.yml (unchanged). All variables are documented in
+# .env.production.example and set in the Coolify UI. Coolify's Traefik proxy
+# routes a domain to each app service (no host port bindings here) — assign
+# the domain + container port per service in Coolify. See docs/DEPLOY.md.
+
+services:
+  # One-shot: applies pending Prisma migrations, then exits. The three apps
+  # only start after it succeeds, so a failed migration fails the deploy
+  # loudly instead of serving against an unmigrated schema.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      APP_ORIGIN: ${WEB_ORIGIN}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: admin
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3001"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      CRON_SECRET: ${CRON_SECRET}
+      APP_ORIGIN: ${ADMIN_ORIGIN}
+      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN}
+      RP_ID: ${RP_ID}
+      SESSION_COOKIE: bb_admin_session
+      AUTH_REDIRECT: /
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  reception:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: reception
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3002"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      APP_ORIGIN: ${RECEPTION_ORIGIN}
+      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN}
+      RP_ID: ${RP_ID}
+      SESSION_COOKIE: bb_reception_session
+      AUTH_REDIRECT: /
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # CRM cron scheduler: curls the admin cron endpoint on an interval. Every
+  # job behind the endpoint is idempotent, so a failed tick is logged and
+  # simply retried next interval — the loop never exits.
+  cron:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    depends_on:
+      admin:
+        condition: service_healthy
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+      CRON_INTERVAL_SECONDS: ${CRON_INTERVAL_SECONDS:-3600}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "cron sidecar: hitting admin every $${CRON_INTERVAL_SECONDS}s"
+        while true; do
+          sleep "$${CRON_INTERVAL_SECONDS}"
+          curl -fsS -X POST -H "x-cron-secret: $${CRON_SECRET}" \
+            http://admin:3001/api/cron/run \
+            || echo "cron tick failed (will retry next interval)"
+        done
