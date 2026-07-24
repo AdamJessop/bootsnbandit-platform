@@ -27,13 +27,16 @@ comes from env vars.
    terminates TLS and routes to the container ports.
 5. **Deploy.** Order per deploy: `migrate` runs `prisma migrate deploy` and
    must exit 0 before the apps start; the `cron` sidecar starts once admin is
-   healthy and then hits `POST /api/cron/run` every `CRON_INTERVAL_SECONDS`
-   (default hourly).
+   healthy and immediately fires its first `POST /api/cron/run`, then
+   repeats every `CRON_INTERVAL_SECONDS` (default hourly).
 
 ## One-off operations
 
 Run from the Coolify terminal on the server (or SSH), in the compose
-project directory:
+project directory: these `docker compose ... run` commands must be executed
+from Coolify's generated project directory (where its env file lives) so
+`DATABASE_URL` interpolates correctly — or pass it explicitly with
+`-e DATABASE_URL=...`.
 
 - **Seed the database** (optional, first boot only):
   `docker compose -f docker-compose.prod.yml run --rm migrate npx tsx prisma/seed.ts`
@@ -65,3 +68,6 @@ in `docker-compose.local-test.yml`), so it cannot collide with the dev Postgres 
   `force-dynamic`, so they always reflect current DB content without relying
   on build-time prerendering.
 - The dev database in `docker-compose.yml` is untouched by all of this.
+- On first deploy, verify Coolify's UI doesn't report the stack degraded due
+  to the intentionally-exited one-shot `migrate` service; if it does,
+  exclude `migrate` from health status in Coolify's settings.

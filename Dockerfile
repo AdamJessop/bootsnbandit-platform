@@ -76,4 +76,6 @@ CMD ["node", "apps/reception/server.js"]
 FROM deps AS migrate
 COPY packages/core packages/core
 WORKDIR /app/packages/core
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+USER nextjs
 CMD ["npx", "prisma", "migrate", "deploy"]

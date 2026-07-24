@@ -18,7 +18,7 @@ services:
       target: migrate
     restart: "no"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
 
   web:
     build:
@@ -32,11 +32,11 @@ services:
     expose:
       - "3000"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      APP_ORIGIN: ${WEB_ORIGIN}
+      APP_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -56,14 +56,14 @@ services:
     expose:
       - "3001"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      CRON_SECRET: ${CRON_SECRET}
-      APP_ORIGIN: ${ADMIN_ORIGIN}
-      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN}
-      RP_ID: ${RP_ID}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
+      APP_ORIGIN: ${ADMIN_ORIGIN:?ADMIN_ORIGIN is required}
+      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      RP_ID: ${RP_ID:?RP_ID is required}
       SESSION_COOKIE: bb_admin_session
       AUTH_REDIRECT: /
     healthcheck:
@@ -85,13 +85,13 @@ services:
     expose:
       - "3002"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-}
-      APP_ORIGIN: ${RECEPTION_ORIGIN}
-      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN}
-      RP_ID: ${RP_ID}
+      APP_ORIGIN: ${RECEPTION_ORIGIN:?RECEPTION_ORIGIN is required}
+      PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      RP_ID: ${RP_ID:?RP_ID is required}
       SESSION_COOKIE: bb_reception_session
       AUTH_REDIRECT: /
     healthcheck:
@@ -111,16 +111,15 @@ services:
       admin:
         condition: service_healthy
     environment:
-      CRON_SECRET: ${CRON_SECRET}
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
       CRON_INTERVAL_SECONDS: ${CRON_INTERVAL_SECONDS:-3600}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         echo "cron sidecar: hitting admin every $${CRON_INTERVAL_SECONDS}s"
         while true; do
-          sleep "$${CRON_INTERVAL_SECONDS}"
           curl -fsS -X POST -H "x-cron-secret: $${CRON_SECRET}" \
-            http://admin:3001/api/cron/run \
-            && echo "" \
+            http://admin:3001/api/cron/run -w "\n" \
             || echo "cron tick failed (will retry next interval)"
+          sleep "$${CRON_INTERVAL_SECONDS}"
         done
