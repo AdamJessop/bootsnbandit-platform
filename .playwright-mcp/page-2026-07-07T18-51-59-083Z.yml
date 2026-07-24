@@ -1,0 +1,13 @@
+- generic [active]:
+  - generic [ref=f1e5] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=f1e6]:
+      - img [ref=f1e7]
+    - generic [ref=f1e10]:
+      - button "Open issues overlay" [ref=f1e11]:
+        - generic [ref=f1e12]:
+          - generic [ref=f1e13]: "0"
+          - generic [ref=f1e14]: "1"
+        - generic [ref=f1e15]: Issue
+      - button "Collapse issues badge" [ref=f1e16]:
+        - img [ref=f1e17]
+  - alert [ref=f1e19]

@@ -1,0 +1,171 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - generic [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - generic [ref=f4e6]:
+          - text: Now taking enquiries · Summer 2026
+          - generic [ref=f4e7]: ✦
+        - generic [ref=f4e8]:
+          - text: Flash drop this Saturday
+          - generic [ref=f4e9]: ✦
+        - generic [ref=f4e10]:
+          - text: Free 15-min consultations
+          - generic [ref=f4e11]: ✦
+        - generic [ref=f4e12]:
+          - text: Sarah & Marnie · books open
+          - generic [ref=f4e13]: ✦
+        - generic [ref=f4e14]:
+          - text: Walk-ins when the chairs are free
+          - generic [ref=f4e15]: ✦
+        - generic [ref=f4e16]:
+          - text: Worksop, Nottinghamshire
+          - generic [ref=f4e17]: ✦
+      - generic [ref=f4e18]:
+        - generic [ref=f4e19]:
+          - text: Now taking enquiries · Summer 2026
+          - generic [ref=f4e20]: ✦
+        - generic [ref=f4e21]:
+          - text: Flash drop this Saturday
+          - generic [ref=f4e22]: ✦
+        - generic [ref=f4e23]:
+          - text: Free 15-min consultations
+          - generic [ref=f4e24]: ✦
+        - generic [ref=f4e25]:
+          - text: Sarah & Marnie · books open
+          - generic [ref=f4e26]: ✦
+        - generic [ref=f4e27]:
+          - text: Walk-ins when the chairs are free
+          - generic [ref=f4e28]: ✦
+        - generic [ref=f4e29]:
+          - text: Worksop, Nottinghamshire
+          - generic [ref=f4e30]: ✦
+    - navigation [ref=f4e31]:
+      - generic [ref=f4e32]:
+        - link "Boots 'n' Bandit" [ref=f4e33] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f4e35]:
+            - generic [ref=f4e36]: Boots ’n’ Bandit
+            - generic [ref=f4e37]: Tattoo Studio
+        - generic [ref=f4e38]:
+          - link "Bandit Pass" [ref=f4e39] [cursor=pointer]:
+            - /url: /passport
+            - img [ref=f4e40]
+          - link "Make an enquiry" [ref=f4e43] [cursor=pointer]:
+            - /url: /enquire
+          - button "Menu" [ref=f4e44] [cursor=pointer]:
+            - img [ref=f4e45]
+    - main [ref=f4e46]:
+      - generic [ref=f4e601]:
+        - generic [ref=f4e602]: Inkling
+        - heading "Find your artist" [level=1] [ref=f4e603]
+        - paragraph [ref=f4e604]: Not sure where to start? Answer a few questions to get matched, or gather inspiration into a mood board and send it to the studio.
+      - generic [ref=f4e607]:
+        - tablist [ref=f4e608]:
+          - tab "Style Matcher" [selected] [ref=f4e609] [cursor=pointer]
+          - tab "Mood Board" [ref=f4e610] [cursor=pointer]
+        - generic [ref=f4e611]:
+          - heading "Style Matcher" [level=2] [ref=f4e612]
+          - paragraph [ref=f4e613]: Answer a few questions and we’ll rank the artists whose work fits best. Deterministic — no AI.
+          - generic [ref=f4e614]:
+            - paragraph [ref=f4e615]: What's the overall vibe?
+            - generic [ref=f4e616]:
+              - button "Bold & traditional" [ref=f4e617] [cursor=pointer]
+              - button "Delicate & fine-line" [ref=f4e618] [cursor=pointer]
+              - button "Dark & moody" [ref=f4e619] [cursor=pointer]
+              - button "Playful & colourful" [ref=f4e620] [cursor=pointer]
+              - button "Lifelike & realistic" [ref=f4e621] [cursor=pointer]
+              - button "Geometric & precise" [ref=f4e622] [cursor=pointer]
+          - generic [ref=f4e623]:
+            - paragraph [ref=f4e624]: What's the subject?
+            - generic [ref=f4e625]:
+              - button "An animal" [ref=f4e626] [cursor=pointer]
+              - button "Florals or botanical" [ref=f4e627] [cursor=pointer]
+              - button "A portrait" [ref=f4e628] [cursor=pointer]
+              - button "Words or lettering" [ref=f4e629] [cursor=pointer]
+              - button "Pattern or ornamental" [ref=f4e630] [cursor=pointer]
+              - button "Anime or character" [ref=f4e631] [cursor=pointer]
+              - button "Not sure yet" [ref=f4e632] [cursor=pointer]
+          - generic [ref=f4e633]:
+            - paragraph [ref=f4e634]: Colour or black & grey?
+            - generic [ref=f4e635]:
+              - button "Black & grey" [ref=f4e636] [cursor=pointer]
+              - button "Bold colour" [ref=f4e637] [cursor=pointer]
+              - button "A touch of colour" [ref=f4e638] [cursor=pointer]
+          - generic [ref=f4e639]:
+            - paragraph [ref=f4e640]: Roughly where on the body?
+            - generic [ref=f4e641]:
+              - button "Forearm" [ref=f4e642] [cursor=pointer]
+              - button "Upper arm" [ref=f4e643] [cursor=pointer]
+              - button "Shoulder" [ref=f4e644] [cursor=pointer]
+              - button "Back" [ref=f4e645] [cursor=pointer]
+              - button "Chest" [ref=f4e646] [cursor=pointer]
+              - button "Ribs" [ref=f4e647] [cursor=pointer]
+              - button "Thigh" [ref=f4e648] [cursor=pointer]
+              - button "Calf" [ref=f4e649] [cursor=pointer]
+              - button "Hand" [ref=f4e650] [cursor=pointer]
+              - button "Neck" [ref=f4e651] [cursor=pointer]
+          - generic [ref=f4e652]:
+            - paragraph [ref=f4e653]: How much ink have you got already?
+            - generic [ref=f4e654]:
+              - button "This is my first" [ref=f4e655] [cursor=pointer]
+              - button "A few pieces" [ref=f4e656] [cursor=pointer]
+              - button "Heavily tattooed" [ref=f4e657] [cursor=pointer]
+          - button "Match me" [disabled] [ref=f4e659]
+    - contentinfo [ref=f4e553]:
+      - generic [ref=f4e554]:
+        - generic [ref=f4e555]:
+          - generic [ref=f4e556]:
+            - paragraph [ref=f4e558]: Heritage tattooing in Worksop. Custom work, flash drops and the Bandit Pass — proper brew included.
+            - generic [ref=f4e559]:
+              - link "Instagram" [ref=f4e560] [cursor=pointer]:
+                - /url: https://instagram.com/bootsnbandit
+                - img [ref=f4e561]
+              - link "Facebook" [ref=f4e564] [cursor=pointer]:
+                - /url: https://www.facebook.com/profile.php?id=61562021309387
+                - img [ref=f4e565]
+          - generic [ref=f4e568]:
+            - heading "Explore" [level=6] [ref=f4e569]
+            - generic [ref=f4e570]:
+              - link "Home" [ref=f4e571] [cursor=pointer]:
+                - /url: /
+              - link "Artists" [ref=f4e572] [cursor=pointer]:
+                - /url: /artists
+              - link "Gallery" [ref=f4e573] [cursor=pointer]:
+                - /url: /gallery
+              - link "Inkling" [ref=f4e574] [cursor=pointer]:
+                - /url: /inkling
+              - link "Enquire" [ref=f4e575] [cursor=pointer]:
+                - /url: /enquire
+              - link "Flash" [ref=f4e576] [cursor=pointer]:
+                - /url: /flash
+              - link "Aftercare" [ref=f4e577] [cursor=pointer]:
+                - /url: /aftercare
+              - link "Studio" [ref=f4e578] [cursor=pointer]:
+                - /url: /studio
+              - link "Sign in" [ref=f4e579] [cursor=pointer]:
+                - /url: /account/sign-in
+          - generic [ref=f4e580]:
+            - heading "Visit" [level=6] [ref=f4e581]
+            - generic [ref=f4e582]:
+              - generic [ref=f4e583]:
+                - img [ref=f4e584]
+                - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+              - generic [ref=f4e587]:
+                - img [ref=f4e588]
+                - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+              - link "01909 000 000" [ref=f4e591] [cursor=pointer]:
+                - /url: tel:01909000000
+                - img [ref=f4e592]
+                - text: 01909 000 000
+          - generic [ref=f4e594]:
+            - heading "The Studio" [level=6] [ref=f4e595]
+            - paragraph [ref=f4e596]:
+              - text: Boots 'n' Bandit Tattoo Studio
+              - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+              - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+        - generic [ref=f4e597]:
+          - generic [ref=f4e598]: © 2026 Boots 'n' Bandit Tattoo Studio. All rights reserved.
+          - generic [ref=f4e599]: Fully licensed studio · Worksop, Nottinghamshire
+  - button "Open Next.js Dev Tools" [ref=f4e665] [cursor=pointer]:
+    - img [ref=f4e666]
+  - alert [ref=f4e669]: Boots 'n' Bandit — Tattoo Studio, Worksop

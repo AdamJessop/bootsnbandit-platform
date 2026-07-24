@@ -19,4 +19,5 @@ export { Chip } from "./Chip";
 export { Tag, type TagTone } from "./Tag";
 export { Field } from "./Field";
 export { StatusBadge } from "./StatusBadge";
+export { StyleShowcase } from "./StyleShowcase";
 export type { Artist, GalleryItem } from "./types";

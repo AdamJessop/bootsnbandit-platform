@@ -1,25 +1,17 @@
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
-import { CrudSection, type CrudField } from "../_components/CrudSection";
+import { CrudSection } from "../_components/CrudSection";
 import { createRow, deleteRow, updateRow, type CrudConfig } from "../_lib/crud";
-import type { FieldSpec } from "../_lib/coerce";
+import { FIELDS, SPEC } from "./fields";
 
 /** Styles CMS (J4) — the tattoo styles list. Owner-only. */
 export const dynamic = "force-dynamic";
 
-const SPEC: FieldSpec[] = [
-  { name: "name", kind: "string" },
-  { name: "sortOrder", kind: "int" },
-];
 const CFG: CrudConfig = {
   model: "tattooStyle",
   spec: SPEC,
   revalidate: "/content/styles",
 };
-const FIELDS: CrudField[] = [
-  { name: "name", label: "Style", type: "text", required: true },
-  { name: "sortOrder", label: "Order", type: "number" },
-];
 
 export default async function StylesContentPage() {
   await requireRole("OWNER");
@@ -33,7 +25,8 @@ export default async function StylesContentPage() {
         Styles
       </h1>
       <p className="mt-2 mb-6 text-text-muted">
-        Manage the tattoo styles list.
+        Manage the tattoo styles list. Order also controls the position of
+        showcase tiles on the home page.
       </p>
       <CrudSection
         fields={FIELDS}

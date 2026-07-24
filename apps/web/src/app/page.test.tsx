@@ -55,6 +55,7 @@ vi.mock("./_data", () => ({
     },
   ]),
   getPublishedReviews: vi.fn(async () => []),
+  getStyleShowcase: vi.fn(async () => []),
 }));
 
 describe("HomePage", () => {
@@ -75,6 +76,43 @@ describe("HomePage", () => {
     expect(html).toContain('src="/uploads/gallery/snake.jpg"');
     // < 3 published reviews → sample quotes fill the band.
     expect(html).toContain("Hannah M.");
+  });
+
+  it("shows the abstract teaser plate when no styles have images", async () => {
+    const { default: HomePage } = await import("./page");
+    const html = renderToStaticMarkup(await HomePage());
+    // The teaser fallback art is a unique crimson radial gradient.
+    expect(html).toContain("rgba(201,47,77,.22)");
+    expect(html).not.toContain("style-showcase");
+  });
+
+  it("renders the style showcase grid linking to the matcher when styles have images", async () => {
+    const data = await import("./_data");
+    vi.mocked(data.getStyleShowcase).mockResolvedValueOnce([
+      { name: "Blackwork", image: "/uploads/styles/blackwork.jpg" },
+      { name: "Fine-line", image: "/uploads/styles/fineline.jpg" },
+    ]);
+    const { default: HomePage } = await import("./page");
+    const html = renderToStaticMarkup(await HomePage());
+    expect(html).toContain('src="/uploads/styles/blackwork.jpg"');
+    expect(html).toContain('src="/uploads/styles/fineline.jpg"');
+    expect(html).toContain("Blackwork");
+    expect(html).toContain('href="/inkling?tab=match"');
+    expect(html).toContain('data-cols="2"');
+    expect(html).not.toContain("rgba(201,47,77,.22)");
+  });
+
+  it("uses a 3-column grid when more than four styles have images", async () => {
+    const data = await import("./_data");
+    vi.mocked(data.getStyleShowcase).mockResolvedValueOnce(
+      ["Blackwork", "Fine-line", "Realism", "Japanese", "Colour"].map((n) => ({
+        name: n,
+        image: `/uploads/styles/${n.toLowerCase()}.jpg`,
+      })),
+    );
+    const { default: HomePage } = await import("./page");
+    const html = renderToStaticMarkup(await HomePage());
+    expect(html).toContain('data-cols="3"');
   });
 
   it("uses published reviews when there are at least 3", async () => {

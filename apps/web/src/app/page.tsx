@@ -17,6 +17,7 @@ import {
   StatTile,
   ArtistCard,
   GalleryTile,
+  StyleShowcase,
   ArtistAvatar,
   Stars,
   type Artist as ArtistProp,
@@ -28,6 +29,7 @@ import {
   getGallery,
   getFlash,
   getPublishedReviews,
+  getStyleShowcase,
   type SiteReview,
 } from "./_data";
 import { formatPence } from "./_format";
@@ -95,12 +97,14 @@ const SAMPLE_REVIEWS: SiteReview[] = [
 ];
 
 export default async function HomePage() {
-  const [artists, gallery, flash, publishedReviews] = await Promise.all([
-    getArtists(),
-    getGallery(),
-    getFlash(),
-    getPublishedReviews(3),
-  ]);
+  const [artists, gallery, flash, publishedReviews, styleShowcase] =
+    await Promise.all([
+      getArtists(),
+      getGallery(),
+      getFlash(),
+      getPublishedReviews(3),
+      getStyleShowcase(),
+    ]);
 
   const homeArtists = artists.slice(0, 4);
   const homeGallery = gallery.slice(0, 8);
@@ -204,19 +208,7 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="ai-teaser-art">
-              <div
-                style={{ aspectRatio: "1/1", borderRadius: "var(--radius)" }}
-                className="plate"
-              >
-                <div
-                  className="plate-art"
-                  aria-hidden
-                  style={{
-                    background:
-                      "radial-gradient(120% 120% at 30% 20%, rgba(201,47,77,.22), transparent 60%)",
-                  }}
-                />
-              </div>
+              <StyleShowcase styles={styleShowcase} />
               <div className="ai-core">
                 <Sparkles className="ic" />
               </div>

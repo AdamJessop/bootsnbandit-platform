@@ -212,6 +212,7 @@ model Artist {
   availabilityRules AvailabilityRule[]
   leave            Leave[]
   calendarFeed     CalendarFeed?
+  staffCheckins    StaffCheckin[]
 
   @@index([booksStatus])
   @@index([sortOrder])
@@ -315,20 +316,38 @@ model Booking {
   notes              String?
   remindersOptIn     Boolean       @default(true)
   cancelRequestedAt  DateTime?
+  checkedInAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  artist   Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  enquiry  Enquiry?  @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
-  session  Session?
-  messages MessageLog[]
-  reviews  Review[]
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  artist      Artist       @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  enquiry     Enquiry?     @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  session     Session?
+  consentForm ConsentForm?
+  messages    MessageLog[]
+  reviews     Review[]
 
   @@index([artistId, start])
   @@index([customerId])
   @@index([status])
   @@index([start])
+}
+
+// Reception kiosk: digital consent form signed by the customer at check-in.
+// Answers are the yes/no medical-history questionnaire (question id → boolean);
+// `flagged` marks any needs-review answer so the front desk can have a word
+// before the session starts. Signature is a data-URL PNG from the kiosk pad.
+model ConsentForm {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  answers   Json
+  flagged   Boolean  @default(false)
+  signature String
+  signedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }
 
 model Session {
@@ -345,6 +364,24 @@ model Session {
   updatedAt         DateTime  @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+// Reception kiosk: which artists are on the floor each day. One row per
+// artist per calendar day (date is midnight local); checkedOutAt set when they
+// tap out again. The board shows checked-in artists as "on the floor".
+model StaffCheckin {
+  id           String    @id @default(cuid())
+  artistId     String
+  date         DateTime  @db.Date
+  checkedInAt  DateTime  @default(now())
+  checkedOutAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([artistId, date])
+  @@index([date])
 }
 
 // ---------------------------------------------------------------------------
@@ -429,6 +466,7 @@ model Flash {
 model TattooStyle {
   id        String   @id @default(cuid())
   name      String   @unique
+  image     String?
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

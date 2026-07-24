@@ -7,9 +7,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm -w @bnb/web run dev & npm -w @bnb/admin run dev",
+    "dev": "npm -w @bnb/web run dev & npm -w @bnb/admin run dev & npm -w @bnb/reception run dev",
     "dev:web": "npm -w @bnb/web run dev",
     "dev:admin": "npm -w @bnb/admin run dev",
+    "dev:reception": "npm -w @bnb/reception run dev",
     "build": "npm run db:generate && npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",

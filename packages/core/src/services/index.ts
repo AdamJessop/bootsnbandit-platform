@@ -10,3 +10,4 @@ export * from "./reports";
 export * from "./flash";
 export * from "./loyalty";
 export * from "./match";
+export * from "./reception";

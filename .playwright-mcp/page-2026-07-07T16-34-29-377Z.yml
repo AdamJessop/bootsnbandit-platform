@@ -1,0 +1,12 @@
+- main [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - paragraph [ref=f1e5]: Back of house
+      - heading "Boots ’n’ Bandit" [level=1] [ref=f1e6]
+      - paragraph [ref=f1e7]: Sign in with your passkey
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e10]: Studio email
+        - textbox "Studio email" [ref=f1e11]:
+          - /placeholder: you@bootsnbandit.studio
+      - button "Sign in with passkey" [ref=f1e12] [cursor=pointer]

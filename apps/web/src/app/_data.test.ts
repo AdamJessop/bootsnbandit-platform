@@ -7,6 +7,7 @@ const prisma = vi.hoisted(() => ({
   galleryItem: { findMany: vi.fn() },
   flash: { findMany: vi.fn() },
   review: { findMany: vi.fn() },
+  tattooStyle: { findMany: vi.fn() },
 }));
 vi.mock("server-only", () => ({}));
 vi.mock("@bnb/core/db", () => ({ prisma }));
@@ -23,6 +24,7 @@ describe("_data module surface", () => {
       "getFlash",
       "getPublishedReviews",
       "getStyles",
+      "getStyleShowcase",
       "getAftercareStages",
       "getFaqs",
       "getSiteSettings",
@@ -138,6 +140,33 @@ describe("getPublishedReviews mapping", () => {
       expect.objectContaining({
         where: { status: "published", body: { not: null } },
         take: 3,
+      }),
+    );
+  });
+});
+
+describe("getStyleShowcase mapping", () => {
+  it("returns only styles with a non-empty image, in sortOrder", async () => {
+    prisma.tattooStyle.findMany.mockResolvedValueOnce([
+      { name: "Japanese", image: "/uploads/styles/japanese.jpg" },
+      { name: "Blackwork", image: null },
+      { name: "Fine Line", image: "" },
+      { name: "Traditional", image: "/uploads/styles/traditional.jpg" },
+    ]);
+    const showcase = await data.getStyleShowcase();
+    expect(showcase).toEqual([
+      { name: "Japanese", image: "/uploads/styles/japanese.jpg" },
+      { name: "Traditional", image: "/uploads/styles/traditional.jpg" },
+    ]);
+  });
+
+  it("queries only styles with a non-null image, ordered by sortOrder", async () => {
+    prisma.tattooStyle.findMany.mockResolvedValueOnce([]);
+    await data.getStyleShowcase();
+    expect(prisma.tattooStyle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { image: { not: null } },
+        orderBy: { sortOrder: "asc" },
       }),
     );
   });

@@ -29,9 +29,7 @@ describe("AppShell module", () => {
 describe("AppShell branding", () => {
   it("renders the bb-logo image in the sidebar brand", async () => {
     const { renderToStaticMarkup } = await import("react-dom/server");
-    const html = renderToStaticMarkup(
-      <AppShell role="owner">{null}</AppShell>,
-    );
+    const html = renderToStaticMarkup(<AppShell role="owner">{null}</AppShell>);
     expect(html).toContain("/bb-logo.png");
   });
 });

@@ -8,7 +8,12 @@ vi.mock("@bnb/core/db", () => ({
   prisma: {
     tattooStyle: {
       findMany: vi.fn(async () => [
-        { id: "s1", name: "Traditional", sortOrder: 0 },
+        {
+          id: "s1",
+          name: "Traditional",
+          sortOrder: 0,
+          image: "/uploads/styles/example.jpg",
+        },
       ]),
     },
   },
@@ -25,5 +30,11 @@ describe("StylesContentPage", () => {
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Styles");
     expect(html).toContain("Traditional");
+  });
+
+  it("notes that Order curates the home page showcase", async () => {
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page());
+    expect(html).toContain("showcase tiles on the home page");
   });
 });

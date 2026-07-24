@@ -1,0 +1,457 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - text: Now taking enquiries · Summer 2026
+        - generic [ref=e7]: ✦
+      - generic [ref=e8]:
+        - text: Flash drop this Saturday
+        - generic [ref=e9]: ✦
+      - generic [ref=e10]:
+        - text: Free 15-min consultations
+        - generic [ref=e11]: ✦
+      - generic [ref=e12]:
+        - text: Sarah & Marnie · books open
+        - generic [ref=e13]: ✦
+      - generic [ref=e14]:
+        - text: Walk-ins when the chairs are free
+        - generic [ref=e15]: ✦
+      - generic [ref=e16]:
+        - text: Worksop, Nottinghamshire
+        - generic [ref=e17]: ✦
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - text: Now taking enquiries · Summer 2026
+        - generic [ref=e20]: ✦
+      - generic [ref=e21]:
+        - text: Flash drop this Saturday
+        - generic [ref=e22]: ✦
+      - generic [ref=e23]:
+        - text: Free 15-min consultations
+        - generic [ref=e24]: ✦
+      - generic [ref=e25]:
+        - text: Sarah & Marnie · books open
+        - generic [ref=e26]: ✦
+      - generic [ref=e27]:
+        - text: Walk-ins when the chairs are free
+        - generic [ref=e28]: ✦
+      - generic [ref=e29]:
+        - text: Worksop, Nottinghamshire
+        - generic [ref=e30]: ✦
+  - navigation [ref=e31]:
+    - generic [ref=e32]:
+      - link "Boots 'n' Bandit" [ref=e33] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e35]:
+          - generic [ref=e36]: Boots ’n’ Bandit
+          - generic [ref=e37]: Tattoo Studio
+      - generic [ref=e38]:
+        - link "Bandit Pass" [ref=e39] [cursor=pointer]:
+          - /url: /passport
+          - img [ref=e40]
+        - link "Make an enquiry" [ref=e43] [cursor=pointer]:
+          - /url: /enquire
+        - button "Menu" [ref=e44] [cursor=pointer]:
+          - img [ref=e45]
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e51]:
+          - generic [ref=e52]: Books open · now taking Summer 2026
+          - heading "Boots ’n’ Bandit" [level=1] [ref=e54]
+          - paragraph [ref=e59]: Heritage tattooing in Worksop. Seven resident artists, custom work from fine-line to blackwork, and a proper brew while you wait.
+          - generic [ref=e60]:
+            - link "Make an enquiry" [ref=e61] [cursor=pointer]:
+              - /url: /enquire
+            - link "Find my artist with Inkling" [ref=e62] [cursor=pointer]:
+              - /url: /inkling
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - img [ref=e65]
+              - text: 67 Newcastle Avenue, Worksop
+            - generic [ref=e68]:
+              - img [ref=e69]
+              - text: 4.9 from 380+ reviews
+            - generic [ref=e71]:
+              - img [ref=e72]
+              - text: Fully licensed studio
+        - img [ref=e75]
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]: "7"
+          - generic [ref=e82]: Resident artists
+        - generic [ref=e83]:
+          - generic [ref=e84]: 10+
+          - generic [ref=e85]: Years in Worksop
+        - generic [ref=e86]:
+          - generic [ref=e87]: "4.9"
+          - generic [ref=e88]: Average rating
+        - generic [ref=e89]:
+          - generic [ref=e90]: 12k+
+          - generic [ref=e91]: Pieces & counting
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - generic [ref=e96]: Inkling
+          - heading "Not sure where to start?" [level=2] [ref=e97]
+          - paragraph [ref=e98]: Let Inkling point you in the right direction — match to an artist or gather your inspiration in one place.
+          - generic [ref=e99]:
+            - link "Style Matcher Answer a few questions, get matched to the right artist." [ref=e100] [cursor=pointer]:
+              - /url: /inkling?tab=match
+              - img [ref=e102]
+              - generic [ref=e105]:
+                - generic [ref=e106]: Style Matcher
+                - text: Answer a few questions, get matched to the right artist.
+              - img [ref=e107]
+            - link "Mood Board Gather inspiration from the web and our work into one board." [ref=e109] [cursor=pointer]:
+              - /url: /inkling?tab=mood
+              - img [ref=e111]
+              - generic [ref=e115]:
+                - generic [ref=e116]: Mood Board
+                - text: Gather inspiration from the web and our work into one board.
+              - img [ref=e117]
+        - img [ref=e120]
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - generic [ref=e126]:
+            - generic [ref=e127]:
+              - img [ref=e128]
+              - text: The crew
+            - heading "Meet the artists" [level=2] [ref=e130]
+          - link "All artists" [ref=e132] [cursor=pointer]:
+            - /url: /artists
+        - generic [ref=e133]:
+          - link "Sarah" [ref=e134] [cursor=pointer]:
+            - /url: /artists/sarah
+            - generic [ref=e135]:
+              - img "Sarah" [ref=e138]
+              - generic [ref=e139]:
+                - generic [ref=e140]: Sarah
+                - generic [ref=e141]: Co-owner
+            - generic [ref=e142]:
+              - generic [ref=e143]: Sarah
+              - paragraph [ref=e144]: Fine-line, florals & black-and-grey
+              - generic [ref=e145]:
+                - generic [ref=e146]: Books open
+                - generic "4.9 out of 5" [ref=e148]:
+                  - img [ref=e149]
+                  - img [ref=e151]
+                  - img [ref=e153]
+                  - img [ref=e155]
+                  - img [ref=e157]
+          - link "Calum" [ref=e159] [cursor=pointer]:
+            - /url: /artists/cal
+            - generic [ref=e160]:
+              - img "Calum" [ref=e163]
+              - generic [ref=e164]:
+                - generic [ref=e165]: Calum
+                - generic [ref=e166]: Co-owner
+            - generic [ref=e167]:
+              - generic [ref=e168]: Calum
+              - paragraph [ref=e169]: Black & grey realism & chicano
+              - generic [ref=e170]:
+                - generic [ref=e171]: Limited slots
+                - generic "5 out of 5" [ref=e173]:
+                  - img [ref=e174]
+                  - img [ref=e176]
+                  - img [ref=e178]
+                  - img [ref=e180]
+                  - img [ref=e182]
+          - link "Amy" [ref=e184] [cursor=pointer]:
+            - /url: /artists/marnie
+            - generic [ref=e185]:
+              - img "Amy" [ref=e188]
+              - generic [ref=e189]:
+                - generic [ref=e190]: Amy
+                - generic [ref=e191]: Resident Artist
+            - generic [ref=e192]:
+              - generic [ref=e193]: Amy
+              - paragraph [ref=e194]: Fine-line, botanical & dotwork
+              - generic [ref=e195]:
+                - generic [ref=e196]: Books open
+                - generic "4.8 out of 5" [ref=e198]:
+                  - img [ref=e199]
+                  - img [ref=e201]
+                  - img [ref=e203]
+                  - img [ref=e205]
+                  - img [ref=e207]
+          - link "Alisha" [ref=e209] [cursor=pointer]:
+            - /url: /artists/rhodri
+            - generic [ref=e210]:
+              - img "Alisha" [ref=e213]
+              - generic [ref=e214]:
+                - generic [ref=e215]: Alisha
+                - generic [ref=e216]: Resident Artist
+            - generic [ref=e217]:
+              - generic [ref=e218]: Alisha
+              - paragraph [ref=e219]: Colour, realism & neo-traditional
+              - generic [ref=e220]:
+                - generic [ref=e221]: Limited slots
+                - generic "4.9 out of 5" [ref=e223]:
+                  - img [ref=e224]
+                  - img [ref=e226]
+                  - img [ref=e228]
+                  - img [ref=e230]
+                  - img [ref=e232]
+      - generic [ref=e235]:
+        - generic [ref=e236]:
+          - generic [ref=e237]:
+            - generic [ref=e238]:
+              - img [ref=e239]
+              - text: Fresh ink
+            - heading "Recent work" [level=2] [ref=e241]
+          - link "Full gallery" [ref=e243] [cursor=pointer]:
+            - /url: /gallery
+        - generic [ref=e244]:
+          - button "Ornamental snake & dagger" [ref=e245] [cursor=pointer]:
+            - generic [ref=e246]:
+              - img [ref=e250]
+              - generic [ref=e254]:
+                - generic [ref=e255]: Ornamental snake & dagger
+                - generic [ref=e256]: Fine-line
+            - generic [ref=e257]:
+              - generic [ref=e258]: Sarah
+              - generic [ref=e259]:
+                - img [ref=e260]
+                - text: View piece
+          - button "Red ink floral sleeve" [ref=e263] [cursor=pointer]:
+            - generic [ref=e264]:
+              - img [ref=e268]
+              - generic [ref=e272]:
+                - generic [ref=e273]: Red ink floral sleeve
+                - generic [ref=e274]: Colour
+            - generic [ref=e275]:
+              - generic [ref=e276]: Sarah
+              - generic [ref=e277]:
+                - img [ref=e278]
+                - text: View piece
+          - button "Tiger & geometric sleeve" [ref=e281] [cursor=pointer]:
+            - generic [ref=e282]:
+              - img [ref=e286]
+              - generic [ref=e290]:
+                - generic [ref=e291]: Tiger & geometric sleeve
+                - generic [ref=e292]: Realism
+            - generic [ref=e293]:
+              - generic [ref=e294]: Holly
+              - generic [ref=e295]:
+                - img [ref=e296]
+                - text: View piece
+          - button "Vegas & Colosseum panels" [ref=e299] [cursor=pointer]:
+            - generic [ref=e300]:
+              - img [ref=e304]
+              - generic [ref=e308]:
+                - generic [ref=e309]: Vegas & Colosseum panels
+                - generic [ref=e310]: Realism
+            - generic [ref=e311]:
+              - generic [ref=e312]: Sarah
+              - generic [ref=e313]:
+                - img [ref=e314]
+                - text: View piece
+          - button "Chicano girl & cards" [ref=e317] [cursor=pointer]:
+            - generic [ref=e318]:
+              - img [ref=e322]
+              - generic [ref=e326]:
+                - generic [ref=e327]: Chicano girl & cards
+                - generic [ref=e328]: Realism
+            - generic [ref=e329]:
+              - generic [ref=e330]: Sarah
+              - generic [ref=e331]:
+                - img [ref=e332]
+                - text: View piece
+          - button "Davy Jones hand piece" [ref=e335] [cursor=pointer]:
+            - generic [ref=e336]:
+              - img [ref=e340]
+              - generic [ref=e344]:
+                - generic [ref=e345]: Davy Jones hand piece
+                - generic [ref=e346]: Realism
+            - generic [ref=e347]:
+              - generic [ref=e348]: Olivia
+              - generic [ref=e349]:
+                - img [ref=e350]
+                - text: View piece
+          - button "Pennywise portrait" [ref=e353] [cursor=pointer]:
+            - generic [ref=e354]:
+              - img [ref=e358]
+              - generic [ref=e362]:
+                - generic [ref=e363]: Pennywise portrait
+                - generic [ref=e364]: Realism
+            - generic [ref=e365]:
+              - generic [ref=e366]: Alisha
+              - generic [ref=e367]:
+                - img [ref=e368]
+                - text: View piece
+          - button "No Risk No Reward chicano" [ref=e371] [cursor=pointer]:
+            - generic [ref=e372]:
+              - img [ref=e376]
+              - generic [ref=e380]:
+                - generic [ref=e381]: No Risk No Reward chicano
+                - generic [ref=e382]: Lettering
+            - generic [ref=e383]:
+              - generic [ref=e384]: Calum
+              - generic [ref=e385]:
+                - img [ref=e386]
+                - text: View piece
+      - generic [ref=e391]:
+        - generic [ref=e392]:
+          - generic [ref=e393]:
+            - generic [ref=e394]:
+              - img [ref=e395]
+              - text: Flash drop · this weekend
+            - heading "Claim a one-off design" [level=2] [ref=e397]
+          - link "See all flash" [ref=e398] [cursor=pointer]:
+            - /url: /flash
+        - generic [ref=e399]:
+          - link "Pearl Shell £130 · ~11cm 2 of 3 left" [ref=e400] [cursor=pointer]:
+            - /url: /flash
+            - generic [ref=e403]:
+              - generic [ref=e404]: Pearl Shell
+              - generic [ref=e405]: £130 · ~11cm
+              - generic [ref=e406]: 2 of 3 left
+          - link "Tribal Turtle £140 · ~10cm 1 of 3 left" [ref=e407] [cursor=pointer]:
+            - /url: /flash
+            - generic [ref=e410]:
+              - generic [ref=e411]: Tribal Turtle
+              - generic [ref=e412]: £140 · ~10cm
+              - generic [ref=e413]: 1 of 3 left
+          - link "Motel Key £110 · ~9cm 3 of 4 left" [ref=e414] [cursor=pointer]:
+            - /url: /flash
+            - generic [ref=e417]:
+              - generic [ref=e418]: Motel Key
+              - generic [ref=e419]: £110 · ~9cm
+              - generic [ref=e420]: 3 of 4 left
+      - generic [ref=e423]:
+        - generic [ref=e424]:
+          - generic [ref=e425]:
+            - generic [ref=e426]: BANDIT PASS
+            - img "Boots 'n' Bandit" [ref=e427]
+          - generic [ref=e432]: A. Collector
+          - generic [ref=e433]:
+            - img [ref=e435]
+            - img [ref=e440]
+            - img [ref=e445]
+            - img [ref=e450]
+          - generic [ref=e458]: Level 2 · Outlaw · 4/8
+        - generic [ref=e459]:
+          - generic [ref=e460]:
+            - generic [ref=e461]:
+              - img [ref=e462]
+              - text: Loyalty, reimagined
+            - heading "The Bandit Pass" [level=2] [ref=e464]
+            - paragraph [ref=e465]: A stamp for every piece. Priority flash claims, birthday discounts and a free small tattoo when your card's full.
+          - link "View your pass" [ref=e466] [cursor=pointer]:
+            - /url: /passport
+      - generic [ref=e468]:
+        - generic [ref=e469]:
+          - generic [ref=e470]:
+            - img [ref=e471]
+            - text: Kind words
+          - heading "What people say" [level=2] [ref=e473]
+        - generic [ref=e474]:
+          - figure "HM Hannah M. with Amy" [ref=e475]:
+            - generic "5 out of 5" [ref=e476]:
+              - img [ref=e477]
+              - img [ref=e479]
+              - img [ref=e481]
+              - img [ref=e483]
+              - img [ref=e485]
+            - blockquote [ref=e487]: “My first tattoo and I was terrified — Amy completely put me at ease and the fine-line piece is more delicate than I dared hope.”
+            - generic [ref=e488]:
+              - generic "Hannah M." [ref=e489]:
+                - generic [ref=e490]: HM
+              - generic [ref=e491]:
+                - text: Hannah M.
+                - generic [ref=e492]: with Amy
+          - figure "DR Dec R. with Calum" [ref=e493]:
+            - generic "5 out of 5" [ref=e494]:
+              - img [ref=e495]
+              - img [ref=e497]
+              - img [ref=e499]
+              - img [ref=e501]
+              - img [ref=e503]
+            - blockquote [ref=e505]: “Calum mapped a full blackwork half-sleeve over two sessions. Calm, surgical, and it healed perfectly. Already planning the next one.”
+            - generic [ref=e506]:
+              - generic "Dec R." [ref=e507]:
+                - generic [ref=e508]: DR
+              - generic [ref=e509]:
+                - text: Dec R.
+                - generic [ref=e510]: with Calum
+          - figure "PK Priya K. with Sarah" [ref=e511]:
+            - generic "5 out of 5" [ref=e512]:
+              - img [ref=e513]
+              - img [ref=e515]
+              - img [ref=e517]
+              - img [ref=e519]
+              - img [ref=e521]
+            - blockquote [ref=e523]: “The colour is so saturated people think it's a sticker. Sarah listened to every note and made it ours. Worth every penny.”
+            - generic [ref=e524]:
+              - generic "Priya K." [ref=e525]:
+                - generic [ref=e526]: PK
+              - generic [ref=e527]:
+                - text: Priya K.
+                - generic [ref=e528]: with Sarah
+      - generic [ref=e530]:
+        - generic [ref=e531]:
+          - generic [ref=e532]:
+            - img [ref=e533]
+            - text: Ready when you are
+          - heading "Let's make something you'll wear forever" [level=2] [ref=e535]
+          - paragraph [ref=e536]: Free 15-minute consultations, every week.
+        - generic [ref=e537]:
+          - link "Make an enquiry" [ref=e538] [cursor=pointer]:
+            - /url: /enquire
+          - link "Find the studio" [ref=e539] [cursor=pointer]:
+            - /url: /studio
+  - contentinfo [ref=e540]:
+    - generic [ref=e541]:
+      - generic [ref=e542]:
+        - generic [ref=e543]:
+          - paragraph [ref=e545]: Heritage tattooing in Worksop. Custom work, flash drops and the Bandit Pass — proper brew included.
+          - generic [ref=e546]:
+            - link "Instagram" [ref=e547] [cursor=pointer]:
+              - /url: https://instagram.com/bootsnbandit
+              - img [ref=e548]
+            - link "Facebook" [ref=e551] [cursor=pointer]:
+              - /url: https://www.facebook.com/profile.php?id=61562021309387
+              - img [ref=e552]
+        - generic [ref=e555]:
+          - heading "Explore" [level=6] [ref=e556]
+          - generic [ref=e557]:
+            - link "Home" [ref=e558] [cursor=pointer]:
+              - /url: /
+            - link "Artists" [ref=e559] [cursor=pointer]:
+              - /url: /artists
+            - link "Gallery" [ref=e560] [cursor=pointer]:
+              - /url: /gallery
+            - link "Inkling" [ref=e561] [cursor=pointer]:
+              - /url: /inkling
+            - link "Enquire" [ref=e562] [cursor=pointer]:
+              - /url: /enquire
+            - link "Flash" [ref=e563] [cursor=pointer]:
+              - /url: /flash
+            - link "Aftercare" [ref=e564] [cursor=pointer]:
+              - /url: /aftercare
+            - link "Studio" [ref=e565] [cursor=pointer]:
+              - /url: /studio
+            - link "Sign in" [ref=e566] [cursor=pointer]:
+              - /url: /account/sign-in
+        - generic [ref=e567]:
+          - heading "Visit" [level=6] [ref=e568]
+          - generic [ref=e569]:
+            - generic [ref=e570]:
+              - img [ref=e571]
+              - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+            - generic [ref=e574]:
+              - img [ref=e575]
+              - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+            - link "01909 000 000" [ref=e578] [cursor=pointer]:
+              - /url: tel:01909000000
+              - img [ref=e579]
+              - text: 01909 000 000
+        - generic [ref=e581]:
+          - heading "The Studio" [level=6] [ref=e582]
+          - paragraph [ref=e583]:
+            - text: Boots 'n' Bandit Tattoo Studio
+            - text: 67 Newcastle Avenue, Worksop, Nottinghamshire, S80 1LX
+            - text: Tue–Sat 10am–6pm · Closed Sun & Mon
+      - generic [ref=e584]:
+        - generic [ref=e585]: © 2026 Boots 'n' Bandit Tattoo Studio. All rights reserved.
+        - generic [ref=e586]: Fully licensed studio · Worksop, Nottinghamshire

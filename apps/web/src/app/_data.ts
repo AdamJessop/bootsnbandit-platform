@@ -254,6 +254,20 @@ export async function getStyles(): Promise<string[]> {
   return rows.map((s) => s.name);
 }
 
+/** Styles that have an example image, for the home page showcase. */
+export async function getStyleShowcase(): Promise<
+  { name: string; image: string }[]
+> {
+  const rows = await prisma.tattooStyle.findMany({
+    where: { image: { not: null } },
+    orderBy: { sortOrder: "asc" },
+    select: { name: true, image: true },
+  });
+  return rows
+    .filter((s): s is typeof s & { image: string } => !!s.image)
+    .map((s) => ({ name: s.name, image: s.image }));
+}
+
 /** Ordered aftercare stages. */
 export async function getAftercareStages() {
   return prisma.aftercareStage.findMany({ orderBy: { order: "asc" } });
