@@ -303,6 +303,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 **Files:**
 - Create: `docker-compose.prod.yml`
 - Create: `.env.production.example`
+- Modify: `.gitignore` (the `.env*` rule would ignore the new example file — add `!.env.production.example` on the line after the existing `!.env.example`)
 
 **Interfaces:**
 - Consumes: Dockerfile targets from Task 3; `/api/health` from Task 1; admin's existing `/api/cron/run` (auth: `x-cron-secret` header).
@@ -480,6 +481,16 @@ RECEPTION_ORIGIN="https://reception.example.com"
 RP_ID="example.com"
 ```
 
+- [ ] **Step 2b: Un-ignore the example file**
+
+In `.gitignore`, directly after the existing `!.env.example` line, add:
+
+```
+!.env.production.example
+```
+
+Verify: `git check-ignore .env.production.example; echo "exit=$?"` → `exit=1` (not ignored).
+
 - [ ] **Step 3: Validate compose interpolation**
 
 Run:
@@ -493,7 +504,7 @@ Expected: `OK` (no interpolation warnings/errors).
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docker-compose.prod.yml .env.production.example
+git add docker-compose.prod.yml .env.production.example .gitignore
 git commit -m "feat(deploy): production compose stack (migrate-gated apps + cron sidecar) and env template
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
