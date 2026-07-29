@@ -97,7 +97,10 @@ describe("kiosk service worker fetch routing", () => {
       }),
     ).toBe(true);
     expect(
-      fireFetch(listeners, { url: `${ORIGIN}/bb-logo.png`, destination: "image" }),
+      fireFetch(listeners, {
+        url: `${ORIGIN}/bb-logo.png`,
+        destination: "image",
+      }),
     ).toBe(true);
   });
 });

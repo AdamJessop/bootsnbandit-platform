@@ -2,6 +2,7 @@ import { requireRole } from "@bnb/core/auth";
 import { loadReceptionBoard } from "@bnb/core/services/reception";
 import { KioskApp } from "@/components/kiosk/KioskApp";
 import {
+  artistShowcaseAction,
   checkoutAction,
   customerCheckinAction,
   toggleStaffAction,
@@ -27,6 +28,7 @@ export default async function ReceptionPage() {
         customerCheckin: customerCheckinAction,
         walkIn: walkInAction,
         checkout: checkoutAction,
+        artistShowcase: artistShowcaseAction,
       }}
     />
   );

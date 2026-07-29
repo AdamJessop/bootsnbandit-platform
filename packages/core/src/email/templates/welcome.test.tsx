@@ -11,7 +11,8 @@ describe("WelcomeEmail", () => {
     const html = await render(
       WelcomeEmail({
         customerName: "Robin",
-        setPasswordUrl: "http://localhost:3000/account/set-password?token=tok_abc",
+        setPasswordUrl:
+          "http://localhost:3000/account/set-password?token=tok_abc",
         expiresAt: "2026-08-06T00:00:00.000Z",
       }),
     );

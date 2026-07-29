@@ -45,6 +45,7 @@ describe("BoardCard", () => {
         sessions={[sess({ checkedInAt: new Date().toISOString() })]}
         now={new Date()}
         onCheckout={() => {}}
+        onOpen={() => {}}
       />,
     );
     expect(html).toContain("In session");
@@ -65,6 +66,7 @@ describe("BoardCard", () => {
         ]}
         now={new Date()}
         onCheckout={() => {}}
+        onOpen={() => {}}
       />,
     );
     expect(html).toContain("Client due");
@@ -79,9 +81,27 @@ describe("BoardCard", () => {
         sessions={[]}
         now={new Date()}
         onCheckout={() => {}}
+        onOpen={() => {}}
       />,
     );
     expect(html).toContain("Free");
     expect(html).toContain("No more bookings today");
+  });
+
+  it("is tappable to open the artist showcase without nesting buttons", () => {
+    const html = renderToStaticMarkup(
+      <BoardCard
+        artist={artist}
+        sessions={[sess({ checkedInAt: new Date().toISOString() })]}
+        now={new Date()}
+        onCheckout={() => {}}
+        onOpen={() => {}}
+      />,
+    );
+    // The card div itself is the tap target (a wrapping <button> would nest
+    // the inner Check out button — invalid HTML).
+    expect(html).toMatch(/<div class="rk-card"[^>]*role="button"/);
+    expect(html).toContain("Check out");
+    expect(html).not.toMatch(/<button[^>]*>(?:(?!<\/button>)[\s\S])*<button/);
   });
 });

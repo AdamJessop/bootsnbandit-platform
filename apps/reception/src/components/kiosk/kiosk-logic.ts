@@ -7,6 +7,11 @@ import type { BoardArtist, BoardSession } from "@bnb/core/services/reception";
  */
 
 export type { BoardArtist, BoardSession };
+export type {
+  ArtistShowcase,
+  ShowcaseArtist,
+  ShowcaseGalleryItem,
+} from "@bnb/core/services/artist-showcase";
 
 // ---------------------------------------------------------------------------
 // Time

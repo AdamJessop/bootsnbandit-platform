@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentUser } from "@bnb/core/auth";
+import type { ArtistShowcase } from "@bnb/core/services/artist-showcase";
+import { loadArtistShowcase } from "@bnb/core/services/artist-showcase";
 import { BookingConflictError } from "@bnb/core/services/bookings";
 import {
   ReceptionCheckinError,
@@ -24,30 +26,35 @@ import { flaggedQuestions } from "@/components/kiosk/kiosk-logic";
  */
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ShowcaseActionResult =
+  | { ok: true; data: ArtistShowcase }
+  | { ok: false; error: string };
 
-const SIGNED_OUT: ActionResult = {
-  ok: false,
-  error: "The kiosk is signed out — sign in again from the front desk",
-};
-const GENERIC: ActionResult = {
-  ok: false,
-  error: "Something went wrong — give it another try",
-};
+const SIGNED_OUT_MSG =
+  "The kiosk is signed out — sign in again from the front desk";
+const GENERIC_MSG = "Something went wrong — give it another try";
+
+const SIGNED_OUT: ActionResult = { ok: false, error: SIGNED_OUT_MSG };
+const GENERIC: ActionResult = { ok: false, error: GENERIC_MSG };
 
 async function kioskSignedIn(): Promise<boolean> {
   return (await getCurrentUser()) != null;
 }
 
-function friendly(err: unknown): ActionResult {
+function friendlyMessage(err: unknown): string {
   if (
     err instanceof ReceptionCheckinError ||
     err instanceof SessionCompletionError ||
     err instanceof BookingConflictError
   ) {
-    return { ok: false, error: err.message };
+    return err.message;
   }
   console.error("[reception] action failed", err);
-  return GENERIC;
+  return GENERIC_MSG;
+}
+
+function friendly(err: unknown): ActionResult {
+  return { ok: false, error: friendlyMessage(err) };
 }
 
 // ---------------------------------------------------------------------------
@@ -169,5 +176,26 @@ export async function checkoutAction(
     return { ok: true };
   } catch (err) {
     return friendly(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Artist showcase (kiosk board card → full-screen artist profile)
+// ---------------------------------------------------------------------------
+
+export async function artistShowcaseAction(
+  artistId: string,
+): Promise<ShowcaseActionResult> {
+  if (!(await kioskSignedIn())) return { ok: false, error: SIGNED_OUT_MSG };
+  const parsed = z.string().min(1).safeParse(artistId);
+  if (!parsed.success) return { ok: false, error: GENERIC_MSG };
+  try {
+    const showcase = await loadArtistShowcase(parsed.data);
+    if (!showcase) {
+      return { ok: false, error: "Artist not found — refresh the board" };
+    }
+    return { ok: true, data: showcase };
+  } catch (err) {
+    return { ok: false, error: friendlyMessage(err) };
   }
 }

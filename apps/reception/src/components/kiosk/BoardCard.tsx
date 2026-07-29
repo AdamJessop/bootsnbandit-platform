@@ -11,17 +11,23 @@ import {
   type BoardSession,
 } from "./kiosk-logic";
 
-/** One on-the-floor artist's card on the kiosk home board. */
+/**
+ * One on-the-floor artist's card on the kiosk home board. The whole card is
+ * a tap target opening the artist's showcase — as a clickable div, not a
+ * wrapping <button>, because the inner Check out button may not nest.
+ */
 export function BoardCard({
   artist,
   sessions,
   now,
   onCheckout,
+  onOpen,
 }: {
   artist: BoardArtist;
   sessions: BoardSession[];
   now: Date;
   onCheckout: (bookingId: string) => void;
+  onOpen: (artistId: string) => void;
 }) {
   const current = currentSession(sessions, artist.id, now);
   const next = nextSession(sessions, artist.id, now);
@@ -31,7 +37,15 @@ export function BoardCard({
     new Date(next.start).getTime() - now.getTime() <= 30 * 60_000;
 
   return (
-    <div className="rk-card">
+    <div
+      className="rk-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(artist.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onOpen(artist.id);
+      }}
+    >
       <ArtistAvatar artist={artist} size={60} />
       <div className="rk-card-main">
         <div className="rk-card-name">
@@ -64,7 +78,12 @@ export function BoardCard({
             <div className="rk-card-btns">
               <button
                 className="rk-mini-btn gold"
-                onClick={() => onCheckout(current.id)}
+                onClick={(e) => {
+                  // The card behind is a showcase tap target — keep checkout
+                  // taps from opening it.
+                  e.stopPropagation();
+                  onCheckout(current.id);
+                }}
               >
                 <CheckCircle2 className="ic" />
                 Check out

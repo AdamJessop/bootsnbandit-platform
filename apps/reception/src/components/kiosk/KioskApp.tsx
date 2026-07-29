@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { ArtistShowcase } from "@bnb/core/services/artist-showcase";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -11,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { ArtistAvatar } from "./ArtistAvatar";
+import { ArtistShowcaseScreen } from "./ArtistShowcaseScreen";
 import { BoardCard } from "./BoardCard";
 import { CheckoutScreen } from "./CheckoutScreen";
 import { CustomerFlow, type CheckinPayload } from "./CustomerFlow";
@@ -37,9 +39,21 @@ export interface KioskActions {
   customerCheckin: (payload: CheckinPayload) => Promise<Result>;
   walkIn: (payload: WalkInPayload) => Promise<Result>;
   checkout: (bookingId: string, amountPence: number) => Promise<Result>;
+  artistShowcase: (
+    artistId: string,
+  ) => Promise<
+    { ok: true; data: ArtistShowcase } | { ok: false; error: string }
+  >;
 }
 
-type Screen = "home" | "staff" | "new" | "customer" | "day" | "checkout";
+type Screen =
+  | "home"
+  | "staff"
+  | "new"
+  | "customer"
+  | "day"
+  | "checkout"
+  | "artist";
 
 function Clock({ now }: { now: Date }) {
   return (
@@ -71,6 +85,8 @@ export function KioskApp({
     kind: "ok" | "error";
   } | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [showcaseArtistId, setShowcaseArtistId] = useState<string | null>(null);
+  const [showcase, setShowcase] = useState<ArtistShowcase | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15_000);
@@ -90,6 +106,30 @@ export function KioskApp({
 
   const inToday = board.artists.filter((a) => a.checkedIn);
   const outToday = board.artists.filter((a) => !a.checkedIn);
+
+  // Open the showcase immediately (the header renders from board data) and
+  // stream the richer profile/gallery payload in behind it.
+  const openShowcase = async (artistId: string) => {
+    // Reopening the same artist reuses the already-loaded payload.
+    if (artistId === showcaseArtistId && showcase) {
+      setScreen("artist");
+      return;
+    }
+    setShowcaseArtistId(artistId);
+    setShowcase(null);
+    setScreen("artist");
+    const res = await actions.artistShowcase(artistId);
+    if (res.ok) {
+      setShowcase(res.data);
+    } else {
+      setScreen("home");
+      setShowcaseArtistId(null);
+      say(res.error, "error");
+    }
+  };
+
+  // Keep the last payload cached so reopening the same artist is instant.
+  const closeShowcase = () => setScreen("home");
 
   const toggleStaff = async (artistId: string, present: boolean) => {
     const res = await actions.toggleStaff(artistId, present);
@@ -209,6 +249,7 @@ export function KioskApp({
               sessions={board.sessions}
               now={now}
               onCheckout={openCheckout("home")}
+              onOpen={openShowcase}
             />
           ))}
         </div>
@@ -219,13 +260,17 @@ export function KioskApp({
             </div>
             <div className="rk-off">
               {outToday.map((a) => (
-                <span key={a.id} className="rk-off-chip">
+                <button
+                  key={a.id}
+                  className="rk-off-chip"
+                  onClick={() => openShowcase(a.id)}
+                >
                   <ArtistAvatar artist={a} size={34} />
                   <span>
                     {a.name}
                     {a.onLeave ? " · leave" : ""}
                   </span>
-                </span>
+                </button>
               ))}
             </div>
           </>
@@ -264,6 +309,17 @@ export function KioskApp({
           onExit={() => setScreen("home")}
         />
       )}
+      {screen === "artist" &&
+        (() => {
+          const a = board.artists.find((x) => x.id === showcaseArtistId);
+          return a ? (
+            <ArtistShowcaseScreen
+              artist={a}
+              showcase={showcase}
+              onExit={closeShowcase}
+            />
+          ) : null;
+        })()}
       {screen === "checkout" && checkoutSession && (
         <CheckoutScreen
           session={checkoutSession}

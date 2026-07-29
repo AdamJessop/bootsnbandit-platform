@@ -6,9 +6,13 @@ const checkInCustomer = vi.fn();
 const createWalkInBooking = vi.fn();
 const completeSession = vi.fn();
 const revalidatePath = vi.fn();
+const loadArtistShowcase = vi.fn();
 
 vi.mock("@bnb/core/auth", () => ({
   getCurrentUser: () => getCurrentUser(),
+}));
+vi.mock("@bnb/core/services/artist-showcase", () => ({
+  loadArtistShowcase: (...a: unknown[]) => loadArtistShowcase(...a),
 }));
 vi.mock("@bnb/core/services/reception", async () => {
   const actual = await vi.importActual<
@@ -33,6 +37,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import {
+  artistShowcaseAction,
   checkoutAction,
   customerCheckinAction,
   toggleStaffAction,
@@ -64,12 +69,23 @@ describe("kiosk actions auth guard", () => {
           type: "session",
         }),
       () => checkoutAction("b1", 100),
+      () => artistShowcaseAction("a1"),
     ]) {
       const res = await run();
       expect(res.ok).toBe(false);
     }
     expect(setStaffCheckin).not.toHaveBeenCalled();
     expect(completeSession).not.toHaveBeenCalled();
+  });
+
+  it("artistShowcaseAction refuses with the signed-out message", async () => {
+    getCurrentUser.mockResolvedValue(null);
+    const res = await artistShowcaseAction("a1");
+    expect(res).toEqual({
+      ok: false,
+      error: "The kiosk is signed out — sign in again from the front desk",
+    });
+    expect(loadArtistShowcase).not.toHaveBeenCalled();
   });
 });
 
@@ -176,5 +192,66 @@ describe("checkoutAction", () => {
     const res = await checkoutAction("b1", -5);
     expect(res.ok).toBe(false);
     expect(completeSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("artistShowcaseAction", () => {
+  it("rejects an empty artist id without hitting the loader", async () => {
+    const res = await artistShowcaseAction("");
+    expect(res.ok).toBe(false);
+    expect(loadArtistShowcase).not.toHaveBeenCalled();
+  });
+
+  it("passes through the loader's showcase, including gallery", async () => {
+    const showcase = {
+      artist: {
+        id: "a1",
+        name: "Sarah",
+        status: "CO_OWNER",
+        tag: null,
+        bio: null,
+        styles: ["blackwork"],
+        specials: [],
+        insta: null,
+        experience: null,
+        rating: null,
+        pieces: null,
+        headshot: null,
+        hue: "crimson",
+      },
+      gallery: [
+        {
+          id: "g1",
+          title: "Rose sleeve",
+          style: "blackwork",
+          placement: "arm",
+          image: "https://example.com/g1.jpg",
+          hue: "crimson",
+          featured: true,
+        },
+      ],
+    };
+    loadArtistShowcase.mockResolvedValue(showcase);
+    const res = await artistShowcaseAction("a1");
+    expect(res).toEqual({ ok: true, data: showcase });
+    expect(loadArtistShowcase).toHaveBeenCalledWith("a1");
+  });
+
+  it("returns a friendly error when the loader finds no artist", async () => {
+    loadArtistShowcase.mockResolvedValue(null);
+    const res = await artistShowcaseAction("missing");
+    expect(res).toEqual({
+      ok: false,
+      error: "Artist not found — refresh the board",
+    });
+  });
+
+  it("maps unexpected loader errors to the generic message", async () => {
+    loadArtistShowcase.mockRejectedValue(new Error("db down"));
+    const res = await artistShowcaseAction("a1");
+    expect(res).toEqual({
+      ok: false,
+      error: "Something went wrong — give it another try",
+    });
   });
 });

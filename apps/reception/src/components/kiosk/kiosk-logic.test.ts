@@ -103,9 +103,7 @@ describe("board derivations", () => {
     );
 
     // Checked out (completed) drops off entirely.
-    const done = [
-      sess({ checkedInAt: now.toISOString(), completed: true }),
-    ];
+    const done = [sess({ checkedInAt: now.toISOString(), completed: true })];
     expect(currentSession(done, "a1", new Date(2026, 6, 7, 13, 30))).toBeNull();
 
     // With two checked-in sessions, the one overlapping "now" wins.

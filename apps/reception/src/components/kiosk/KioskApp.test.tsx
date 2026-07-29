@@ -65,6 +65,7 @@ describe("KioskApp home board", () => {
           customerCheckin: noop,
           walkIn: noop,
           checkout: noop,
+          artistShowcase: async () => ({ ok: false, error: "x" }) as const,
         }}
       />,
     );
@@ -79,5 +80,24 @@ describe("KioskApp home board", () => {
     expect(html).toContain("Not in");
     expect(html).toContain("Rhodri");
     expect(html).toContain("Today’s sessions");
+  });
+
+  it("makes every artist tappable to open their showcase", () => {
+    const html = renderToStaticMarkup(
+      <KioskApp
+        board={{ artists, sessions }}
+        actions={{
+          toggleStaff: noop,
+          customerCheckin: noop,
+          walkIn: noop,
+          checkout: noop,
+          artistShowcase: async () => ({ ok: false, error: "x" }) as const,
+        }}
+      />,
+    );
+    // On-floor cards are tappable divs (role=button)…
+    expect(html).toMatch(/<div class="rk-card"[^>]*role="button"/);
+    // …and Not-in chips are real buttons.
+    expect(html).toMatch(/<button[^>]*class="rk-off-chip"/);
   });
 });

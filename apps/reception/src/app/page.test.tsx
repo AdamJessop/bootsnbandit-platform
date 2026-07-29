@@ -16,6 +16,7 @@ vi.mock("./actions", () => ({
   customerCheckinAction: vi.fn(),
   walkInAction: vi.fn(),
   checkoutAction: vi.fn(),
+  artistShowcaseAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),

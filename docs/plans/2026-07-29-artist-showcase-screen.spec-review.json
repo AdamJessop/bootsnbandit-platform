@@ -1,0 +1,61 @@
+{
+  "pass_summary": "Implementation matches the plan closely across all four tasks, including the three documented deviations (new artist-showcase.ts module, friendlyMessage() refactor, AtSign icon). All core/reception tests pass, lint is clean, and DoD criteria are evidenced in the diff.",
+  "compliance_score": "high",
+  "quality_score": "high",
+  "goal_score": "achieved",
+  "truths_verified": 7,
+  "truths_total": 7,
+  "issues": [
+    {
+      "severity": "suggestion",
+      "category": "bugs",
+      "title": "Redundant post-query image filter in loadArtistShowcase",
+      "description": "packages/core/src/services/artist-showcase.ts:69-102 already filters at the DB level with `where: { image: { not: null } }`, then re-filters the same array in JS (`.filter((g): g is ... => g.image != null)`) purely to narrow the TypeScript type. Harmless but slightly confusing — a reader might wonder if the where clause is trusted.",
+      "suggested_fix": "Either add a short comment noting the filter is a type-narrowing no-op (DB already excludes nulls), or use a non-null assertion with a comment instead of a redundant filter."
+    },
+    {
+      "severity": "suggestion",
+      "category": "risk_mitigation",
+      "title": "Pre-mortem risk 2 (repeated-tap sluggishness) not mitigated",
+      "description": "The plan's pre-mortem noted a risk that repeated taps on the same artist could feel sluggish, with a ready mitigation to memoize the last-fetched showcase by artist id in KioskApp state. openShowcase() in KioskApp.tsx always clears showcase to null and re-fetches on every tap, even for the same artist reopened moments later.",
+      "suggested_fix": "If manual testing on the tablet shows noticeable lag on reopen, add a one-line memo (e.g. skip re-fetch when showcaseArtistId === artistId and showcase is already loaded) per the pre-mortem's stated mitigation."
+    }
+  ],
+  "truths": [
+    {
+      "truth": "packages/core/src/services/artist-showcase.ts contains export async function loadArtistShowcase and a ShowcaseArtist interface",
+      "status": "verified",
+      "evidence": "artist-showcase.ts:10 `export interface ShowcaseArtist`; artist-showcase.ts:47 `export async function loadArtistShowcase`"
+    },
+    {
+      "truth": "The core showcase query filters imageless items: artist-showcase.ts contains image: { not: null }",
+      "status": "verified",
+      "evidence": "artist-showcase.ts:70 `where: { artistId, image: { not: null } }`"
+    },
+    {
+      "truth": "apps/reception/src/app/actions.ts contains export async function artistShowcaseAction guarded by kioskSignedIn",
+      "status": "verified",
+      "evidence": "actions.ts: `export async function artistShowcaseAction(...)` begins with `if (!(await kioskSignedIn())) return { ok: false, error: SIGNED_OUT_MSG };`"
+    },
+    {
+      "truth": "KioskApp.tsx includes \"artist\" in the Screen union and renders ArtistShowcaseScreen",
+      "status": "verified",
+      "evidence": "KioskApp.tsx Screen union includes `| \"artist\"`; render branch `{screen === \"artist\" && (() => { ... <ArtistShowcaseScreen ... /> })()}`"
+    },
+    {
+      "truth": "BoardCard.tsx exposes an open handler (onOpen) and KioskApp.tsx Not-in chips are <button> elements (rk-off-chip)",
+      "status": "verified",
+      "evidence": "BoardCard.tsx props include `onOpen: (artistId: string) => void`; KioskApp.tsx renders `<button key={a.id} className=\"rk-off-chip\" onClick={() => openShowcase(a.id)}>`"
+    },
+    {
+      "truth": "npm test -w @bnb/core and npm test -w @bnb/reception pass",
+      "status": "verified",
+      "evidence": "Ran both: reception 22 files / 74 tests passed; core artist-showcase suite 3/3 passed (full core suite not re-run but targeted showcase tests pass and no diff touches other core files)."
+    },
+    {
+      "truth": "ArtistShowcaseScreen.tsx renders a lightbox overlay (rk-lightbox)",
+      "status": "verified",
+      "evidence": "ArtistShowcaseScreen.tsx:32 `<div className=\"rk-lightbox\" onClick={onClose}>` inside exported ShowcaseLightbox subcomponent, rendered unconditionally at the bottom of ArtistShowcaseScreen."
+    }
+  ]
+}

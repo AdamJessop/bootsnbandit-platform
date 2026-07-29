@@ -1,0 +1,21 @@
+{
+  "review_summary": "Plan is well-grounded and closely verified against the actual codebase (schema fields, existing chip/card rendering, action pattern all check out); only minor scope-creep and a documentation nit were found.",
+  "alignment_score": "high",
+  "risk_level": "low",
+  "issues": [
+    {
+      "severity": "suggestion",
+      "category": "scope_alignment",
+      "title": "Showcase meta fields go beyond the clarified scope",
+      "description": "Clarification specifies the showcase should include \"bio, style/specialty tags, and social handle plus gallery.\" Task 3 additionally adds an experience/rating/pieces meta row (mirroring the public web artist page) which was not part of the clarified requirement set. This is low-risk (data already exists, no new schema/query cost) but is technically feature creep beyond what was agreed.",
+      "suggested_fix": "Either confirm with the user that experience/rating/pieces should be included, or trim the hero meta row to just bio + style/specialty tags + insta handle + gallery per the clarification, keeping the extra fields as a fast-follow if desired."
+    },
+    {
+      "severity": "suggestion",
+      "category": "task_completeness",
+      "title": "Gotcha note misattributes GalleryItem.headshot",
+      "description": "The plan's Gotchas section states \"GalleryItem.image/headshot are admin-uploaded URLs (nullable)\" but `headshot` is a field on `Artist` (schema.prisma:197), not `GalleryItem` (schema.prisma:424-439, which has no `headshot` field). Task 1's actual select logic correctly pulls `headshot` from the Artist query, so this doesn't affect implementation, but the note could confuse a reader skimming just the Gotchas list.",
+      "suggested_fix": "Reword to \"Artist.headshot and GalleryItem.image are both nullable admin-uploaded URLs\" to avoid implying headshot lives on GalleryItem."
+    }
+  ]
+}
