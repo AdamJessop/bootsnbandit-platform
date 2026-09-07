@@ -369,6 +369,11 @@ model EnquiryMessage {
   bodyText       String
   bodyHtml       String?
   externalId     String?            @unique
+  // RFC 5322 Message-ID of an inbound email, kept so an outbound reply can
+  // set In-Reply-To/References and land in the customer's own mail thread.
+  // `externalId` holds the provider's id (a Resend email id) — a different
+  // thing, and not a valid value for those headers.
+  messageIdHeader String?
   deliveryStatus MessageStatus      @default(logged)
   createdAt      DateTime           @default(now())
 
@@ -726,4 +731,20 @@ model Review {
 
   @@index([status])
   @@index([bookingId])
+}
+
+// Inbound webhook events we accepted (signature valid) but could not process.
+// The whole event body is kept so Studio › Channels can replay it; the route
+// itself always answers 200 so the provider does not retry-storm.
+model WebhookFailure {
+  id         String    @id @default(cuid())
+  provider   String
+  externalId String?
+  payload    Json
+  error      String
+  createdAt  DateTime  @default(now())
+  retriedAt  DateTime?
+
+  @@index([provider, createdAt])
+  @@index([externalId])
 }

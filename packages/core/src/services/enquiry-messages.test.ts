@@ -388,4 +388,22 @@ describe("enquiry messages (DB)", () => {
     });
     expect(stranger.enquiryIds).not.toContain(mine.enquiry.id);
   });
+
+  it("persists the RFC Message-ID header of an inbound email", async () => {
+    if (!(await dbReachable())) return;
+    const { enquiry } = await seed();
+    const messageIdHeader = `<${uid("mid")}@mail.example.com>`;
+    const row = await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "email",
+      bodyText: "threaded",
+      externalId: uid("ext"),
+      messageIdHeader,
+    });
+    const stored = await db().enquiryMessage.findUniqueOrThrow({
+      where: { id: row.id },
+      select: { messageIdHeader: true },
+    });
+    expect(stored.messageIdHeader).toBe(messageIdHeader);
+  });
 });

@@ -108,6 +108,12 @@ export interface RecordMessageInput {
   fromName?: string | null;
   fromAddress?: string | null;
   externalId?: string | null;
+  /**
+   * RFC 5322 Message-ID of an inbound email. Stored so an outbound reply can
+   * set In-Reply-To/References and land inside the customer's own mail thread;
+   * `externalId` holds the provider id, which is not a valid header value.
+   */
+  messageIdHeader?: string | null;
   deliveryStatus?: MessageStatus;
   attachments?: StoreAttachmentInput[];
   at?: Date;
@@ -175,6 +181,7 @@ async function createMessage(
         bodyText: input.bodyText,
         bodyHtml: input.bodyHtml ?? null,
         externalId: input.externalId ?? null,
+        messageIdHeader: input.messageIdHeader ?? null,
         deliveryStatus: input.deliveryStatus ?? "logged",
         createdAt,
       },
