@@ -165,9 +165,11 @@ export async function findOrCreateCustomer(
     created = await prisma.customer.create({ data });
   } catch (err) {
     // Unique email/phone: a concurrent request won the race — take theirs.
-    // Not yet reachable in practice — Customer.email/phone have no unique
-    // constraint until Task 5 adds them; the findFirst above is the only
-    // guard for now, and this branch becomes live once that lands.
+    // Live since Task 5's unique indexes on Customer.email/phone: two
+    // concurrent creates for the same normalised email/phone both pass the
+    // findFirst check above (neither sees the other's row yet), one create
+    // wins and the other hits P2002 here — re-read and return the winner's
+    // row rather than erroring.
     if (isUniqueViolation(err) && or.length) {
       const winner = await prisma.customer.findFirst({
         where: { OR: or },

@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { prisma } from "@bnb/core/db";
 import {
   displayNameFor,
   findOrCreateCustomer,
@@ -208,6 +209,38 @@ describe("findOrCreateCustomer + linkIdentity (DB)", () => {
     const b = track(await db().customer.create({ data: { name: `Blank ${uid()}` } }));
     expect(a.id).not.toBe(b.id);
     expect(first.email).toBe(`${local}@example.com`);
+  });
+
+  it("recovers when a concurrent create wins the race for the same email (P2002)", async () => {
+    if (!(await dbReachable())) return;
+    // A genuine race — several real findOrCreateCustomer calls fired via
+    // Promise.all for the same brand-new email — does not reliably land two
+    // creates close enough together to hit P2002 in this environment (the
+    // findFirst round-trip is enough separation in practice). So the race is
+    // forced deterministically instead: pre-create the "winner" row directly,
+    // then make the *next* findFirst call inside findOrCreateCustomer return
+    // null (as it would if it ran a moment before the winner committed),
+    // so the function proceeds to its own create and collides for real on
+    // the unique index — exactly the P2002 the recovery branch handles. The
+    // second findFirst (the recovery branch's own re-read) is left real, so
+    // it has to actually find the winner for the test to pass.
+    const local = uid("race");
+    const email = `${local}@example.com`;
+    const winner = track(
+      await db().customer.create({ data: { name: "Winner", email } }),
+    );
+    const spy = vi
+      .spyOn(prisma.customer, "findFirst")
+      .mockResolvedValueOnce(null);
+    try {
+      const loser = await findOrCreateCustomer({ name: "Loser", email });
+      expect(loser.id).toBe(winner.id);
+    } finally {
+      spy.mockRestore();
+    }
+    const rows = await db().customer.findMany({ where: { email } });
+    expect(rows.length).toBe(1);
+    expect(rows[0].id).toBe(winner.id);
   });
 });
 
