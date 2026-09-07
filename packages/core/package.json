@@ -40,6 +40,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "ical-generator": "^11.0.0",
+    "libphonenumber-js": "^1.12.0",
     "pg": "^8.22.0",
     "resend": "^6.14.0",
     "server-only": "^0.0.1",
