@@ -16,12 +16,18 @@ import {
 } from "@bnb/core/services/bookings";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import {
+  markRead,
+  recordNote,
+  recordOutbound,
+} from "@bnb/core/services/enquiry-messages";
+import {
   buildConvertInput,
   canAccessEnquiry,
-  isOpenBoard,
+  canCloseEnquiry,
+  isUnassigned,
   validateReply,
 } from "./enquiry-helpers";
-import type { BookingType, EnquirySource } from "@prisma/client";
+import type { BookingType } from "@prisma/client";
 import type { SessionUser } from "@bnb/core/auth";
 
 export interface ActionState {
@@ -42,6 +48,7 @@ async function loadEnquiryScoped(enquiryId: string) {
       style: true,
       placement: true,
       source: true,
+      status: true,
     },
   });
   if (!canAccessEnquiry(user, enquiry)) {
@@ -51,25 +58,21 @@ async function loadEnquiryScoped(enquiryId: string) {
 }
 
 /**
- * An artist responding to an open (unclaimed) Inkling board takes it. The
- * claim is conditional at the database (`preferredArtistId: null` in the
- * `where`) so two concurrent claimants can't both "win" a TOCTOU race after
- * a separate read + isOpenBoard check — only one `updateMany` matches a row.
+ * An artist responding to an unassigned enquiry takes it — on any channel, not
+ * just Inkling boards. The claim is conditional at the database
+ * (`preferredArtistId: null` in the `where`) so two concurrent claimants can't
+ * both "win" a TOCTOU race — only one `updateMany` matches a row.
  */
-async function claimIfOpen(
+async function claimIfUnassigned(
   user: SessionUser,
-  enquiry: {
-    id: string;
-    source: EnquirySource;
-    preferredArtistId: string | null;
-  },
+  enquiry: { id: string; preferredArtistId: string | null },
 ): Promise<{ attempted: boolean; claimed: boolean }> {
-  if (user.role === "OWNER" || !user.artistId || !isOpenBoard(enquiry)) {
+  if (user.role === "OWNER" || !user.artistId || !isUnassigned(enquiry)) {
     return { attempted: false, claimed: false };
   }
   const { count } = await prisma.enquiry.updateMany({
     where: { id: enquiry.id, preferredArtistId: null },
-    data: { preferredArtistId: user.artistId },
+    data: { preferredArtistId: user.artistId, assignedAt: new Date() },
   });
   return { attempted: true, claimed: count > 0 };
 }
@@ -80,7 +83,7 @@ function withClaimNote(
   claim: { attempted: boolean; claimed: boolean },
 ): string {
   return claim.attempted && !claim.claimed
-    ? `${message} This board was taken by another artist a moment ago.`
+    ? `${message} This enquiry was taken by another artist a moment ago.`
     : message;
 }
 
@@ -105,8 +108,18 @@ export async function replyToEnquiry(
         sentAt: null,
       },
     });
+    // Also put it on the enquiry thread; sendEmail does this for real sends.
+    await recordOutbound({
+      enquiryId,
+      customerId: enquiry.customerId,
+      channel: "email",
+      subject: "Re: your enquiry",
+      bodyText: valid.message,
+      authorUserId: user.id,
+      deliveryStatus: "logged",
+    });
     await updateEnquiryStatus(enquiryId, "replied");
-    const claim = await claimIfOpen(user, enquiry);
+    const claim = await claimIfUnassigned(user, enquiry);
     revalidatePath("/enquiries");
     return {
       ok: true,
@@ -123,6 +136,7 @@ export async function replyToEnquiry(
     to: enquiry.contactEmail,
     type: "staff_reply",
     customerId: enquiry.customerId,
+    enquiryId,
     data: {
       customerName: enquiry.contactName,
       body: valid.message,
@@ -135,7 +149,7 @@ export async function replyToEnquiry(
     };
   }
   await updateEnquiryStatus(enquiryId, "replied");
-  const claim = await claimIfOpen(user, enquiry);
+  const claim = await claimIfUnassigned(user, enquiry);
 
   revalidatePath("/enquiries");
   return {
@@ -154,22 +168,22 @@ export async function claimEnquiry(enquiryId: string): Promise<ActionState> {
   if (!user.artistId) {
     return { ok: false, message: "Only artists can take a board." };
   }
-  if (!isOpenBoard(enquiry)) {
-    return { ok: false, message: "This board has already been taken." };
+  if (!isUnassigned(enquiry)) {
+    return { ok: false, message: "This enquiry has already been taken." };
   }
   // Conditional on `preferredArtistId: null` at the database so a concurrent
   // claim can't both "win" — only the first updateMany matches a row.
   const { count } = await prisma.enquiry.updateMany({
     where: { id: enquiryId, preferredArtistId: null },
-    data: { preferredArtistId: user.artistId },
+    data: { preferredArtistId: user.artistId, assignedAt: new Date() },
   });
   if (count === 0) {
-    return { ok: false, message: "This board has already been taken." };
+    return { ok: false, message: "This enquiry has already been taken." };
   }
   revalidatePath("/enquiries");
   return {
     ok: true,
-    message: "Board is yours — it now shows under your enquiries.",
+    message: "This enquiry is yours — it now shows under your enquiries.",
   };
 }
 
@@ -188,17 +202,49 @@ export async function assignEnquiry(
   }
   await prisma.enquiry.update({
     where: { id: enquiryId },
-    data: { preferredArtistId: artistId || null },
+    data: {
+      preferredArtistId: artistId || null,
+      assignedAt: artistId ? new Date() : null,
+    },
   });
   revalidatePath("/enquiries");
   return { ok: true, message: "Artist assigned." };
 }
 
 export async function closeEnquiry(enquiryId: string): Promise<ActionState> {
-  await loadEnquiryScoped(enquiryId);
+  const { user, enquiry } = await loadEnquiryScoped(enquiryId);
+  // Access lets an artist SEE unassigned enquiries; closing is narrower, or one
+  // artist could bin a lead another was about to take.
+  if (!canCloseEnquiry(user, enquiry)) {
+    return {
+      ok: false,
+      message: "Only the assigned artist (or an owner) can close this enquiry.",
+    };
+  }
   await updateEnquiryStatus(enquiryId, "closed");
   revalidatePath("/enquiries");
   return { ok: true, message: "Enquiry closed." };
+}
+
+/** A staff-only note on the thread. Never sent to the customer. */
+export async function addInternalNote(
+  enquiryId: string,
+  input: { body: string },
+): Promise<ActionState> {
+  const { user } = await loadEnquiryScoped(enquiryId);
+  const body = input.body.trim();
+  if (!body) return { ok: false, message: "A note needs some text." };
+  await recordNote({ enquiryId, authorUserId: user.id, bodyText: body });
+  revalidatePath("/enquiries");
+  return { ok: true, message: "Note added." };
+}
+
+/** Clear this user's unread flag for the thread (called when it is opened). */
+export async function markEnquiryRead(enquiryId: string): Promise<ActionState> {
+  const { user } = await loadEnquiryScoped(enquiryId);
+  await markRead(enquiryId, user.id);
+  revalidatePath("/enquiries");
+  return { ok: true };
 }
 
 export async function convertEnquiry(

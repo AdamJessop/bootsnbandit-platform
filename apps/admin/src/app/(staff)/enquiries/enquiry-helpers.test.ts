@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   artistInboxWhere,
+  attachmentHref,
   buildConvertInput,
-  buildThreadMap,
   canAccessEnquiry,
+  canCloseEnquiry,
+  countByStatus,
   distinctStyles,
   filterEnquiries,
-  isOpenBoard,
+  isUnassigned,
   looksLikeImageUrl,
   validateReply,
-  type ThreadMessage,
 } from "./enquiry-helpers";
 
 describe("looksLikeImageUrl", () => {
@@ -24,45 +25,6 @@ describe("looksLikeImageUrl", () => {
     expect(looksLikeImageUrl("https://pinterest.com/pin/123")).toBe(false);
     expect(looksLikeImageUrl("https://x.test/a.pdf")).toBe(false);
     expect(looksLikeImageUrl("not a url")).toBe(false);
-  });
-});
-
-describe("buildThreadMap", () => {
-  const msg = (over: Partial<ThreadMessage>): ThreadMessage => ({
-    id: "m1",
-    customerId: "c1",
-    type: "staff_reply",
-    status: "sent",
-    subject: "Re: enquiry",
-    sentAtISO: "2026-06-01T10:00:00Z",
-    createdAtISO: "2026-06-01T09:59:00Z",
-    ...over,
-  });
-
-  it("groups messages per customer, preserving order", () => {
-    const map = buildThreadMap([
-      msg({ id: "m1", customerId: "c1" }),
-      msg({ id: "m2", customerId: "c2" }),
-      msg({ id: "m3", customerId: "c1", type: "enquiry_ack" }),
-    ]);
-    expect(map.get("c1")?.map((t) => t.id)).toEqual(["m1", "m3"]);
-    expect(map.get("c2")?.map((t) => t.id)).toEqual(["m2"]);
-  });
-
-  it("uses sentAt when present, else createdAt, and skips customer-less rows", () => {
-    const map = buildThreadMap([
-      msg({ id: "m1", sentAtISO: null }),
-      msg({ id: "m2", customerId: null }),
-    ]);
-    expect(map.get("c1")).toEqual([
-      expect.objectContaining({ id: "m1", whenISO: "2026-06-01T09:59:00Z" }),
-    ]);
-    expect(map.size).toBe(1);
-  });
-
-  it("caps each customer's thread", () => {
-    const many = Array.from({ length: 5 }, (_, i) => msg({ id: `m${i}` }));
-    expect(buildThreadMap(many, 3).get("c1")).toHaveLength(3);
   });
 });
 
@@ -157,32 +119,54 @@ describe("buildConvertInput", () => {
   });
 });
 
-describe("artist scope + open boards", () => {
-  it("artists see their own enquiries plus unassigned Inkling boards", () => {
+describe("visibility, close authorisation and attachments", () => {
+  it("artists see their own enquiries plus every unassigned one, any channel", () => {
     expect(artistInboxWhere("art1")).toEqual({
-      OR: [
-        { preferredArtistId: "art1" },
-        { source: "inkling", preferredArtistId: null },
-      ],
+      OR: [{ preferredArtistId: "art1" }, { preferredArtistId: null }],
     });
   });
 
-  it("isOpenBoard / canAccessEnquiry", () => {
-    const open = { source: "inkling" as const, preferredArtistId: null };
-    const mine = { source: "web" as const, preferredArtistId: "art1" };
-    const other = { source: "web" as const, preferredArtistId: "art2" };
-    expect(isOpenBoard(open)).toBe(true);
-    expect(isOpenBoard({ source: "web", preferredArtistId: null })).toBe(false);
+  it("isUnassigned / canAccessEnquiry", () => {
     const artist = { role: "ARTIST" as const, artistId: "art1" };
-    expect(canAccessEnquiry(artist, open)).toBe(true);
-    expect(canAccessEnquiry(artist, mine)).toBe(true);
-    expect(canAccessEnquiry(artist, other)).toBe(false);
-    expect(canAccessEnquiry({ role: "OWNER" }, other)).toBe(true);
-    expect(canAccessEnquiry({ role: "ARTIST", artistId: null }, open)).toBe(
-      false,
-    );
+    expect(isUnassigned({ preferredArtistId: null })).toBe(true);
+    expect(isUnassigned({ preferredArtistId: "art2" })).toBe(false);
+    expect(canAccessEnquiry(artist, { preferredArtistId: null })).toBe(true);
+    expect(canAccessEnquiry(artist, { preferredArtistId: "art1" })).toBe(true);
+    expect(canAccessEnquiry(artist, { preferredArtistId: "art2" })).toBe(false);
+    expect(canAccessEnquiry({ role: "OWNER" }, { preferredArtistId: "art2" })).toBe(true);
+    expect(canAccessEnquiry({ role: "ARTIST", artistId: null }, { preferredArtistId: null })).toBe(false);
   });
 
+  it("only the assigned artist (or an owner) may close an enquiry", () => {
+    const artist = { role: "ARTIST" as const, artistId: "art1" };
+    expect(canCloseEnquiry(artist, { preferredArtistId: "art1" })).toBe(true);
+    expect(canCloseEnquiry(artist, { preferredArtistId: null })).toBe(false);
+    expect(canCloseEnquiry(artist, { preferredArtistId: "art2" })).toBe(false);
+    expect(canCloseEnquiry({ role: "OWNER" }, { preferredArtistId: null })).toBe(true);
+  });
+
+  it("counts the customer_replied status", () => {
+    expect(countByStatus([{ status: "customer_replied" }, { status: "new" }])).toEqual({
+      new: 1,
+      replied: 0,
+      customer_replied: 1,
+      converted: 0,
+      closed: 0,
+    });
+  });
+
+  it("routes inline attachments through the admin origin and links out otherwise", () => {
+    expect(attachmentHref({ id: "a1", url: null, hasBytes: true })).toBe(
+      "/api/attachments/a1",
+    );
+    expect(
+      attachmentHref({ id: "a2", url: "https://f.test/b.pdf", hasBytes: false }),
+    ).toBe("https://f.test/b.pdf");
+    expect(attachmentHref({ id: "a3", url: null, hasBytes: false })).toBeNull();
+  });
+});
+
+describe("filterEnquiries + source filter", () => {
   it("filterEnquiries honours the source filter", () => {
     const items = [
       { preferredArtistId: null, style: null, source: "inkling" as const },

@@ -17,6 +17,7 @@ export function countByStatus(
   const counts: Record<EnquiryStatus, number> = {
     new: 0,
     replied: 0,
+    customer_replied: 0,
     converted: 0,
     closed: 0,
   };
@@ -33,52 +34,6 @@ export function looksLikeImageUrl(url: string): boolean {
     // Relative / malformed URL — test the raw string.
   }
   return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(pathname);
-}
-
-/** One MessageLog row, serialised for the inbox (input to buildThreadMap). */
-export interface ThreadMessage {
-  id: string;
-  customerId: string | null;
-  type: string;
-  status: string;
-  subject: string | null;
-  sentAtISO: string | null;
-  createdAtISO: string;
-}
-
-/** A past message shown in the enquiry detail thread. */
-export interface ThreadEntry {
-  id: string;
-  type: string;
-  status: string;
-  subject: string | null;
-  whenISO: string;
-}
-
-/**
- * Group MessageLog rows by customer for the enquiry detail thread. Rows are
- * expected newest-first; each customer's thread is capped at `cap` entries.
- * Rows without a customer are skipped (nothing to attach them to).
- */
-export function buildThreadMap(
-  messages: ThreadMessage[],
-  cap = 20,
-): Map<string, ThreadEntry[]> {
-  const map = new Map<string, ThreadEntry[]>();
-  for (const m of messages) {
-    if (!m.customerId) continue;
-    const list = map.get(m.customerId) ?? [];
-    if (list.length >= cap) continue;
-    list.push({
-      id: m.id,
-      type: m.type,
-      status: m.status,
-      subject: m.subject,
-      whenISO: m.sentAtISO ?? m.createdAtISO,
-    });
-    map.set(m.customerId, list);
-  }
-  return map;
 }
 
 export interface InboxFilter {
@@ -109,35 +64,61 @@ export function filterEnquiries<
   });
 }
 
-/** Artists see enquiries that prefer them PLUS unassigned Inkling mood boards. */
+/**
+ * Artists see enquiries that prefer them PLUS every unassigned enquiry on any
+ * channel — an emailed lead must not sit invisible because nobody claimed it.
+ * Mirrors `visibleEnquiryWhere` in @bnb/core/services/enquiry-messages, which
+ * drives the unread badge; change both together.
+ */
 export function artistInboxWhere(artistId: string): Prisma.EnquiryWhereInput {
   return {
-    OR: [
-      { preferredArtistId: artistId },
-      { source: "inkling", preferredArtistId: null },
-    ],
+    OR: [{ preferredArtistId: artistId }, { preferredArtistId: null }],
   };
 }
 
-/** True for an Inkling mood board that has not been claimed by an artist. */
-export function isOpenBoard(e: {
-  source: EnquirySource;
-  preferredArtistId: string | null;
-}): boolean {
-  return e.source === "inkling" && e.preferredArtistId === null;
+/** No artist has taken this enquiry yet — any artist may claim it. */
+export function isUnassigned(e: { preferredArtistId: string | null }): boolean {
+  return e.preferredArtistId === null;
 }
 
 /**
- * Can this staff user see/act on this enquiry? Owners see everything;
- * artists see enquiries that prefer them plus any open (unclaimed) board.
+ * Can this staff user see/act on this enquiry? Owners see everything; artists
+ * see enquiries that prefer them plus any unassigned one.
  */
 export function canAccessEnquiry(
   user: { role: "OWNER" | "ARTIST"; artistId?: string | null },
-  e: { source: EnquirySource; preferredArtistId: string | null },
+  e: { preferredArtistId: string | null },
 ): boolean {
   if (user.role === "OWNER") return true;
   if (!user.artistId) return false;
-  return e.preferredArtistId === user.artistId || isOpenBoard(e);
+  return e.preferredArtistId === user.artistId || isUnassigned(e);
+}
+
+/**
+ * Closing is narrower than access: an artist may only close an enquiry that is
+ * assigned to them. Seeing an unassigned enquiry must not let one artist bin a
+ * lead another was about to take.
+ */
+export function canCloseEnquiry(
+  user: { role: "OWNER" | "ARTIST"; artistId?: string | null },
+  e: { preferredArtistId: string | null },
+): boolean {
+  if (user.role === "OWNER") return true;
+  return Boolean(user.artistId) && e.preferredArtistId === user.artistId;
+}
+
+/**
+ * Where the inbox links an attachment: inline bytes are served by the
+ * staff-gated admin route, link-only rows go straight to their source, and a
+ * row with neither is unreachable.
+ */
+export function attachmentHref(a: {
+  id: string;
+  url: string | null;
+  hasBytes: boolean;
+}): string | null {
+  if (a.hasBytes) return `/api/attachments/${a.id}`;
+  return a.url;
 }
 
 /** Distinct non-empty styles across the inbox (case-insensitive, sorted). */

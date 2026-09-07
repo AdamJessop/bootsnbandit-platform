@@ -27,11 +27,19 @@ vi.mock("@bnb/core/services/bookings", () => ({
   BookingConflictError: class BookingConflictError extends Error {},
   createBooking: vi.fn(),
 }));
+vi.mock("@bnb/core/services/enquiry-messages", () => ({
+  markRead: vi.fn(),
+  recordNote: vi.fn(),
+  recordOutbound: vi.fn(),
+}));
 
 const { requireRole } = await import("@bnb/core/auth");
 const { prisma } = await import("@bnb/core/db");
 const { sendEmail } = await import("@bnb/core/email");
 const { updateEnquiryStatus } = await import("@bnb/core/services/enquiries");
+const { markRead, recordNote, recordOutbound } = await import(
+  "@bnb/core/services/enquiry-messages"
+);
 const { replyToEnquiry } = await import("./actions");
 
 const OWNER = {
@@ -50,6 +58,7 @@ const ENQUIRY = {
   style: "fine line",
   placement: "arm",
   source: "web" as const,
+  status: "new" as const,
 };
 
 beforeEach(() => {
@@ -71,6 +80,7 @@ describe("replyToEnquiry", () => {
       to: "amy@example.com",
       type: "staff_reply",
       customerId: "c1",
+      enquiryId: "e1",
       data: { customerName: "Amy", body: "Hi Amy, yes we can!" },
     });
     // sendEmail writes the MessageLog itself — no double-logging here.
@@ -155,7 +165,7 @@ describe("enquiry actions input contracts", () => {
   });
 });
 
-describe("artist access + claiming", () => {
+describe("artist access + claiming (any unassigned enquiry)", () => {
   const ARTIST = {
     id: "u2",
     email: "a@x",
@@ -171,11 +181,10 @@ describe("artist access + claiming", () => {
     );
   });
 
-  it("lets an artist reply to an open Inkling board and claims it", async () => {
+  it("lets an artist reply to an unassigned enquiry and claims it", async () => {
     vi.mocked(requireRole).mockResolvedValue(ARTIST);
     vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
       ...ENQUIRY,
-      source: "inkling",
       preferredArtistId: null,
     } as never);
     const res = await replyToEnquiry("e1", {
@@ -184,15 +193,14 @@ describe("artist access + claiming", () => {
     expect(res.ok).toBe(true);
     expect(prisma.enquiry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", preferredArtistId: null },
-      data: { preferredArtistId: "art9" },
+      data: { preferredArtistId: "art9", assignedAt: expect.any(Date) },
     });
   });
 
-  it("still sends the reply but does not claim the board when another artist won the race", async () => {
+  it("still sends the reply but does not claim the enquiry when another artist won the race", async () => {
     vi.mocked(requireRole).mockResolvedValue(ARTIST);
     vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
       ...ENQUIRY,
-      source: "inkling",
       preferredArtistId: null,
     } as never);
     vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({
@@ -203,22 +211,20 @@ describe("artist access + claiming", () => {
     expect(res.message).toMatch(/taken by another artist/i);
   });
 
-  it("claimEnquiry assigns an open board to the artist, refuses taken ones", async () => {
+  it("claimEnquiry assigns an unassigned enquiry to the artist, refuses taken ones", async () => {
     const { claimEnquiry } = await import("./actions");
     vi.mocked(requireRole).mockResolvedValue(ARTIST);
     vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
       ...ENQUIRY,
-      source: "inkling",
       preferredArtistId: null,
     } as never);
     expect((await claimEnquiry("e1")).ok).toBe(true);
     expect(prisma.enquiry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", preferredArtistId: null },
-      data: { preferredArtistId: "art9" },
+      data: { preferredArtistId: "art9", assignedAt: expect.any(Date) },
     });
     vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
       ...ENQUIRY,
-      source: "inkling",
       preferredArtistId: "art1",
     } as never);
     await expect(claimEnquiry("e1")).rejects.toThrow(/Forbidden/);
@@ -229,7 +235,6 @@ describe("artist access + claiming", () => {
     vi.mocked(requireRole).mockResolvedValue(ARTIST);
     vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
       ...ENQUIRY,
-      source: "inkling",
       preferredArtistId: null,
     } as never);
     vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({
@@ -276,7 +281,7 @@ describe("assignEnquiry authorisation", () => {
     expect(res.ok).toBe(true);
     expect(prisma.enquiry.update).toHaveBeenCalledWith({
       where: { id: "e1" },
-      data: { preferredArtistId: "art9" },
+      data: { preferredArtistId: "art9", assignedAt: expect.any(Date) },
     });
   });
 
@@ -286,7 +291,83 @@ describe("assignEnquiry authorisation", () => {
     expect(res.ok).toBe(true);
     expect(prisma.enquiry.update).toHaveBeenCalledWith({
       where: { id: "e1" },
-      data: { preferredArtistId: "art2" },
+      data: { preferredArtistId: "art2", assignedAt: expect.any(Date) },
     });
+  });
+});
+
+describe("reply threading, notes, read markers and close authorisation", () => {
+  const ARTIST = {
+    id: "u2",
+    email: "a@x",
+    role: "ARTIST" as const,
+    displayName: "Art",
+    artistId: "art1",
+  };
+
+  it("passes the enquiry id to sendEmail so the reply lands on the thread", async () => {
+    await replyToEnquiry("e1", { message: "Tuesday works!" });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ enquiryId: "e1", type: "staff_reply" }),
+    );
+  });
+
+  it("records an outbound thread message when there is no email to send to", async () => {
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      contactEmail: null,
+    } as never);
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+    expect(res.ok).toBe(true);
+    expect(recordOutbound).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enquiryId: "e1",
+        channel: "email",
+        bodyText: "Hello",
+        deliveryStatus: "logged",
+      }),
+    );
+  });
+
+  it("addInternalNote records an internal message and rejects an empty body", async () => {
+    const { addInternalNote } = await import("./actions");
+    const ok = await addInternalNote("e1", { body: "  Chased on IG.  " });
+    expect(ok.ok).toBe(true);
+    expect(recordNote).toHaveBeenCalledWith({
+      enquiryId: "e1",
+      authorUserId: "u1",
+      bodyText: "Chased on IG.",
+    });
+    vi.mocked(recordNote).mockClear();
+    const bad = await addInternalNote("e1", { body: "   " });
+    expect(bad.ok).toBe(false);
+    expect(recordNote).not.toHaveBeenCalled();
+  });
+
+  it("markEnquiryRead marks the thread read for the signed-in user", async () => {
+    const { markEnquiryRead } = await import("./actions");
+    const res = await markEnquiryRead("e1");
+    expect(res.ok).toBe(true);
+    expect(markRead).toHaveBeenCalledWith("e1", "u1");
+  });
+
+  it("lets an owner close anything but limits artists to their own enquiries", async () => {
+    const { closeEnquiry } = await import("./actions");
+    expect((await closeEnquiry("e1")).ok).toBe(true);
+
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      preferredArtistId: "art1",
+    } as never);
+    expect((await closeEnquiry("e1")).ok).toBe(true);
+
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      preferredArtistId: null,
+    } as never);
+    const refused = await closeEnquiry("e1");
+    expect(refused.ok).toBe(false);
+    expect(refused.message).toMatch(/assigned artist/i);
   });
 });

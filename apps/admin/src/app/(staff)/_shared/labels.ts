@@ -36,6 +36,7 @@ export function enquiryStatusLabel(status: EnquiryStatus): string {
   const map: Record<EnquiryStatus, string> = {
     new: "New",
     replied: "Replied",
+    customer_replied: "Customer replied",
     converted: "Converted",
     closed: "Closed",
   };
@@ -51,6 +52,8 @@ export function enquiryStatusVariant(
     case "converted":
       return "secondary";
     case "closed":
+      return "destructive";
+    case "customer_replied":
       return "destructive";
     default:
       return "outline";

@@ -17,6 +17,7 @@ describe("status labels", () => {
   it("humanises enquiry statuses", () => {
     expect(enquiryStatusLabel("new")).toBe("New");
     expect(enquiryStatusLabel("converted")).toBe("Converted");
+    expect(enquiryStatusLabel("customer_replied")).toBe("Customer replied");
   });
 });
 

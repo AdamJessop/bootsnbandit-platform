@@ -10,6 +10,7 @@ describe("EnquiriesPage tallies", () => {
     expect(countByStatus([])).toEqual({
       new: 0,
       replied: 0,
+      customer_replied: 0,
       converted: 0,
       closed: 0,
     });
