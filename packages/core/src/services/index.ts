@@ -18,3 +18,4 @@ export * from "./image-search";
 export * from "./customer-merge";
 export * from "./enquiry-threading";
 export * from "./assets";
+export * from "./enquiry-messages";
