@@ -28,11 +28,13 @@ comes from env vars.
      `GOOGLE_CSE_KEY` / `GOOGLE_CSE_CX` are still read as a legacy fallback,
      but Google no longer grants new projects access to the Custom Search
      JSON API (new projects get `PERMISSION_DENIED`).
-   - `INBOUND_EMAIL_DOMAIN` / `RESEND_WEBHOOK_SECRET` (optional, admin only) —
-     the two-way email channel. Without them the enquiry inbox still sends
-     (from `EMAIL_FROM`) but cannot receive: `/api/webhooks/resend` answers
-     503 and replies carry no reply token. Setup, DNS records and the smoke
-     test are in `docs/CHANNELS.md`; live status is in Studio › Channels.
+   - `INBOUND_EMAIL_DOMAIN` (optional; read by **admin and web**) /
+     `RESEND_WEBHOOK_SECRET` (optional, admin only) — the two-way email
+     channel. Without them the enquiry inbox still sends (from `EMAIL_FROM`)
+     but cannot receive: `/api/webhooks/resend` answers 503, and neither a
+     staff reply nor the web app's enquiry acknowledgement carries a reply
+     token. Setup, DNS records and the smoke test are in `docs/CHANNELS.md`;
+     live status is in Studio › Channels.
 4. **Domains** — in the resource's service list, assign a domain to each app
    service with its container port: `web` → your apex/www domain, port 3000;
    `admin` → admin subdomain, port 3001; `reception` → reception subdomain,

@@ -60,13 +60,19 @@ receives your normal business mail.
 
 ### 4. Set the secrets
 
-In Coolify, on the compose resource's Environment Variables (admin only — the
-web and reception apps neither receive nor send enquiry mail):
+In Coolify, on the compose resource's Environment Variables:
 
-| Var                     | Value                                                                      |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `INBOUND_EMAIL_DOMAIN`  | the verified subdomain, e.g. `mail.bootsnbandit.co.uk` (no `@`, no scheme) |
-| `RESEND_WEBHOOK_SECRET` | the `whsec_…` signing secret from step 3                                   |
+| Var                     | Set on         | Value                                                                      |
+| ----------------------- | -------------- | -------------------------------------------------------------------------- |
+| `INBOUND_EMAIL_DOMAIN`  | admin **and web** | the verified subdomain, e.g. `mail.bootsnbandit.co.uk` (no `@`, no scheme) |
+| `RESEND_WEBHOOK_SECRET` | admin only     | the `whsec_…` signing secret from step 3                                   |
+
+The web app never *receives* mail — the webhook lives on admin — but it sends
+the enquiry acknowledgement, and that ack needs the same
+`Reply-To: enq-<token>@<domain>` a staff reply gets. Without the var on web, a
+customer replying to their acknowledgement mails `EMAIL_FROM`, which has no
+inbound MX, and the reply is lost. Reception neither sends nor receives
+enquiry mail and needs neither var.
 
 `RESEND_API_KEY` must also be set: inbound bodies and attachments are fetched
 from the Resend API with it, so inbound email does not work without it.

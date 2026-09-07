@@ -23,11 +23,50 @@ export const dynamic = "force-dynamic";
 
 /**
  * Unauthenticated route: cap the body before doing any work with it. Checked
- * twice — against the (spoofable) `content-length` header before reading the
- * body at all, and again against the actual byte count after, since a caller
- * can omit or lie about the header.
+ * twice — against the (spoofable) `content-length` header before touching the
+ * body at all, and against the actual bytes as they stream in, since a caller
+ * can omit or lie about the header. The second check is what makes the cap
+ * real: nothing is ever buffered past it.
  */
 const MAX_BODY_BYTES = 1_048_576;
+
+/**
+ * The raw body, or null when it exceeds the cap.
+ *
+ * Deliberately NOT `req.text()`: that buffers whatever the caller sends before
+ * anything — signature verification included — has had a chance to reject it,
+ * so an unsigned request could pin memory at will. Reading the stream by hand
+ * lets the read be abandoned the instant the running total crosses the cap.
+ * The bytes are decoded exactly once, as UTF-8, and the resulting string is
+ * what the signature is checked against: re-serialising would change the bytes
+ * and break the signature.
+ */
+async function readCappedBody(req: Request): Promise<string | null> {
+  if (!req.body) return "";
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8").decode(bytes);
+}
 
 /** Best-effort id for the failure row, so the panel can name the email. */
 function externalIdOf(event: unknown): string | null {
@@ -65,9 +104,10 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // The raw text, not req.json(): re-serialising changes bytes and breaks
-  // the signature.
-  const raw = await req.text();
-  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
+  // the signature. An oversize body is refused without a WebhookFailure row —
+  // there is nothing to replay, and recording it would store the flood.
+  const raw = await readCappedBody(req);
+  if (raw === null) {
     return jsonError(413, "Payload too large");
   }
 

@@ -36,6 +36,9 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # The web app never receives mail, but its enquiry acknowledgement sets
+      # Reply-To: enq-<token>@<domain> so a customer replying to it threads.
+      INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-}
       APP_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
       BRAVE_SEARCH_KEY: ${BRAVE_SEARCH_KEY:-}
       GOOGLE_CSE_KEY: ${GOOGLE_CSE_KEY:-}
