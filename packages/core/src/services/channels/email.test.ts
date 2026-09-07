@@ -11,6 +11,18 @@ import {
   type ResendReceivedEvent,
 } from "./email";
 
+// The outbound half talks to Prisma and to the shared sendEmail; both are
+// stubbed here so this file stays a pure unit suite (vi.mock is hoisted, so
+// the factories are registered before ./email above is evaluated).
+const sendEmail = vi.fn();
+const findUnique = vi.fn();
+vi.mock("@bnb/core/email", () => ({
+  sendEmail: (...a: unknown[]) => sendEmail(...a),
+}));
+vi.mock("@bnb/core/db", () => ({
+  prisma: { enquiry: { findUnique: (...a: unknown[]) => findUnique(...a) } },
+}));
+
 /**
  * parseResendInbound turns a Resend `email.received` event into everything
  * recordInbound needs. The fixtures are the SDK's documented response shapes;
@@ -482,5 +494,164 @@ describe("resendInboundDeps().download", () => {
       fetchImpl as unknown as typeof fetch,
     ).download("https://attachments.resend.test/small", 100);
     expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7]));
+  });
+});
+
+describe("loadEnquiryEmailContext", () => {
+  it("flattens the enquiry, its artist and its last inbound message", async () => {
+    const { loadEnquiryEmailContext } = await import("./email");
+    findUnique.mockResolvedValue({
+      id: "e1",
+      threadToken: "tok123456",
+      customerId: "c1",
+      contactName: "Amy Jones",
+      contactEmail: "amy@example.com",
+      subject: "Sleeve idea",
+      preferredArtist: { name: "Sarah North" },
+      messages: [
+        {
+          channel: "email",
+          subject: "Re: Sleeve idea",
+          messageIdHeader: "<abc@x.test>",
+        },
+      ],
+    });
+    expect(await loadEnquiryEmailContext("e1")).toEqual({
+      enquiryId: "e1",
+      threadToken: "tok123456",
+      customerId: "c1",
+      contactName: "Amy Jones",
+      contactEmail: "amy@example.com",
+      subject: "Sleeve idea",
+      artistName: "Sarah North",
+      lastInboundChannel: "email",
+      lastInboundMessageId: "<abc@x.test>",
+      lastInboundSubject: "Re: Sleeve idea",
+    });
+  });
+
+  it("nulls the last-inbound fields when the thread has none, and 404s cleanly", async () => {
+    const { loadEnquiryEmailContext } = await import("./email");
+    findUnique.mockResolvedValue({
+      id: "e1",
+      threadToken: "tok123456",
+      customerId: null,
+      contactName: "Amy",
+      contactEmail: null,
+      subject: null,
+      preferredArtist: null,
+      messages: [],
+    });
+    const ctx = await loadEnquiryEmailContext("e1");
+    expect(ctx?.artistName).toBeNull();
+    expect(ctx?.lastInboundChannel).toBeNull();
+    expect(ctx?.lastInboundMessageId).toBeNull();
+
+    findUnique.mockResolvedValue(null);
+    expect(await loadEnquiryEmailContext("gone")).toBeNull();
+  });
+});
+
+describe("sendEnquiryEmail", () => {
+  const CONTEXT = {
+    enquiryId: "e1",
+    threadToken: "tok123456",
+    customerId: "c1",
+    contactName: "Amy Jones",
+    contactEmail: "amy@example.com",
+    subject: "Sleeve idea",
+    artistName: "Sarah North",
+    lastInboundChannel: "email" as const,
+    lastInboundMessageId: "<abc@x.test>",
+    lastInboundSubject: "Re: Sleeve idea",
+  };
+
+  beforeEach(() => {
+    sendEmail.mockReset().mockResolvedValue({ id: "m1", status: "sent" });
+  });
+
+  it("sends as the artist from the studio address, with the reply token", async () => {
+    const { sendEnquiryEmail } = await import("./email");
+    const result = await sendEnquiryEmail({
+      context: CONTEXT,
+      body: "Tuesday works",
+      authorUserId: "u1",
+      authorDisplayName: "Owner Olive",
+    });
+    expect(result).toEqual({ id: "m1", status: "sent" });
+    expect(sendEmail).toHaveBeenCalledWith({
+      to: "amy@example.com",
+      type: "staff_reply",
+      customerId: "c1",
+      enquiryId: "e1",
+      authorUserId: "u1",
+      from: `"Sarah at Boots 'n' Bandit" <enquiries@mail.bootsnbandit.test>`,
+      replyTo: "enq-tok123456@mail.bootsnbandit.test",
+      headers: { "In-Reply-To": "<abc@x.test>", References: "<abc@x.test>" },
+      data: {
+        customerName: "Amy Jones",
+        body: "Tuesday works",
+        subject: "Re: Sleeve idea",
+      },
+    });
+  });
+
+  it("falls back to the replying staff member's name when no artist is assigned", async () => {
+    const { sendEnquiryEmail } = await import("./email");
+    await sendEnquiryEmail({
+      context: { ...CONTEXT, artistName: null },
+      body: "Hi",
+      authorUserId: "u1",
+      authorDisplayName: "Olive Boots",
+    });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: `"Olive at Boots 'n' Bandit" <enquiries@mail.bootsnbandit.test>`,
+      }),
+    );
+  });
+
+  it("omits the threading headers when there is no inbound message id", async () => {
+    const { sendEnquiryEmail } = await import("./email");
+    await sendEnquiryEmail({
+      context: {
+        ...CONTEXT,
+        lastInboundMessageId: null,
+        lastInboundSubject: null,
+      },
+      body: "Hi",
+      authorUserId: "u1",
+    });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: undefined,
+        data: expect.objectContaining({ subject: "Re: Sleeve idea" }),
+      }),
+    );
+  });
+
+  it("falls back to the plain studio identity when no inbound domain is set", async () => {
+    delete process.env.INBOUND_EMAIL_DOMAIN;
+    const { sendEnquiryEmail } = await import("./email");
+    await sendEnquiryEmail({
+      context: CONTEXT,
+      body: "Hi",
+      authorUserId: "u1",
+    });
+    expect(sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ from: null, replyTo: null }),
+    );
+  });
+
+  it("refuses to send to an enquiry with no email address", async () => {
+    const { sendEnquiryEmail } = await import("./email");
+    await expect(
+      sendEnquiryEmail({
+        context: { ...CONTEXT, contactEmail: null },
+        body: "Hi",
+        authorUserId: "u1",
+      }),
+    ).rejects.toThrow(/no email address/i);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

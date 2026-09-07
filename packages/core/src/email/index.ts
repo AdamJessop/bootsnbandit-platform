@@ -34,6 +34,16 @@ export interface SendEmailInput {
    * reminders) leaves it unset.
    */
   authorUserId?: string | null;
+  /**
+   * Overrides the default studio From. Enquiry replies use it to put the
+   * artist's name on the studio address (spec decision 6); everything
+   * transactional leaves it unset.
+   */
+  from?: string | null;
+  /** Reply-To — the per-enquiry inbound token address. */
+  replyTo?: string | null;
+  /** Extra RFC headers (In-Reply-To / References for mail-client threading). */
+  headers?: Record<string, string> | null;
   data: Record<string, unknown>;
 }
 
@@ -91,10 +101,16 @@ export async function sendEmail(
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
       const { data, error } = await resend.emails.send({
-        from: FROM_ADDRESS,
+        from: input.from?.trim() || FROM_ADDRESS,
         to: input.to,
         subject,
         html,
+        // Only send the optional fields when they carry something: an empty
+        // `headers: {}` is noise in the API log and in every test assertion.
+        ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+        ...(input.headers && Object.keys(input.headers).length > 0
+          ? { headers: input.headers }
+          : {}),
       });
       if (error) {
         console.error(`[email] Resend error for "${input.type}":`, error);

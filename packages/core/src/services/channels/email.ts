@@ -1,3 +1,5 @@
+import { prisma } from "@bnb/core/db";
+import { sendEmail, type SendEmailResult } from "@bnb/core/email";
 import { sniffImageMime } from "@bnb/core/uploads";
 import {
   isInlineableAttachment,
@@ -5,17 +7,24 @@ import {
   type StoreAttachmentInput,
 } from "../assets";
 import {
+  firstName,
+  formatFromHeader,
   formatMessageId,
+  fromDisplayName,
   headerValue,
   htmlToText,
   inboundEmailDomain,
   isAutoSubmitted,
+  outboundAddressFor,
   parseAddress,
   parseAddressList,
+  replyAddressFor,
+  replySubject,
   stripQuotedReply,
   threadTokenFrom,
   tokenFromText,
 } from "./email-format";
+import type { MessageChannelKind } from "@prisma/client";
 
 /**
  * The email channel.
@@ -358,4 +367,134 @@ function isOwnDomain(address: string, domain: string | null): boolean {
   if (!domain) return false;
   const host = address.slice(address.lastIndexOf("@") + 1).toLowerCase();
   return host === domain.trim().toLowerCase();
+}
+
+/**
+ * OUTBOUND: everything a staff reply needs, flattened in one query.
+ *
+ * `messageIdHeader` is deliberately selected here rather than carried on
+ * `ThreadMessageRow` — no render path needs it, and the inbox pulls hundreds
+ * of rows per page.
+ */
+export interface EnquiryEmailContext {
+  enquiryId: string;
+  threadToken: string;
+  customerId: string | null;
+  contactName: string;
+  contactEmail: string | null;
+  subject: string | null;
+  /** The assigned artist, whose first name goes on the From line. */
+  artistName: string | null;
+  lastInboundChannel: MessageChannelKind | null;
+  /** RFC Message-ID of the last inbound message, for In-Reply-To. */
+  lastInboundMessageId: string | null;
+  lastInboundSubject: string | null;
+}
+
+export async function loadEnquiryEmailContext(
+  enquiryId: string,
+): Promise<EnquiryEmailContext | null> {
+  const enquiry = await prisma.enquiry.findUnique({
+    where: { id: enquiryId },
+    select: {
+      id: true,
+      threadToken: true,
+      customerId: true,
+      contactName: true,
+      contactEmail: true,
+      subject: true,
+      preferredArtist: { select: { name: true } },
+      messages: {
+        where: { direction: "inbound" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 1,
+        select: { channel: true, subject: true, messageIdHeader: true },
+      },
+    },
+  });
+  if (!enquiry) return null;
+
+  const last = enquiry.messages[0] ?? null;
+  return {
+    enquiryId: enquiry.id,
+    threadToken: enquiry.threadToken,
+    customerId: enquiry.customerId,
+    contactName: enquiry.contactName,
+    contactEmail: enquiry.contactEmail,
+    subject: enquiry.subject,
+    artistName: enquiry.preferredArtist?.name ?? null,
+    lastInboundChannel: last?.channel ?? null,
+    lastInboundMessageId: last?.messageIdHeader ?? null,
+    lastInboundSubject: last?.subject ?? null,
+  };
+}
+
+export interface SendEnquiryEmailInput {
+  context: EnquiryEmailContext;
+  body: string;
+  authorUserId: string;
+  /** Used for the From name when no artist is assigned yet. */
+  authorDisplayName?: string | null;
+}
+
+/**
+ * The studio reply, wearing the artist's name (spec decision 6):
+ *
+ *   From:     "Sarah at Boots 'n' Bandit" <enquiries@mail.example.com>
+ *   Reply-To: enq-<threadToken>@mail.example.com
+ *   In-Reply-To/References: the last inbound Message-ID
+ *
+ * The Reply-To token is what makes the round trip work — the customer's reply
+ * comes back addressed to the enquiry, so the inbound webhook threads it with
+ * no guessing. Sending is delegated to `sendEmail`, which keeps the MessageLog
+ * row, the outbound `EnquiryMessage` and the `authorUserId` attribution.
+ *
+ * With no `INBOUND_EMAIL_DOMAIN` configured there is nowhere for a reply to
+ * land, so the send falls back to the plain `EMAIL_FROM` identity with no
+ * Reply-To rather than advertising an address that does not exist.
+ */
+export async function sendEnquiryEmail(
+  input: SendEnquiryEmailInput,
+): Promise<SendEmailResult> {
+  const { context } = input;
+  if (!context.contactEmail) {
+    throw new Error(
+      `sendEnquiryEmail: enquiry ${context.enquiryId} has no email address`,
+    );
+  }
+
+  const domain = inboundEmailDomain();
+  if (!domain) {
+    console.warn(
+      "[email] INBOUND_EMAIL_DOMAIN is not set — replying from the default studio address with no reply token.",
+    );
+  }
+
+  const name =
+    firstName(context.artistName) ?? firstName(input.authorDisplayName);
+  const from = domain
+    ? formatFromHeader(fromDisplayName(name), outboundAddressFor(domain))
+    : null;
+  const replyTo = domain ? replyAddressFor(context.threadToken, domain) : null;
+
+  const inReplyTo = formatMessageId(context.lastInboundMessageId);
+  const headers = inReplyTo
+    ? { "In-Reply-To": inReplyTo, References: inReplyTo }
+    : undefined;
+
+  return sendEmail({
+    to: context.contactEmail,
+    type: "staff_reply",
+    customerId: context.customerId,
+    enquiryId: context.enquiryId,
+    authorUserId: input.authorUserId,
+    from,
+    replyTo,
+    headers,
+    data: {
+      customerName: context.contactName,
+      body: input.body,
+      subject: replySubject(context.lastInboundSubject ?? context.subject),
+    },
+  });
 }

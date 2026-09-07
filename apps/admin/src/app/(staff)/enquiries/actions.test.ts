@@ -20,6 +20,10 @@ vi.mock("@bnb/core/db", () => ({
   },
 }));
 vi.mock("@bnb/core/email", () => ({ sendEmail: vi.fn() }));
+vi.mock("@bnb/core/services/channels/email", () => ({
+  loadEnquiryEmailContext: vi.fn(),
+  sendEnquiryEmail: vi.fn(),
+}));
 vi.mock("@bnb/core/services/enquiries", () => ({
   updateEnquiryStatus: vi.fn(),
 }));
@@ -36,6 +40,22 @@ vi.mock("@bnb/core/services/enquiry-messages", () => ({
 const { requireRole } = await import("@bnb/core/auth");
 const { prisma } = await import("@bnb/core/db");
 const { sendEmail } = await import("@bnb/core/email");
+const { loadEnquiryEmailContext, sendEnquiryEmail } = await import(
+  "@bnb/core/services/channels/email"
+);
+
+const CONTEXT = {
+  enquiryId: "e1",
+  threadToken: "tok123456",
+  customerId: "c1",
+  contactName: "Amy",
+  contactEmail: "amy@example.com",
+  subject: "Sleeve idea",
+  artistName: "Sarah North",
+  lastInboundChannel: "email" as const,
+  lastInboundMessageId: "<abc@x.test>",
+  lastInboundSubject: "Re: Sleeve idea",
+};
 const { updateEnquiryStatus } = await import("@bnb/core/services/enquiries");
 const { markRead, recordNote, recordOutbound } = await import(
   "@bnb/core/services/enquiry-messages"
@@ -69,21 +89,19 @@ beforeEach(() => {
   );
   vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({ count: 1 } as never);
   vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "sent" });
+  vi.mocked(loadEnquiryEmailContext).mockResolvedValue(CONTEXT);
+  vi.mocked(sendEnquiryEmail).mockResolvedValue({ id: "m1", status: "sent" });
 });
 
 describe("replyToEnquiry", () => {
-  it("emails the customer via sendEmail (staff_reply) and marks replied", async () => {
+  it("sends via sendEnquiryEmail with the enquiry's context and marks replied", async () => {
     const res = await replyToEnquiry("e1", { message: "Hi Amy, yes we can!" });
-
     expect(res.ok).toBe(true);
-    expect(sendEmail).toHaveBeenCalledWith({
-      to: "amy@example.com",
-      type: "staff_reply",
-      customerId: "c1",
-      enquiryId: "e1",
-      // The thread message must carry the staff member who replied.
+    expect(sendEnquiryEmail).toHaveBeenCalledWith({
+      context: CONTEXT,
+      body: "Hi Amy, yes we can!",
       authorUserId: "u1",
-      data: { customerName: "Amy", body: "Hi Amy, yes we can!" },
+      authorDisplayName: "Owner",
     });
     // sendEmail writes the MessageLog itself — no double-logging here.
     expect(prisma.messageLog.create).not.toHaveBeenCalled();
@@ -91,47 +109,55 @@ describe("replyToEnquiry", () => {
   });
 
   it("reports a log-only outcome when email delivery is not configured", async () => {
-    vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "skipped" });
+    vi.mocked(sendEnquiryEmail).mockResolvedValue({
+      id: "m1",
+      status: "skipped",
+    });
     const res = await replyToEnquiry("e1", { message: "Hello" });
     expect(res.ok).toBe(true);
     expect(res.message).toMatch(/logged/i);
     expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
   });
 
-  it("falls back to a log-only reply when the enquiry has no email", async () => {
-    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
-      ...ENQUIRY,
+  it("saves an internal note when the customer has no reachable channel", async () => {
+    vi.mocked(loadEnquiryEmailContext).mockResolvedValue({
+      ...CONTEXT,
       contactEmail: null,
-    } as never);
-
-    const res = await replyToEnquiry("e1", { message: "Hello" });
-
-    expect(res.ok).toBe(true);
-    expect(res.message).toMatch(/no email on file/i);
-    expect(sendEmail).not.toHaveBeenCalled();
-    expect(prisma.messageLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        customerId: "c1",
-        type: "staff_reply",
-        status: "logged",
-        body: "Hello",
-      }),
     });
-    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/no reachable channel/i);
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+    expect(prisma.messageLog.create).not.toHaveBeenCalled();
+    expect(recordNote).toHaveBeenCalledWith({
+      enquiryId: "e1",
+      authorUserId: "u1",
+      bodyText: expect.stringContaining("Hello"),
+    });
+    expect(recordNote).toHaveBeenCalledWith({
+      enquiryId: "e1",
+      authorUserId: "u1",
+      bodyText: expect.stringContaining("Not sent"),
+    });
+    // Nothing was sent, so the enquiry is not "replied".
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
   });
 
   it("surfaces a failed send and does not mark the enquiry replied", async () => {
-    vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "failed" });
+    vi.mocked(sendEnquiryEmail).mockResolvedValue({
+      id: "m1",
+      status: "failed",
+    });
     const res = await replyToEnquiry("e1", { message: "Hello" });
     expect(res.ok).toBe(false);
     expect(res.message).toMatch(/failed/i);
     expect(updateEnquiryStatus).not.toHaveBeenCalled();
   });
 
-  it("rejects an empty reply without sending", async () => {
+  it("rejects an empty reply without loading or sending anything", async () => {
     const res = await replyToEnquiry("e1", { message: "   " });
     expect(res.ok).toBe(false);
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
   });
 
   it("still forbids artists from replying to another artist's enquiry (RBAC)", async () => {
@@ -146,7 +172,7 @@ describe("replyToEnquiry", () => {
     await expect(replyToEnquiry("e1", { message: "Hi" })).rejects.toThrow(
       /forbidden/i,
     );
-    expect(sendEmail).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
   });
 });
 
@@ -307,28 +333,24 @@ describe("reply threading, notes, read markers and close authorisation", () => {
     artistId: "art1",
   };
 
-  it("passes the enquiry id to sendEmail so the reply lands on the thread", async () => {
+  it("threads the reply onto the enquiry via sendEnquiryEmail", async () => {
     await replyToEnquiry("e1", { message: "Tuesday works!" });
-    expect(sendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ enquiryId: "e1", type: "staff_reply" }),
+    expect(sendEnquiryEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ enquiryId: "e1" }),
+      }),
     );
   });
 
-  it("records an outbound thread message when there is no email to send to", async () => {
-    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
-      ...ENQUIRY,
+  it("records an internal note when there is no email to send to", async () => {
+    vi.mocked(loadEnquiryEmailContext).mockResolvedValue({
+      ...CONTEXT,
       contactEmail: null,
-    } as never);
+    });
     const res = await replyToEnquiry("e1", { message: "Hello" });
     expect(res.ok).toBe(true);
-    expect(recordOutbound).toHaveBeenCalledWith(
-      expect.objectContaining({
-        enquiryId: "e1",
-        channel: "email",
-        bodyText: "Hello",
-        deliveryStatus: "logged",
-      }),
-    );
+    expect(recordOutbound).not.toHaveBeenCalled();
+    expect(recordNote).toHaveBeenCalled();
   });
 
   it("addInternalNote records an internal message and rejects an empty body", async () => {

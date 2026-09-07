@@ -231,3 +231,59 @@ describe("sendEmail enquiry threading", () => {
     expect(recordOutbound).not.toHaveBeenCalled();
   });
 });
+
+describe("sendEmail — enquiry reply identity", () => {
+  const savedKey = process.env.RESEND_API_KEY;
+
+  afterEach(() => {
+    if (savedKey === undefined) delete process.env.RESEND_API_KEY;
+    else process.env.RESEND_API_KEY = savedKey;
+  });
+
+  it("passes a custom From, Reply-To and threading headers to Resend", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    const { sendEmail } = await import("./index");
+    await sendEmail({
+      to: "amy@example.com",
+      type: "staff_reply",
+      from: `"Sarah at Boots 'n' Bandit" <enquiries@mail.test>`,
+      replyTo: "enq-tok123456@mail.test",
+      headers: { "In-Reply-To": "<abc@x>", References: "<abc@x>" },
+      data: {
+        customerName: "Amy",
+        body: "Tuesday works",
+        subject: "Re: Sleeve",
+      },
+    });
+    expect(resendSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: `"Sarah at Boots 'n' Bandit" <enquiries@mail.test>`,
+        to: "amy@example.com",
+        replyTo: "enq-tok123456@mail.test",
+        headers: { "In-Reply-To": "<abc@x>", References: "<abc@x>" },
+        subject: "Re: Sleeve",
+      }),
+    );
+  });
+
+  it("keeps the default studio From and sends no empty header bag", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    const { sendEmail } = await import("./index");
+    await sendEmail({
+      to: "amy@example.com",
+      type: "aftercare",
+      data: { customerName: "Amy" },
+    });
+    const payload = resendSend.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    // Not hard-coded: a developer .env may set EMAIL_FROM, and the point of
+    // this case is that transactional mail keeps whatever that default is.
+    expect(payload.from).toBe(
+      process.env.EMAIL_FROM ?? "Boots 'n' Bandit <hello@bootsnbandit.co.uk>",
+    );
+    expect(payload).not.toHaveProperty("replyTo");
+    expect(payload).not.toHaveProperty("headers");
+  });
+});

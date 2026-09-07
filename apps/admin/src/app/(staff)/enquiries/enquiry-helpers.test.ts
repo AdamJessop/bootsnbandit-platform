@@ -5,6 +5,7 @@ import {
   buildConvertInput,
   canAccessEnquiry,
   canCloseEnquiry,
+  chooseReplyChannel,
   countByStatus,
   distinctStyles,
   filterEnquiries,
@@ -186,5 +187,31 @@ describe("filterEnquiries + source filter", () => {
     expect(
       filterEnquiries(items, { artistId: null, style: null, source: null }),
     ).toHaveLength(2);
+  });
+});
+
+describe("chooseReplyChannel", () => {
+  it("replies by email whenever there is an address, whatever came in last", () => {
+    for (const lastInboundChannel of [
+      "email",
+      "web",
+      "note",
+      "messenger",
+      "instagram",
+      null,
+    ] as const) {
+      expect(chooseReplyChannel({ lastInboundChannel, hasEmail: true })).toBe(
+        "email",
+      );
+    }
+  });
+
+  it("has no reachable channel without an address", () => {
+    expect(
+      chooseReplyChannel({ lastInboundChannel: "email", hasEmail: false }),
+    ).toBe("none");
+    expect(
+      chooseReplyChannel({ lastInboundChannel: null, hasEmail: false }),
+    ).toBe("none");
   });
 });

@@ -6,6 +6,7 @@ import type {
   BookingType,
   EnquirySource,
   EnquiryStatus,
+  MessageChannelKind,
   Prisma,
 } from "@prisma/client";
 import type { CreateBookingInput } from "@bnb/core/services/bookings";
@@ -149,6 +150,25 @@ export function validateReply(input: { message: string }): ReplyResult {
   const message = input.message.trim();
   if (!message) return { ok: false, error: "A reply message is required." };
   return { ok: true, message };
+}
+
+export type ReplyChannel = "email" | "none";
+
+/**
+ * Which channel a staff reply goes out on. The spec's rule is "the channel of
+ * the last inbound message"; in Phase 2 the only outbound channel that exists
+ * is email, so every thread with an address on file replies by email and one
+ * without has no reachable channel at all (the action saves an internal note
+ * instead of pretending to send).
+ *
+ * Phase 3 adds the Meta branch here: `messenger`/`instagram` last-inbound with
+ * a live ChannelConnection replies on that channel, falling back to email.
+ */
+export function chooseReplyChannel(input: {
+  lastInboundChannel: MessageChannelKind | null;
+  hasEmail: boolean;
+}): ReplyChannel {
+  return input.hasEmail ? "email" : "none";
 }
 
 export interface ConvertFormInput {

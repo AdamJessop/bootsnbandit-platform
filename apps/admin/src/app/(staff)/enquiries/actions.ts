@@ -9,21 +9,21 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
-import { sendEmail } from "@bnb/core/email";
 import {
   BookingConflictError,
   createBooking,
 } from "@bnb/core/services/bookings";
-import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import {
-  markRead,
-  recordNote,
-  recordOutbound,
-} from "@bnb/core/services/enquiry-messages";
+  loadEnquiryEmailContext,
+  sendEnquiryEmail,
+} from "@bnb/core/services/channels/email";
+import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
+import { markRead, recordNote } from "@bnb/core/services/enquiry-messages";
 import {
   buildConvertInput,
   canAccessEnquiry,
   canCloseEnquiry,
+  chooseReplyChannel,
   isUnassigned,
   validateReply,
 } from "./enquiry-helpers";
@@ -95,54 +95,41 @@ export async function replyToEnquiry(
   const valid = validateReply(input);
   if (!valid.ok) return { ok: false, message: valid.error };
 
-  if (!enquiry.contactEmail) {
-    // No email on file — record the reply on the timeline only.
-    await prisma.messageLog.create({
-      data: {
-        customerId: enquiry.customerId,
-        type: "staff_reply",
-        channel: "email",
-        subject: "Re: your enquiry",
-        body: valid.message,
-        status: "logged",
-        sentAt: null,
-      },
-    });
-    // Also put it on the enquiry thread; sendEmail does this for real sends.
-    await recordOutbound({
+  const context = await loadEnquiryEmailContext(enquiryId);
+  if (!context) return { ok: false, message: "That enquiry no longer exists." };
+
+  const channel = chooseReplyChannel({
+    lastInboundChannel: context.lastInboundChannel,
+    hasEmail: Boolean(context.contactEmail),
+  });
+
+  if (channel === "none") {
+    // Nothing to send on: keep the words on the thread as a staff note rather
+    // than logging a "reply" the customer will never receive, and leave the
+    // status alone — the enquiry has not actually been replied to.
+    await recordNote({
       enquiryId,
-      customerId: enquiry.customerId,
-      channel: "email",
-      subject: "Re: your enquiry",
-      bodyText: valid.message,
       authorUserId: user.id,
-      deliveryStatus: "logged",
+      bodyText: `${valid.message}\n\n— Not sent: this customer has no reachable channel (no email address on file).`,
     });
-    await updateEnquiryStatus(enquiryId, "replied");
     const claim = await claimIfUnassigned(user, enquiry);
     revalidatePath("/enquiries");
     return {
       ok: true,
       message: withClaimNote(
-        "No email on file — reply logged to the timeline (not sent).",
+        "No reachable channel — saved as an internal note (nothing was sent).",
         claim,
       ),
     };
   }
 
-  // Send the branded staff-reply email; sendEmail writes the MessageLog row
-  // itself (sent / logged / failed), so no extra log here.
-  const result = await sendEmail({
-    to: enquiry.contactEmail,
-    type: "staff_reply",
-    customerId: enquiry.customerId,
-    enquiryId,
-    // Attribute the thread message sendEmail records to the replying staffer.
+  // sendEnquiryEmail delegates to sendEmail, which writes the MessageLog row
+  // and the outbound thread message itself — no extra logging here.
+  const result = await sendEnquiryEmail({
+    context,
+    body: valid.message,
     authorUserId: user.id,
-    data: {
-      customerName: enquiry.contactName,
-      body: valid.message,
-    },
+    authorDisplayName: user.displayName,
   });
   if (result.status === "failed") {
     return {
@@ -150,9 +137,9 @@ export async function replyToEnquiry(
       message: "The reply email failed to send — check the email integration.",
     };
   }
+
   await updateEnquiryStatus(enquiryId, "replied");
   const claim = await claimIfUnassigned(user, enquiry);
-
   revalidatePath("/enquiries");
   return {
     ok: true,
