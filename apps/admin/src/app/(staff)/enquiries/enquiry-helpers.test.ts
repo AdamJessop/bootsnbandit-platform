@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  artistInboxWhere,
   buildConvertInput,
   buildThreadMap,
+  canAccessEnquiry,
   distinctStyles,
   filterEnquiries,
+  isOpenBoard,
   looksLikeImageUrl,
   validateReply,
   type ThreadMessage,
@@ -73,26 +76,34 @@ describe("filterEnquiries + distinctStyles", () => {
 
   it("passes everything through with no filters", () => {
     expect(
-      filterEnquiries(items, { artistId: null, style: null }),
+      filterEnquiries(items, { artistId: null, style: null, source: null }),
     ).toHaveLength(4);
   });
 
   it("filters by preferred artist", () => {
     expect(
-      filterEnquiries(items, { artistId: "a1", style: null }).map((i) => i.id),
+      filterEnquiries(items, {
+        artistId: "a1",
+        style: null,
+        source: null,
+      }).map((i) => i.id),
     ).toEqual(["1", "4"]);
   });
 
   it("filters by style case-insensitively, and combines with artist", () => {
     expect(
-      filterEnquiries(items, { artistId: null, style: "fine line" }).map(
-        (i) => i.id,
-      ),
+      filterEnquiries(items, {
+        artistId: null,
+        style: "fine line",
+        source: null,
+      }).map((i) => i.id),
     ).toEqual(["1", "2"]);
     expect(
-      filterEnquiries(items, { artistId: "a2", style: "FINE LINE" }).map(
-        (i) => i.id,
-      ),
+      filterEnquiries(items, {
+        artistId: "a2",
+        style: "FINE LINE",
+        source: null,
+      }).map((i) => i.id),
     ).toEqual(["2"]);
   });
 
@@ -143,5 +154,51 @@ describe("buildConvertInput", () => {
 
   it("fails on a non-positive duration", () => {
     expect(buildConvertInput({ ...base, durationMin: 0 }).ok).toBe(false);
+  });
+});
+
+describe("artist scope + open boards", () => {
+  it("artists see their own enquiries plus unassigned Inkling boards", () => {
+    expect(artistInboxWhere("art1")).toEqual({
+      OR: [
+        { preferredArtistId: "art1" },
+        { source: "inkling", preferredArtistId: null },
+      ],
+    });
+  });
+
+  it("isOpenBoard / canAccessEnquiry", () => {
+    const open = { source: "inkling" as const, preferredArtistId: null };
+    const mine = { source: "web" as const, preferredArtistId: "art1" };
+    const other = { source: "web" as const, preferredArtistId: "art2" };
+    expect(isOpenBoard(open)).toBe(true);
+    expect(isOpenBoard({ source: "web", preferredArtistId: null })).toBe(
+      false,
+    );
+    const artist = { role: "ARTIST" as const, artistId: "art1" };
+    expect(canAccessEnquiry(artist, open)).toBe(true);
+    expect(canAccessEnquiry(artist, mine)).toBe(true);
+    expect(canAccessEnquiry(artist, other)).toBe(false);
+    expect(canAccessEnquiry({ role: "OWNER" }, other)).toBe(true);
+    expect(canAccessEnquiry({ role: "ARTIST", artistId: null }, open)).toBe(
+      false,
+    );
+  });
+
+  it("filterEnquiries honours the source filter", () => {
+    const items = [
+      { preferredArtistId: null, style: null, source: "inkling" as const },
+      { preferredArtistId: null, style: null, source: "web" as const },
+    ];
+    expect(
+      filterEnquiries(items, {
+        artistId: null,
+        style: null,
+        source: "inkling",
+      }),
+    ).toHaveLength(1);
+    expect(
+      filterEnquiries(items, { artistId: null, style: null, source: null }),
+    ).toHaveLength(2);
   });
 });

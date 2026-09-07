@@ -15,8 +15,14 @@ import {
   createBooking,
 } from "@bnb/core/services/bookings";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
-import { buildConvertInput, validateReply } from "./enquiry-helpers";
-import type { BookingType } from "@prisma/client";
+import {
+  buildConvertInput,
+  canAccessEnquiry,
+  isOpenBoard,
+  validateReply,
+} from "./enquiry-helpers";
+import type { BookingType, EnquirySource } from "@prisma/client";
+import type { SessionUser } from "@bnb/core/auth";
 
 export interface ActionState {
   ok: boolean;
@@ -35,19 +41,38 @@ async function loadEnquiryScoped(enquiryId: string) {
       preferredArtistId: true,
       style: true,
       placement: true,
+      source: true,
     },
   });
-  if (user.role !== "OWNER" && enquiry.preferredArtistId !== user.artistId) {
+  if (!canAccessEnquiry(user, enquiry)) {
     throw new Error("Forbidden");
   }
-  return enquiry;
+  return { user, enquiry };
+}
+
+/** An artist responding to an open (unclaimed) Inkling board takes it. */
+async function claimIfOpen(
+  user: SessionUser,
+  enquiry: {
+    id: string;
+    source: EnquirySource;
+    preferredArtistId: string | null;
+  },
+) {
+  if (user.role === "OWNER" || !user.artistId || !isOpenBoard(enquiry)) {
+    return;
+  }
+  await prisma.enquiry.update({
+    where: { id: enquiry.id },
+    data: { preferredArtistId: user.artistId },
+  });
 }
 
 export async function replyToEnquiry(
   enquiryId: string,
   input: { message: string },
 ): Promise<ActionState> {
-  const enquiry = await loadEnquiryScoped(enquiryId);
+  const { user, enquiry } = await loadEnquiryScoped(enquiryId);
   const valid = validateReply(input);
   if (!valid.ok) return { ok: false, message: valid.error };
 
@@ -65,6 +90,7 @@ export async function replyToEnquiry(
       },
     });
     await updateEnquiryStatus(enquiryId, "replied");
+    await claimIfOpen(user, enquiry);
     revalidatePath("/enquiries");
     return {
       ok: true,
@@ -90,6 +116,7 @@ export async function replyToEnquiry(
     };
   }
   await updateEnquiryStatus(enquiryId, "replied");
+  await claimIfOpen(user, enquiry);
 
   revalidatePath("/enquiries");
   return {
@@ -98,6 +125,25 @@ export async function replyToEnquiry(
       result.status === "sent"
         ? "Reply emailed to the customer and enquiry marked replied."
         : "Reply logged (email delivery not configured) and enquiry marked replied.",
+  };
+}
+
+export async function claimEnquiry(enquiryId: string): Promise<ActionState> {
+  const { user, enquiry } = await loadEnquiryScoped(enquiryId);
+  if (!user.artistId) {
+    return { ok: false, message: "Only artists can take a board." };
+  }
+  if (!isOpenBoard(enquiry)) {
+    return { ok: false, message: "This board has already been taken." };
+  }
+  await prisma.enquiry.update({
+    where: { id: enquiryId },
+    data: { preferredArtistId: user.artistId },
+  });
+  revalidatePath("/enquiries");
+  return {
+    ok: true,
+    message: "Board is yours — it now shows under your enquiries.",
   };
 }
 
@@ -130,8 +176,7 @@ export async function convertEnquiry(
     type: BookingType;
   },
 ): Promise<ActionState> {
-  const user = await requireRole();
-  const enquiry = await loadEnquiryScoped(enquiryId);
+  const { user, enquiry } = await loadEnquiryScoped(enquiryId);
   if (!enquiry.customerId) {
     return { ok: false, message: "This enquiry has no linked customer." };
   }

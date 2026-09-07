@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 // so the component module graph loads in node.
 vi.mock("./actions", () => ({
   assignEnquiry: vi.fn(),
+  claimEnquiry: vi.fn(),
   closeEnquiry: vi.fn(),
   convertEnquiry: vi.fn(),
   replyToEnquiry: vi.fn(),
@@ -39,6 +40,7 @@ const items: EnquiryItem[] = [
     budgetPence: 15000,
     description: "ladybird",
     moodboard: ["https://x.test/a.jpg"],
+    moodboardData: null,
     status: "new",
     source: "web",
     preferredArtistId: "a1",
@@ -63,6 +65,7 @@ const items: EnquiryItem[] = [
     budgetPence: null,
     description: null,
     moodboard: [],
+    moodboardData: null,
     status: "converted",
     source: "flash",
     preferredArtistId: null,
@@ -88,6 +91,7 @@ describe("EnquiryInbox closed select labels", () => {
         items={[{ ...items[0], preferredArtistId: "cln4artist1aaaa" }]}
         artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
         canConvert
+        viewerArtistId={null}
       />,
     );
     const triggers = [

@@ -9,8 +9,120 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "../_shared/labels";
 import { looksLikeImageUrl, type ThreadEntry } from "./enquiry-helpers";
+import type {
+  MoodboardData,
+  MoodboardItem,
+} from "@bnb/core/services/moodboard-data";
 
-export function MoodboardSection({ urls }: { urls: string[] }) {
+const KIND_LABEL: Record<MoodboardItem["kind"], string> = {
+  web: "Web",
+  studio: "Studio",
+  upload: "Upload",
+  link: "Link",
+};
+
+const COLOUR_LABEL = {
+  bw: "Black & grey",
+  colour: "Colour",
+  either: "Open to either",
+} as const;
+
+/** The customer's Inkling mood-board brief: styles, colour, idea, notes. */
+export function MoodBoardBriefSection({
+  data,
+}: {
+  data: MoodboardData | null;
+}) {
+  if (!data) return null;
+  return (
+    <section className="space-y-2">
+      <Label>Mood board brief</Label>
+      <dl className="grid grid-cols-2 gap-3 rounded-md border border-border-default bg-bg-base p-3 text-sm">
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-text-muted">
+            Styles
+          </dt>
+          <dd className="text-text-secondary">
+            {data.styles.join(", ") || "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs uppercase tracking-wide text-text-muted">
+            Colour
+          </dt>
+          <dd className="text-text-secondary">
+            {data.colour ? COLOUR_LABEL[data.colour] : "—"}
+          </dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-xs uppercase tracking-wide text-text-muted">
+            Idea
+          </dt>
+          <dd className="text-text-secondary">{data.description || "—"}</dd>
+        </div>
+        {data.query && (
+          <div className="col-span-2">
+            <dt className="text-xs uppercase tracking-wide text-text-muted">
+              Search we ran
+            </dt>
+            <dd className="text-text-muted">{data.query}</dd>
+          </div>
+        )}
+        {data.notes && (
+          <div className="col-span-2">
+            <dt className="text-xs uppercase tracking-wide text-text-muted">
+              Notes
+            </dt>
+            <dd className="text-text-secondary">{data.notes}</dd>
+          </div>
+        )}
+      </dl>
+    </section>
+  );
+}
+
+export function MoodboardSection({
+  urls,
+  data,
+}: {
+  urls: string[];
+  data?: MoodboardData | null;
+}) {
+  if (data && data.items.length > 0) {
+    return (
+      <section className="space-y-2">
+        <Label>Mood board ({data.items.length})</Label>
+        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {data.items.map((item, i) => (
+            <li key={`${item.url}-${i}`} className="space-y-1">
+              <a href={item.url} target="_blank" rel="noreferrer" className="block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={item.thumbUrl ?? item.url}
+                  alt={item.title ?? `Board image ${i + 1}`}
+                  referrerPolicy="no-referrer"
+                  className="aspect-square w-full rounded-md border border-border-default object-cover"
+                />
+              </a>
+              <div className="flex items-center justify-between gap-1 text-[11px] text-text-muted">
+                <Badge variant="outline">{KIND_LABEL[item.kind]}</Badge>
+                {item.sourceUrl && (
+                  <a
+                    href={item.sourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate underline"
+                  >
+                    source
+                  </a>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
   if (urls.length === 0) return null;
   return (
     <section className="space-y-2">

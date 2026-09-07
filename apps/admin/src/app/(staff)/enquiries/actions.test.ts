@@ -45,6 +45,7 @@ const ENQUIRY = {
   preferredArtistId: "art1",
   style: "fine line",
   placement: "arm",
+  source: "web" as const,
 };
 
 beforeEach(() => {
@@ -146,5 +147,54 @@ describe("enquiry actions input contracts", () => {
       type: "consult",
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe("artist access + claiming", () => {
+  const ARTIST = {
+    id: "u2",
+    email: "a@x",
+    role: "ARTIST" as const,
+    displayName: "Art",
+    artistId: "art9",
+  };
+
+  it("forbids an artist replying to another artist's enquiry", async () => {
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    await expect(replyToEnquiry("e1", { message: "hi" })).rejects.toThrow(
+      /Forbidden/,
+    );
+  });
+
+  it("lets an artist reply to an open Inkling board and claims it", async () => {
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    const res = await replyToEnquiry("e1", { message: "Love this — let's talk." });
+    expect(res.ok).toBe(true);
+    expect(prisma.enquiry.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { preferredArtistId: "art9" },
+    });
+  });
+
+  it("claimEnquiry assigns an open board to the artist, refuses taken ones", async () => {
+    const { claimEnquiry } = await import("./actions");
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    expect((await claimEnquiry("e1")).ok).toBe(true);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: "art1",
+    } as never);
+    await expect(claimEnquiry("e1")).rejects.toThrow(/Forbidden/);
   });
 });
