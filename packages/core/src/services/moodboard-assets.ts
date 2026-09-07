@@ -17,7 +17,7 @@ export async function createMoodboardAsset(input: {
   mime: string;
 }): Promise<MoodboardAssetMeta> {
   const row = await prisma.moodboardAsset.create({
-    data: { bytes: input.bytes, mime: input.mime, size: input.bytes.byteLength },
+    data: { bytes: Uint8Array.from(input.bytes), mime: input.mime, size: input.bytes.byteLength }, // Uint8Array.from() returns Uint8Array<ArrayBuffer> for Prisma Bytes typing
     select: { id: true, mime: true, size: true },
   });
   return row;
