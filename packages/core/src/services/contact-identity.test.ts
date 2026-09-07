@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { normaliseEmail, normalisePhone } from "./contact-identity";
+import { afterAll, describe, expect, it } from "vitest";
+import {
+  displayNameFor,
+  findOrCreateCustomer,
+  linkIdentity,
+  normaliseEmail,
+  normalisePhone,
+} from "./contact-identity";
+import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 
 describe("normaliseEmail", () => {
   it("trims and lowercases a valid address", () => {
@@ -40,5 +47,141 @@ describe("normalisePhone", () => {
     expect(normalisePhone("  ")).toBeNull();
     expect(normalisePhone("call me")).toBeNull();
     expect(normalisePhone("12345")).toBeNull();
+  });
+});
+
+describe("displayNameFor", () => {
+  it("prefers the given name, then the identity display name, then the email local part", () => {
+    expect(displayNameFor({ name: " Amy Jones " })).toBe("Amy Jones");
+    expect(
+      displayNameFor({
+        name: "  ",
+        identity: { channel: "messenger", externalId: "p1", displayName: "Amy J" },
+      }),
+    ).toBe("Amy J");
+    expect(displayNameFor({ email: "amy.jones@example.com" })).toBe(
+      "amy.jones",
+    );
+    expect(displayNameFor({})).toBe("Customer");
+  });
+});
+
+describe("findOrCreateCustomer + linkIdentity (DB)", () => {
+  const db = () => testDb();
+  const customers: string[] = [];
+
+  afterAll(async () => {
+    if ((await dbReachable()) && customers.length) {
+      await db().customer.deleteMany({ where: { id: { in: customers } } });
+    }
+    await closeTestDb();
+  });
+
+  const track = (c: { id: string }) => {
+    if (!customers.includes(c.id)) customers.push(c.id);
+    return c;
+  };
+
+  it("stores normalised contact details on create", async () => {
+    if (!(await dbReachable())) return;
+    const local = uid("amy");
+    const created = track(
+      await findOrCreateCustomer({
+        name: "Amy",
+        email: `  ${local}@Example.COM `,
+        phone: "07700 900123",
+      }),
+    );
+    expect(created.email).toBe(`${local}@example.com`);
+    expect(created.phone).toBe("+447700900123");
+  });
+
+  it("matches an existing customer on a differently-formatted email or phone", async () => {
+    if (!(await dbReachable())) return;
+    const local = uid("bee");
+    const first = track(
+      await findOrCreateCustomer({
+        name: "Bee",
+        email: `${local}@example.com`,
+        phone: "07700 900124",
+      }),
+    );
+    const byEmail = await findOrCreateCustomer({
+      name: "Someone Else",
+      email: `  ${local.toUpperCase()}@EXAMPLE.com`,
+    });
+    const byPhone = await findOrCreateCustomer({
+      name: "Someone Else",
+      phone: "+44 7700 900124",
+    });
+    expect(byEmail.id).toBe(first.id);
+    expect(byPhone.id).toBe(first.id);
+    // Contact-takeover guard: a match is returned UNMUTATED.
+    expect(byEmail.name).toBe("Bee");
+    expect(byPhone.email).toBe(`${local}@example.com`);
+  });
+
+  it("creates a fresh row when nothing matches, falling back for the name", async () => {
+    if (!(await dbReachable())) return;
+    const local = uid("cee");
+    const created = track(
+      await findOrCreateCustomer({ email: `${local}@example.com` }),
+    );
+    expect(created.name).toBe(local);
+    expect(created.phone).toBeNull();
+  });
+
+  it("keeps an unparseable phone out of the contact column", async () => {
+    if (!(await dbReachable())) return;
+    const created = track(
+      await findOrCreateCustomer({ name: `Dee ${uid()}`, phone: "call me" }),
+    );
+    expect(created.phone).toBeNull();
+  });
+
+  it("resolves a Meta handle to its customer and links new handles", async () => {
+    if (!(await dbReachable())) return;
+    const psid = uid("psid");
+    const first = track(
+      await findOrCreateCustomer({
+        identity: { channel: "messenger", externalId: psid, displayName: "Zed M" },
+      }),
+    );
+    expect(first.name).toBe("Zed M");
+
+    const again = await findOrCreateCustomer({
+      identity: { channel: "messenger", externalId: psid },
+    });
+    expect(again.id).toBe(first.id);
+    expect(
+      await db().customerIdentity.count({ where: { customerId: first.id } }),
+    ).toBe(1);
+
+    // Linking is idempotent and attaches extra handles to the same customer.
+    const igsid = uid("igsid");
+    await linkIdentity(first.id, "instagram", igsid, "zed.m");
+    await linkIdentity(first.id, "instagram", igsid, "zed.m");
+    expect(
+      await db().customerIdentity.count({ where: { customerId: first.id } }),
+    ).toBe(2);
+  });
+
+  it("links a handle onto an existing customer matched by email", async () => {
+    if (!(await dbReachable())) return;
+    const local = uid("eff");
+    const first = track(
+      await findOrCreateCustomer({ name: "Eff", email: `${local}@example.com` }),
+    );
+    const psid = uid("psid");
+    const same = await findOrCreateCustomer({
+      email: `${local}@example.com`,
+      identity: { channel: "messenger", externalId: psid, displayName: "Eff" },
+    });
+    expect(same.id).toBe(first.id);
+    expect(
+      await db().customerIdentity.findUnique({
+        where: { channel_externalId: { channel: "messenger", externalId: psid } },
+      }),
+    ).toMatchObject({ customerId: first.id });
   });
 });

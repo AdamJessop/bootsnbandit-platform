@@ -1,5 +1,6 @@
 import type { Customer, Prisma } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
+import { findOrCreateCustomer } from "./contact-identity";
 
 /**
  * Customer (CRM) service — directory + find-or-create used by enquiry/flash
@@ -31,30 +32,24 @@ export async function createCustomer(
 }
 
 /**
- * Find an existing customer by email (preferred) or phone, otherwise create
- * one. Used by public enquiry/flash flows where the visitor isn't
- * authenticated.
+ * Find an existing customer by normalised email (preferred) or phone,
+ * otherwise create one. Used by public enquiry/flash flows and the front-desk
+ * walk-in path where the visitor isn't authenticated.
  *
- * SECURITY: when a match is found it is returned UNMUTATED. The match runs on
- * the public path, so updating contact/consent fields here would let a
- * stranger overwrite an existing customer's email/phone/marketingConsent by
- * matching on the other field (contact-record takeover). Contact + consent are
- * only set when creating a brand-new customer.
+ * Thin alias for `findOrCreateCustomer` (services/contact-identity), which
+ * owns normalisation, the identity handles and the no-mutation guard: a match
+ * is returned UNMUTATED so a stranger cannot overwrite an existing customer's
+ * email/phone/marketingConsent by matching on the other field.
  */
 export async function upsertCustomerByContact(
   input: CreateCustomerInput,
 ): Promise<Customer> {
-  const or: Prisma.CustomerWhereInput[] = [];
-  if (input.email) or.push({ email: input.email });
-  if (input.phone) or.push({ phone: input.phone });
-
-  const existing = or.length
-    ? await prisma.customer.findFirst({ where: { OR: or } })
-    : null;
-
-  if (existing) return existing;
-
-  return createCustomer(input);
+  return findOrCreateCustomer({
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    marketingConsent: input.marketingConsent,
+  });
 }
 
 export async function getCustomer(id: string): Promise<Customer | null> {

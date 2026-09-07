@@ -1,4 +1,5 @@
 export * from "./customers";
+export * from "./contact-identity";
 export * from "./customer-auth";
 export * from "./customer-welcome";
 export * from "./enquiries";
