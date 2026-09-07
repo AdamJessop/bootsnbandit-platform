@@ -12,5 +12,6 @@ describe("StudioHubPage", () => {
     expect(html).toContain("Studio");
     expect(html).toContain("/studio/staff");
     expect(html).toContain("/studio/integrations");
+    expect(html).toContain("/studio/channels");
   });
 });

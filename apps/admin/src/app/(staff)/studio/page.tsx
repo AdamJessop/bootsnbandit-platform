@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Mail, Plug, ArrowRight } from "lucide-react";
+import { Users, Mail, Plug, Inbox, ArrowRight } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 
 /** Studio admin hub (BACKOFHOUSE-IA K). Owner-only. */
@@ -23,6 +23,12 @@ const SECTIONS = [
     label: "Integrations",
     desc: "iCal feed status, Resend status, Google (later).",
     icon: Plug,
+  },
+  {
+    href: "/studio/channels",
+    label: "Channels",
+    desc: "Inbound email address, webhook status and failed events.",
+    icon: Inbox,
   },
 ];
 
