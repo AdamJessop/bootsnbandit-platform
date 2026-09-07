@@ -12,12 +12,19 @@ import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const limiter = createRateLimiter({ limit: 10, windowMs: 60_000 });
+// Multipart overhead (boundary markers, headers, field name) padding on top
+// of the raw file size allowance.
+const MAX_CONTENT_LENGTH = MAX_BYTES + 64 * 1024;
+const limiter = createRateLimiter({ limit: 6, windowMs: 60_000 });
 
 export async function POST(req: Request): Promise<Response> {
   try {
     if (!limiter.hit(clientIp(req))) {
       return jsonError(429, "Too many uploads — please try again in a minute.");
+    }
+    const contentLength = Number(req.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_CONTENT_LENGTH) {
+      return jsonError(413, "Image too large (max 5MB)");
     }
     const form = await req.formData().catch(() => null);
     const file = form?.get("file");

@@ -98,8 +98,7 @@ export function canAdvance(step: BoardStep, s: BuilderState): boolean {
       const email = s.email.trim();
       const phone = s.phone.replace(/\s+/g, "");
       if (!s.name.trim()) return false;
-      if (email) return EMAIL_RE.test(email);
-      return phone.length >= 6;
+      return EMAIL_RE.test(email) || phone.length >= 6;
     }
     default:
       return false;

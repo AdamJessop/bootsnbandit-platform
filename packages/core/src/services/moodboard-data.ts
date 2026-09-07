@@ -14,7 +14,23 @@ export type BoardColour = (typeof BOARD_COLOURS)[number];
 
 export const MAX_BOARD_ITEMS = 12;
 
-const url = z.string().max(2048);
+/** True for an absolute http(s) URL or a site-relative path (`/x`, not `//x`
+ * — a protocol-relative URL would let a board item point off-site). */
+export function isSafeUrl(s: string): boolean {
+  if (/^\/(?!\/)/.test(s)) return true;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+const url = z
+  .string()
+  .min(1)
+  .max(2048)
+  .refine(isSafeUrl, "Must be an http(s) URL or a site-relative path");
 
 export const moodboardItemSchema = z.object({
   kind: z.enum(BOARD_ITEM_KINDS),
@@ -54,9 +70,13 @@ export function assetUrl(origin: string, assetId: string): string {
   return `${trimOrigin(origin)}/api/inkling/assets/${assetId}`;
 }
 
+function absolutiseRequired(u: string, origin: string): string {
+  return u.startsWith("/") ? `${trimOrigin(origin)}${u}` : u;
+}
+
 function absolutise(u: string | null, origin: string): string | null {
   if (!u) return u;
-  return u.startsWith("/") ? `${trimOrigin(origin)}${u}` : u;
+  return absolutiseRequired(u, origin);
 }
 
 /**
@@ -84,7 +104,7 @@ export function finaliseMoodboardData(
     }
     items.push({
       ...item,
-      url: absolutise(item.url, origin) as string,
+      url: absolutiseRequired(item.url, origin),
       thumbUrl: absolutise(item.thumbUrl, origin),
       sourceUrl: absolutise(item.sourceUrl, origin),
     });

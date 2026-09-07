@@ -375,6 +375,7 @@ export function InspirationStep({
                   src={i.thumbUrl ?? i.url}
                   alt={i.title ?? "Board image"}
                   loading="lazy"
+                  referrerPolicy="no-referrer"
                 />
                 <button
                   type="button"

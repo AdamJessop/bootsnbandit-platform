@@ -46,8 +46,20 @@ describe("POST /api/inkling/uploads", () => {
     const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.png", { type: "image/png" });
     expect((await upload(big)).status).toBe(413);
   });
-  it("429s after 10 uploads from one IP", async () => {
-    for (let i = 0; i < 10; i++) await upload(new File([PNG], "a.png", { type: "image/png" }), "8.8.8.8");
+  it("413s from the content-length header alone, before parsing the body", async () => {
+    const res = await POST(new Request("http://x/api/inkling/uploads", {
+      method: "POST",
+      body: new Uint8Array(0),
+      headers: {
+        "x-forwarded-for": `10.2.${++ip}.1`,
+        "content-length": String(20 * 1024 * 1024),
+      },
+    }));
+    expect(res.status).toBe(413);
+    expect(createMoodboardAsset).not.toHaveBeenCalled();
+  });
+  it("429s after 6 uploads from one IP", async () => {
+    for (let i = 0; i < 6; i++) await upload(new File([PNG], "a.png", { type: "image/png" }), "8.8.8.8");
     expect((await upload(new File([PNG], "a.png", { type: "image/png" }), "8.8.8.8")).status).toBe(429);
   });
 });

@@ -26,7 +26,7 @@ describe("POST /api/enquiries — mood board", () => {
       moodboardData: {
         version: 1, styles: ["Fine-line"], description: "peony",
         items: [
-          { kind: "upload", url: "blob:x", assetId: "as1" },
+          { kind: "upload", url: "/pending", assetId: "as1" },
           { kind: "studio", url: "/uploads/g.jpg", galleryItemId: "g1" },
           { kind: "web", url: "https://i.test/a.jpg", sourceUrl: "https://p.test/a" },
         ],
@@ -43,7 +43,7 @@ describe("POST /api/enquiries — mood board", () => {
     expect((input.moodboardData as { items: unknown[] }).items).toHaveLength(3);
   });
   it("falls back to the request origin when APP_ORIGIN is unset", async () => {
-    await post({ contactName: "B", contactPhone: "07123456789", moodboardData: { version: 1, items: [{ kind: "upload", url: "", assetId: "as2" }] } });
+    await post({ contactName: "B", contactPhone: "07123456789", moodboardData: { version: 1, items: [{ kind: "upload", url: "/pending", assetId: "as2" }] } });
     const input = createEnquiry.mock.calls[0][0] as { moodboard: string[] };
     expect(input.moodboard).toEqual(["http://web.test/api/inkling/assets/as2"]);
   });

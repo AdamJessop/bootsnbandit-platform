@@ -63,7 +63,12 @@ export async function createEnquiry(
   });
 
   if (input.assetIds?.length) {
-    await attachMoodboardAssets(enquiry.id, input.assetIds);
+    const attached = await attachMoodboardAssets(enquiry.id, input.assetIds);
+    if (attached < input.assetIds.length) {
+      console.warn(
+        `Enquiry ${enquiry.id}: attached ${attached} of ${input.assetIds.length} mood-board assets`,
+      );
+    }
   }
 
   // Acknowledge the enquiry by email when we have an address. The template

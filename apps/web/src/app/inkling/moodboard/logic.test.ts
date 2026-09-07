@@ -113,7 +113,15 @@ describe("step gating", () => {
     expect(
       canAdvance("Send", filled({ email: "", phone: "07123 456789" })),
     ).toBe(true);
-    expect(canAdvance("Send", filled({ email: "not-an-email" }))).toBe(false);
+    expect(
+      canAdvance("Send", filled({ email: "not-an-email", phone: "" })),
+    ).toBe(false);
+    expect(
+      canAdvance(
+        "Send",
+        filled({ email: "not-an-email", phone: "07123 456789" }),
+      ),
+    ).toBe(true);
   });
 });
 

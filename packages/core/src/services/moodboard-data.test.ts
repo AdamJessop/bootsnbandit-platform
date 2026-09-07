@@ -75,6 +75,25 @@ describe("parseMoodboardData", () => {
     }));
     expect(parseMoodboardData({ version: 1, items })).toBeNull();
   });
+  it("rejects unsafe item urls", () => {
+    for (const url of [
+      "javascript:alert(1)",
+      "data:text/html,x",
+      "",
+      "//evil.test/x",
+    ]) {
+      expect(
+        parseMoodboardData({ version: 1, items: [{ kind: "link", url }] }),
+      ).toBeNull();
+    }
+  });
+  it("accepts absolute http(s) urls and site-relative paths", () => {
+    for (const url of ["https://x.test/a.png", "/uploads/a.jpg"]) {
+      expect(
+        parseMoodboardData({ version: 1, items: [{ kind: "link", url }] }),
+      ).not.toBeNull();
+    }
+  });
 });
 
 describe("finaliseMoodboardData", () => {
