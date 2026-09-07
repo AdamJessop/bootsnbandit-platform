@@ -172,9 +172,7 @@ describe("artist scope + open boards", () => {
     const mine = { source: "web" as const, preferredArtistId: "art1" };
     const other = { source: "web" as const, preferredArtistId: "art2" };
     expect(isOpenBoard(open)).toBe(true);
-    expect(isOpenBoard({ source: "web", preferredArtistId: null })).toBe(
-      false,
-    );
+    expect(isOpenBoard({ source: "web", preferredArtistId: null })).toBe(false);
     const artist = { role: "ARTIST" as const, artistId: "art1" };
     expect(canAccessEnquiry(artist, open)).toBe(true);
     expect(canAccessEnquiry(artist, mine)).toBe(true);

@@ -7,7 +7,9 @@ const { MoodBoardBuilder } = await import("./MoodBoardBuilder");
 
 describe("MoodBoardBuilder", () => {
   it("renders the stepper on the Brief step with the summary aside", () => {
-    const html = renderToStaticMarkup(<MoodBoardBuilder artists={[]} styleOptions={["Fine-line"]} />);
+    const html = renderToStaticMarkup(
+      <MoodBoardBuilder artists={[]} styleOptions={["Fine-line"]} />,
+    );
     expect(html).toContain("Brief");
     expect(html).toContain("Inspiration");
     expect(html).toContain("Details");

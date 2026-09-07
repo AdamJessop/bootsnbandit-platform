@@ -39,7 +39,10 @@ async function loadArtists(): Promise<InklingArtist[]> {
 
 async function loadStyles(): Promise<string[]> {
   try {
-    const rows = await prisma.tattooStyle.findMany({ orderBy: { sortOrder: "asc" }, select: { name: true } });
+    const rows = await prisma.tattooStyle.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { name: true },
+    });
     return rows.map((s) => s.name);
   } catch {
     return [];
@@ -69,7 +72,11 @@ export default async function InklingPage({
       </header>
       <section className="section">
         <div className="wrap">
-          <InklingTabs initialTab={initialTab} artists={artists} styleOptions={styles} />
+          <InklingTabs
+            initialTab={initialTab}
+            artists={artists}
+            styleOptions={styles}
+          />
         </div>
       </section>
     </>

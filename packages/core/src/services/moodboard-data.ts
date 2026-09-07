@@ -75,7 +75,11 @@ export function finaliseMoodboardData(
     if (item.kind === "upload") {
       if (!item.assetId) continue;
       if (!assetIds.includes(item.assetId)) assetIds.push(item.assetId);
-      items.push({ ...item, url: assetUrl(origin, item.assetId), thumbUrl: null });
+      items.push({
+        ...item,
+        url: assetUrl(origin, item.assetId),
+        thumbUrl: null,
+      });
       continue;
     }
     items.push({

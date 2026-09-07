@@ -9,11 +9,19 @@ import {
   type MoodboardDataInput,
   type MoodboardItem,
 } from "@bnb/core/services/moodboard-data";
-import type { StudioImageResult, WebImageResult } from "@bnb/core/services/image-search";
+import type {
+  StudioImageResult,
+  WebImageResult,
+} from "@bnb/core/services/image-search";
 import { type SizeChoice } from "../../enquire/logic";
 
 export { MAX_BOARD_ITEMS };
-export { MAX_STYLES as MAX_BOARD_STYLES, PLACEMENTS, SIZES, toggleStyle } from "../../enquire/logic";
+export {
+  MAX_STYLES as MAX_BOARD_STYLES,
+  PLACEMENTS,
+  SIZES,
+  toggleStyle,
+} from "../../enquire/logic";
 
 export const BOARD_STEPS = ["Brief", "Inspiration", "Details", "Send"] as const;
 export type BoardStep = (typeof BOARD_STEPS)[number];
@@ -50,13 +58,25 @@ export interface BuilderState {
  * of the current state (so callers can merge against the latest state rather
  * than a stale closure — important when multiple async operations, e.g.
  * concurrent uploads, race to update `items`). */
-export type Set = (patch: Partial<BuilderState> | ((s: BuilderState) => Partial<BuilderState>)) => void;
+export type Set = (
+  patch: Partial<BuilderState> | ((s: BuilderState) => Partial<BuilderState>),
+) => void;
 
 export function emptyBuilder(): BuilderState {
   return {
-    styles: [], colour: null, description: "", query: null, items: [],
-    placement: "", size: "", budget: "", artistId: null, notes: "",
-    name: "", email: "", phone: "",
+    styles: [],
+    colour: null,
+    description: "",
+    query: null,
+    items: [],
+    placement: "",
+    size: "",
+    budget: "",
+    artistId: null,
+    notes: "",
+    name: "",
+    email: "",
+    phone: "",
   };
 }
 
@@ -87,22 +107,49 @@ export function canAdvance(step: BoardStep, s: BuilderState): boolean {
 }
 
 const blank = (): Omit<MoodboardItem, "kind" | "url"> => ({
-  thumbUrl: null, sourceUrl: null, title: null, assetId: null, galleryItemId: null,
+  thumbUrl: null,
+  sourceUrl: null,
+  title: null,
+  assetId: null,
+  galleryItemId: null,
 });
 
 export function webResultToItem(r: WebImageResult): BoardItem {
-  return { ...blank(), kind: "web", key: r.url, url: r.url, thumbUrl: r.thumbUrl, sourceUrl: r.sourceUrl, title: r.title };
+  return {
+    ...blank(),
+    kind: "web",
+    key: r.url,
+    url: r.url,
+    thumbUrl: r.thumbUrl,
+    sourceUrl: r.sourceUrl,
+    title: r.title,
+  };
 }
 
 export function studioResultToItem(r: StudioImageResult): BoardItem {
   return {
-    ...blank(), kind: "studio", key: `studio:${r.galleryItemId}`, url: r.url, sourceUrl: r.sourceUrl,
-    title: r.artistName ? `${r.title} · ${r.artistName}` : r.title, galleryItemId: r.galleryItemId,
+    ...blank(),
+    kind: "studio",
+    key: `studio:${r.galleryItemId}`,
+    url: r.url,
+    sourceUrl: r.sourceUrl,
+    title: r.artistName ? `${r.title} · ${r.artistName}` : r.title,
+    galleryItemId: r.galleryItemId,
   };
 }
 
-export function uploadToItem(u: { assetId: string; url: string }, title: string | null = null): BoardItem {
-  return { ...blank(), kind: "upload", key: `asset:${u.assetId}`, url: u.url, assetId: u.assetId, title };
+export function uploadToItem(
+  u: { assetId: string; url: string },
+  title: string | null = null,
+): BoardItem {
+  return {
+    ...blank(),
+    kind: "upload",
+    key: `asset:${u.assetId}`,
+    url: u.url,
+    assetId: u.assetId,
+    title,
+  };
 }
 
 export function parsePastedUrl(text: string): string | null {
@@ -110,7 +157,9 @@ export function parsePastedUrl(text: string): string | null {
   if (!t || /\s/.test(t)) return null;
   try {
     const u = new URL(t);
-    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+    return u.protocol === "http:" || u.protocol === "https:"
+      ? u.toString()
+      : null;
   } catch {
     return null;
   }
@@ -130,10 +179,17 @@ export type ToggleResult =
 
 export function toggleItem(items: BoardItem[], item: BoardItem): ToggleResult {
   if (hasItem(items, item.key)) {
-    return { ok: true, items: items.filter((i) => i.key !== item.key), added: false };
+    return {
+      ok: true,
+      items: items.filter((i) => i.key !== item.key),
+      added: false,
+    };
   }
   if (items.length >= MAX_BOARD_ITEMS) {
-    return { ok: false, error: `Your board is full — up to ${MAX_BOARD_ITEMS} images. Remove one to add another.` };
+    return {
+      ok: false,
+      error: `Your board is full — up to ${MAX_BOARD_ITEMS} images. Remove one to add another.`,
+    };
   }
   return { ok: true, items: [...items, item], added: true };
 }
@@ -143,7 +199,12 @@ export function removeItem(items: BoardItem[], key: string): BoardItem[] {
 }
 
 export function buildSearchRequest(s: BuilderState, start = 1) {
-  return { styles: s.styles, colour: s.colour, description: s.description.trim(), start };
+  return {
+    styles: s.styles,
+    colour: s.colour,
+    description: s.description.trim(),
+    start,
+  };
 }
 
 export type SearchStatus = "idle" | "loading" | "done" | "error";
@@ -155,7 +216,11 @@ export type SearchStatus = "idle" | "loading" | "done" | "error";
  * pages — but a genuinely new brief, or retrying after an error, should run.
  * "Search again" bypasses this and always runs.
  */
-export function shouldRunSearch(lastKey: string | null, nextKey: string, status: SearchStatus): boolean {
+export function shouldRunSearch(
+  lastKey: string | null,
+  nextKey: string,
+  status: SearchStatus,
+): boolean {
   if (lastKey !== nextKey) return true;
   return status !== "done" && status !== "loading";
 }
@@ -199,7 +264,13 @@ export function buildBoardEnquiryPayload(s: BuilderState): BoardEnquiryPayload {
     description: [description, notes].filter(Boolean).join("\n\n") || null,
     moodboard: items.map((i) => i.url),
     moodboardData: {
-      version: 1, styles: s.styles, colour: s.colour, description, query: s.query, notes: notes || null, items,
+      version: 1,
+      styles: s.styles,
+      colour: s.colour,
+      description,
+      query: s.query,
+      notes: notes || null,
+      items,
     },
     source: "inkling",
   };

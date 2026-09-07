@@ -13,7 +13,12 @@ export function targetDimensions(w: number, h: number, maxEdge = MAX_EDGE) {
   return { width: Math.round(w * scale), height: Math.round(h * scale) };
 }
 
-export function shouldDownscale(sizeBytes: number, w: number, h: number, maxEdge = MAX_EDGE): boolean {
+export function shouldDownscale(
+  sizeBytes: number,
+  w: number,
+  h: number,
+  maxEdge = MAX_EDGE,
+): boolean {
   return sizeBytes > SKIP_BELOW_BYTES && Math.max(w, h) > maxEdge;
 }
 

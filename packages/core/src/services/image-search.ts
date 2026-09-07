@@ -28,10 +28,14 @@ export function buildInspirationQuery(brief: InspirationBrief): string {
   const desc = brief.description.trim().replace(/\s+/g, " ").toLowerCase();
   if (desc) parts.push(desc.slice(0, 120));
   for (const s of brief.styles) {
-    const term = s.trim().toLowerCase().replace(/\s*&\s*/g, " and ");
+    const term = s
+      .trim()
+      .toLowerCase()
+      .replace(/\s*&\s*/g, " and ");
     if (term) parts.push(term);
   }
-  if (brief.colour && COLOUR_TERMS[brief.colour]) parts.push(COLOUR_TERMS[brief.colour]);
+  if (brief.colour && COLOUR_TERMS[brief.colour])
+    parts.push(COLOUR_TERMS[brief.colour]);
   let q = parts.join(" ");
   if (!/\btattoos?\b/.test(q)) q = `${q} tattoo`.trim();
   return q.slice(0, MAX_QUERY_CHARS).trim();
@@ -59,7 +63,12 @@ export interface ImageSearchProvider {
 interface CseItem {
   title?: string;
   link?: string;
-  image?: { thumbnailLink?: string; contextLink?: string; width?: number; height?: number };
+  image?: {
+    thumbnailLink?: string;
+    contextLink?: string;
+    width?: number;
+    height?: number;
+  };
 }
 interface CseResponse {
   items?: CseItem[];
@@ -84,13 +93,17 @@ export function googleCseProvider(opts: {
       u.searchParams.set("safe", "active");
       u.searchParams.set("num", "10");
       u.searchParams.set("start", String(start));
-      const res = await fetchImpl(u.toString(), { headers: { accept: "application/json" } });
+      const res = await fetchImpl(u.toString(), {
+        headers: { accept: "application/json" },
+      });
       if (!res.ok) {
         throw new Error(`Image search provider responded ${res.status}`);
       }
       const body = (await res.json()) as CseResponse;
       const results: WebImageResult[] = (body.items ?? [])
-        .filter((i): i is CseItem & { link: string } => typeof i.link === "string")
+        .filter(
+          (i): i is CseItem & { link: string } => typeof i.link === "string",
+        )
         .map((i) => ({
           url: i.link,
           thumbUrl: i.image?.thumbnailLink ?? null,
@@ -212,7 +225,8 @@ export async function searchInspiration(
     now?: () => number;
   } = {},
 ): Promise<InspirationResponse> {
-  const provider = deps.provider === undefined ? providerFromEnv() : deps.provider;
+  const provider =
+    deps.provider === undefined ? providerFromEnv() : deps.provider;
   const findStudio = deps.findStudio ?? findStudioMatches;
   const now = deps.now ?? Date.now;
   const start = input.start ?? 1;
@@ -237,11 +251,21 @@ export async function searchInspiration(
         nextStart = page.nextStart;
       } catch (err) {
         webError = true;
-        console.error("[inkling] image search failed:", err instanceof Error ? err.message : err);
+        console.error(
+          "[inkling] image search failed:",
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   }
 
   const studio = await studioPromise;
-  return { query, studio, web, nextStart, providerConfigured: Boolean(provider), webError };
+  return {
+    query,
+    studio,
+    web,
+    nextStart,
+    providerConfigured: Boolean(provider),
+    webError,
+  };
 }

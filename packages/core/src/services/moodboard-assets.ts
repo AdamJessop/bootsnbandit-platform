@@ -17,7 +17,11 @@ export async function createMoodboardAsset(input: {
   mime: string;
 }): Promise<MoodboardAssetMeta> {
   const row = await prisma.moodboardAsset.create({
-    data: { bytes: Uint8Array.from(input.bytes), mime: input.mime, size: input.bytes.byteLength }, // Uint8Array.from() returns Uint8Array<ArrayBuffer> for Prisma Bytes typing
+    data: {
+      bytes: Uint8Array.from(input.bytes),
+      mime: input.mime,
+      size: input.bytes.byteLength,
+    }, // Uint8Array.from() returns Uint8Array<ArrayBuffer> for Prisma Bytes typing
     select: { id: true, mime: true, size: true },
   });
   return row;
@@ -47,7 +51,9 @@ export async function attachMoodboardAssets(
 }
 
 /** Delete uploads that were never sent with an enquiry and are older than `olderThan`. */
-export async function purgeOrphanMoodboardAssets(olderThan: Date): Promise<number> {
+export async function purgeOrphanMoodboardAssets(
+  olderThan: Date,
+): Promise<number> {
   const res = await prisma.moodboardAsset.deleteMany({
     where: { enquiryId: null, createdAt: { lt: olderThan } },
   });

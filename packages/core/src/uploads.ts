@@ -19,7 +19,8 @@ export function isAllowedImageMime(mime: string): boolean {
 
 function ascii(buf: Uint8Array, start: number, end: number): string {
   let s = "";
-  for (let i = start; i < end && i < buf.length; i++) s += String.fromCharCode(buf[i]);
+  for (let i = start; i < end && i < buf.length; i++)
+    s += String.fromCharCode(buf[i]);
   return s;
 }
 
@@ -27,19 +28,38 @@ function ascii(buf: Uint8Array, start: number, end: number): string {
 export function sniffImageMime(buf: Uint8Array): string | null {
   if (
     buf.length >= 8 &&
-    buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
-    buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47 &&
+    buf[4] === 0x0d &&
+    buf[5] === 0x0a &&
+    buf[6] === 0x1a &&
+    buf[7] === 0x0a
   ) {
     return "image/png";
   }
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+  if (
+    buf.length >= 3 &&
+    buf[0] === 0xff &&
+    buf[1] === 0xd8 &&
+    buf[2] === 0xff
+  ) {
     return "image/jpeg";
   }
   if (buf.length >= 6 && ascii(buf, 0, 3) === "GIF") return "image/gif";
-  if (buf.length >= 12 && ascii(buf, 0, 4) === "RIFF" && ascii(buf, 8, 12) === "WEBP") {
+  if (
+    buf.length >= 12 &&
+    ascii(buf, 0, 4) === "RIFF" &&
+    ascii(buf, 8, 12) === "WEBP"
+  ) {
     return "image/webp";
   }
-  if (buf.length >= 12 && ascii(buf, 4, 8) === "ftyp" && /avif|avis/.test(ascii(buf, 8, 12))) {
+  if (
+    buf.length >= 12 &&
+    ascii(buf, 4, 8) === "ftyp" &&
+    /avif|avis/.test(ascii(buf, 8, 12))
+  ) {
     return "image/avif";
   }
   return null;

@@ -11,6 +11,8 @@ describe("runMoodboardAssetPurge", () => {
     const now = new Date("2026-09-07T12:00:00Z");
     const res = await runMoodboardAssetPurge(now);
     expect(res).toEqual({ job: "moodboard_asset_purge", sent: 3, skipped: 0 });
-    expect(purge.mock.calls[0][0].toISOString()).toBe("2026-09-06T12:00:00.000Z");
+    expect(purge.mock.calls[0][0].toISOString()).toBe(
+      "2026-09-06T12:00:00.000Z",
+    );
   });
 });

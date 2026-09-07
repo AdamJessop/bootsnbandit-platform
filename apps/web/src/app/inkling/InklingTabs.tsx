@@ -49,7 +49,11 @@ export function InklingTabs({
         </button>
       </div>
 
-      {tab === "match" ? <StyleMatcher /> : <MoodBoardBuilder artists={artists} styleOptions={styleOptions} />}
+      {tab === "match" ? (
+        <StyleMatcher />
+      ) : (
+        <MoodBoardBuilder artists={artists} styleOptions={styleOptions} />
+      )}
     </div>
   );
 }

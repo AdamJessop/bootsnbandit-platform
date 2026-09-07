@@ -3,15 +3,28 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Check, ImagePlus, Link as LinkIcon, RefreshCw } from "lucide-react";
 import {
-  buildSearchRequest, hasItem, linkToItem, MAX_BOARD_ITEMS, parsePastedUrl, removeItem,
-  studioResultToItem, toggleItem, uploadToItem, webResultToItem, type BoardItem, type BuilderState, type Set,
+  buildSearchRequest,
+  hasItem,
+  linkToItem,
+  MAX_BOARD_ITEMS,
+  parsePastedUrl,
+  removeItem,
+  studioResultToItem,
+  toggleItem,
+  uploadToItem,
+  webResultToItem,
+  type BoardItem,
+  type BuilderState,
+  type Set,
 } from "./logic";
 import { prepareImage } from "./image-prep";
 import type { ImageSearch } from "./useImageSearch";
 import enq from "../../enquire/enquire.module.css";
 import css from "./moodboard.module.css";
 
-async function uploadFile(file: File): Promise<{ assetId: string; url: string }> {
+async function uploadFile(
+  file: File,
+): Promise<{ assetId: string; url: string }> {
   const prepared = await prepareImage(file);
   const fd = new FormData();
   fd.set("file", prepared);
@@ -28,14 +41,28 @@ async function uploadFile(file: File): Promise<{ assetId: string; url: string }>
  * some unrelated field elsewhere on the page), but still handle a paste
  * whose target isn't editable at all (e.g. nothing is focused yet) and any
  * paste inside the step, including its own link input. */
-function isEditableOutsideStep(target: EventTarget | null, container: HTMLElement | null): boolean {
+function isEditableOutsideStep(
+  target: EventTarget | null,
+  container: HTMLElement | null,
+): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  const editable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+  const editable =
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.isContentEditable;
   if (!editable) return false;
   return !(container && container.contains(target));
 }
 
-export function InspirationStep({ state, set, search }: { state: BuilderState; set: Set; search: ImageSearch }) {
+export function InspirationStep({
+  state,
+  set,
+  search,
+}: {
+  state: BuilderState;
+  set: Set;
+  search: ImageSearch;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
@@ -61,7 +88,8 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
   }, [briefKey]);
 
   useEffect(() => {
-    if (search.query && search.query !== state.query) set({ query: search.query });
+    if (search.query && search.query !== state.query)
+      set({ query: search.query });
   }, [search.query, state.query, set]);
 
   function toggle(item: BoardItem) {
@@ -87,7 +115,11 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
         try {
           up = await uploadFile(file);
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Upload failed. Please try again.",
+          );
           break;
         }
         const item = uploadToItem(up, file.name);
@@ -166,12 +198,27 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
     <div ref={containerRef}>
       <h2 className={enq.panelTitle}>Inspiration</h2>
       <p className={enq.panelSub}>
-        Tap anything that feels right to add it to your board. Upload or paste your own too. References guide the look — we never copy another person&rsquo;s tattoo.
+        Tap anything that feels right to add it to your board. Upload or paste
+        your own too. References guide the look — we never copy another
+        person&rsquo;s tattoo.
       </p>
 
       <div className={css.toolbar}>
-        <span className={css.brief}>{search.query ? <>Searching for <b>{search.query}</b></> : "Building your search…"}</span>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => void search.run(buildSearchRequest(state))} disabled={loading}>
+        <span className={css.brief}>
+          {search.query ? (
+            <>
+              Searching for <b>{search.query}</b>
+            </>
+          ) : (
+            "Building your search…"
+          )}
+        </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost"
+          onClick={() => void search.run(buildSearchRequest(state))}
+          disabled={loading}
+        >
           <RefreshCw className="ic" /> Search again
         </button>
       </div>
@@ -180,29 +227,65 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
 
       {search.studio.length > 0 && (
         <ResultGroup title="From our studio">
-          {search.studio.map((r) => <ResultTile key={r.galleryItemId} item={studioResultToItem(r)} items={state.items} onToggle={toggle} />)}
+          {search.studio.map((r) => (
+            <ResultTile
+              key={r.galleryItemId}
+              item={studioResultToItem(r)}
+              items={state.items}
+              onToggle={toggle}
+            />
+          ))}
         </ResultGroup>
       )}
 
       <ResultGroup title="From the web">
-        {loading && search.web.length === 0 ? (
-          Array.from({ length: 8 }, (_, i) => <div key={i} className={css.skeleton} aria-hidden />)
-        ) : search.web.length > 0 ? (
-          search.web.map((r) => <ResultTile key={r.url} item={webResultToItem(r)} items={state.items} onToggle={toggle} />)
-        ) : null}
+        {loading && search.web.length === 0
+          ? Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className={css.skeleton} aria-hidden />
+            ))
+          : search.web.length > 0
+            ? search.web.map((r) => (
+                <ResultTile
+                  key={r.url}
+                  item={webResultToItem(r)}
+                  items={state.items}
+                  onToggle={toggle}
+                />
+              ))
+            : null}
       </ResultGroup>
       {!search.providerConfigured && search.status !== "idle" && (
-        <p className={css.hint}>Web search isn&rsquo;t available right now — upload or paste your own images below.</p>
+        <p className={css.hint}>
+          Web search isn&rsquo;t available right now — upload or paste your own
+          images below.
+        </p>
       )}
       {search.providerConfigured && search.webError && (
-        <p className={css.hint}>Web search is unavailable at the moment — you can still upload or paste images.</p>
+        <p className={css.hint}>
+          Web search is unavailable at the moment — you can still upload or
+          paste images.
+        </p>
       )}
-      {search.providerConfigured && !loading && search.status === "done" && search.web.length === 0 && !search.webError && (
-        <p className={css.hint}>No web results for that brief — try fewer words, or add your own images.</p>
-      )}
+      {search.providerConfigured &&
+        !loading &&
+        search.status === "done" &&
+        search.web.length === 0 &&
+        !search.webError && (
+          <p className={css.hint}>
+            No web results for that brief — try fewer words, or add your own
+            images.
+          </p>
+        )}
       {search.nextStart != null && (
         <div className={css.loadMore}>
-          <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => void search.more(buildSearchRequest(state, search.nextStart ?? 1))}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={loading}
+            onClick={() =>
+              void search.more(buildSearchRequest(state, search.nextStart ?? 1))
+            }
+          >
             {loading ? "Loading…" : "Load more"}
           </button>
         </div>
@@ -210,14 +293,22 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
 
       <div
         className={`${css.dropZone} ${over ? css.over : ""}`}
-        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
       >
         <ImagePlus className="ic" />
         <div>Drop images here, paste from your clipboard, or</div>
         <div className={css.dropActions}>
-          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+          >
             {busy ? "Uploading…" : "Upload images"}
           </button>
         </div>
@@ -228,7 +319,10 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
           multiple
           className={css.srOnly}
           aria-label="Upload images"
-          onChange={(e) => { if (e.target.files) void addFiles(Array.from(e.target.files)); e.target.value = ""; }}
+          onChange={(e) => {
+            if (e.target.files) void addFiles(Array.from(e.target.files));
+            e.target.value = "";
+          }}
         />
         <div className={css.linkRow}>
           <input
@@ -239,9 +333,22 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
             aria-label="Image link"
             value={link}
             onChange={(e) => setLink(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!addLink(link)) setError("That doesn't look like a full http(s) link."); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (!addLink(link))
+                  setError("That doesn't look like a full http(s) link.");
+              }
+            }}
           />
-          <button type="button" className="btn btn-ghost" onClick={() => { if (!addLink(link)) setError("That doesn't look like a full http(s) link."); }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              if (!addLink(link))
+                setError("That doesn't look like a full http(s) link.");
+            }}
+          >
             <LinkIcon className="ic" /> Add
           </button>
         </div>
@@ -251,17 +358,34 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
       <div className={css.tray}>
         <div className={css.trayHead}>
           <strong>Your board</strong>
-          <span className={css.count}>{state.items.length} of {MAX_BOARD_ITEMS}</span>
+          <span className={css.count}>
+            {state.items.length} of {MAX_BOARD_ITEMS}
+          </span>
         </div>
         {state.items.length === 0 ? (
-          <p className={enq.moodEmpty}>Nothing on the board yet — tap an image above to add it.</p>
+          <p className={enq.moodEmpty}>
+            Nothing on the board yet — tap an image above to add it.
+          </p>
         ) : (
           <div className={css.trayGrid}>
             {state.items.map((i) => (
               <div key={i.key} className={css.trayTile}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={i.thumbUrl ?? i.url} alt={i.title ?? "Board image"} loading="lazy" />
-                <button type="button" className={css.trayRemove} aria-label={`Remove ${i.title ?? "image"}`} onClick={() => set((s) => ({ items: removeItem(s.items, i.key) }))}>×</button>
+                <img
+                  src={i.thumbUrl ?? i.url}
+                  alt={i.title ?? "Board image"}
+                  loading="lazy"
+                />
+                <button
+                  type="button"
+                  className={css.trayRemove}
+                  aria-label={`Remove ${i.title ?? "image"}`}
+                  onClick={() =>
+                    set((s) => ({ items: removeItem(s.items, i.key) }))
+                  }
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>
@@ -271,7 +395,13 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
   );
 }
 
-function ResultGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function ResultGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className={css.group}>
       <h3 className={css.groupTitle}>{title}</h3>
@@ -280,13 +410,36 @@ function ResultGroup({ title, children }: { title: string; children: React.React
   );
 }
 
-function ResultTile({ item, items, onToggle }: { item: BoardItem; items: BoardItem[]; onToggle: (i: BoardItem) => void }) {
+function ResultTile({
+  item,
+  items,
+  onToggle,
+}: {
+  item: BoardItem;
+  items: BoardItem[];
+  onToggle: (i: BoardItem) => void;
+}) {
   const on = hasItem(items, item.key);
   return (
-    <button type="button" className={`${css.tile} ${on ? css.on : ""}`} aria-pressed={on} onClick={() => onToggle(item)} title={item.title ?? undefined}>
+    <button
+      type="button"
+      className={`${css.tile} ${on ? css.on : ""}`}
+      aria-pressed={on}
+      onClick={() => onToggle(item)}
+      title={item.title ?? undefined}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={item.thumbUrl ?? item.url} alt={item.title ?? "Inspiration image"} loading="lazy" referrerPolicy="no-referrer" />
-      {on && <span className={css.tileCheck}><Check size={14} /></span>}
+      <img
+        src={item.thumbUrl ?? item.url}
+        alt={item.title ?? "Inspiration image"}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+      {on && (
+        <span className={css.tileCheck}>
+          <Check size={14} />
+        </span>
+      )}
       {item.title && <span className={css.tileCap}>{item.title}</span>}
     </button>
   );

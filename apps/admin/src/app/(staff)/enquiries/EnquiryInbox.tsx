@@ -128,11 +128,14 @@ export function EnquiryInbox({
     ],
     [styles],
   );
-  const visible = filterEnquiries(items.filter((i) => i.status === tab), {
-    artistId: artistFilter === ALL ? null : artistFilter,
-    style: styleFilter === ALL ? null : styleFilter,
-    source: sourceFilter === ALL ? null : (sourceFilter as EnquirySource),
-  });
+  const visible = filterEnquiries(
+    items.filter((i) => i.status === tab),
+    {
+      artistId: artistFilter === ALL ? null : artistFilter,
+      style: styleFilter === ALL ? null : styleFilter,
+      source: sourceFilter === ALL ? null : (sourceFilter as EnquirySource),
+    },
+  );
 
   return (
     <div className="space-y-5">

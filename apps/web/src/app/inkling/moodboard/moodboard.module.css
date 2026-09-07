@@ -40,7 +40,9 @@
   background: var(--bg-base, #120f0d);
   padding: 0;
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 .tile:hover {
   border-color: var(--bb-gold, #cfa05a);
@@ -138,7 +140,9 @@
   text-align: center;
   color: var(--text-muted);
   font-size: 14px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 .dropZone.over {
   border-color: var(--bb-gold, #cfa05a);
@@ -164,16 +168,27 @@
 .skeleton {
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-sm, 10px);
-  background: linear-gradient(90deg, var(--bg-card, #1a1614), var(--bg-raised, #221c19), var(--bg-card, #1a1614));
+  background: linear-gradient(
+    90deg,
+    var(--bg-card, #1a1614),
+    var(--bg-raised, #221c19),
+    var(--bg-card, #1a1614)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
 @keyframes shimmer {
-  from { background-position: 200% 0; }
-  to { background-position: -200% 0; }
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
+  .skeleton {
+    animation: none;
+  }
 }
 .linkRow {
   display: flex;

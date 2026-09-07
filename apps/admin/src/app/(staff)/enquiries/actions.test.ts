@@ -178,7 +178,9 @@ describe("artist access + claiming", () => {
       source: "inkling",
       preferredArtistId: null,
     } as never);
-    const res = await replyToEnquiry("e1", { message: "Love this — let's talk." });
+    const res = await replyToEnquiry("e1", {
+      message: "Love this — let's talk.",
+    });
     expect(res.ok).toBe(true);
     expect(prisma.enquiry.updateMany).toHaveBeenCalledWith({
       where: { id: "e1", preferredArtistId: null },

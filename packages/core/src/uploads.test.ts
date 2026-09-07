@@ -1,16 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { IMAGE_EXT_BY_MIME, isAllowedImageMime, sniffImageMime } from "./uploads";
+import {
+  IMAGE_EXT_BY_MIME,
+  isAllowedImageMime,
+  sniffImageMime,
+} from "./uploads";
 
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+const PNG = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0,
+]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const GIF = new TextEncoder().encode("GIF89a......");
 const WEBP = new Uint8Array([
-  ...new TextEncoder().encode("RIFF"), 0, 0, 0, 0, ...new TextEncoder().encode("WEBP"),
+  ...new TextEncoder().encode("RIFF"),
+  0,
+  0,
+  0,
+  0,
+  ...new TextEncoder().encode("WEBP"),
 ]);
 const AVIF = new Uint8Array([
-  0, 0, 0, 0x1c, ...new TextEncoder().encode("ftypavif"), 0, 0, 0, 0,
+  0,
+  0,
+  0,
+  0x1c,
+  ...new TextEncoder().encode("ftypavif"),
+  0,
+  0,
+  0,
+  0,
 ]);
-const SVG = new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>");
+const SVG = new TextEncoder().encode(
+  "<svg xmlns='http://www.w3.org/2000/svg'/>",
+);
 
 describe("sniffImageMime", () => {
   it.each([

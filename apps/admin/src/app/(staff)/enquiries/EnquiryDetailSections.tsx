@@ -95,7 +95,12 @@ export function MoodboardSection({
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {data.items.map((item, i) => (
             <li key={`${item.url}-${i}`} className="space-y-1">
-              <a href={item.url} target="_blank" rel="noreferrer" className="block">
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.thumbUrl ?? item.url}

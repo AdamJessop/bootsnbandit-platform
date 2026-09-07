@@ -14,10 +14,42 @@ const base: MoodboardData = {
   query: "peony on the forearm fine-line black and grey tattoo",
   notes: null,
   items: [
-    { kind: "web", url: "https://img.example/a.jpg", thumbUrl: "https://img.example/t.jpg", sourceUrl: "https://page.example/a", title: "Peony", assetId: null, galleryItemId: null },
-    { kind: "studio", url: "/uploads/gallery/snake.jpg", thumbUrl: null, sourceUrl: "/gallery", title: "Snake", assetId: null, galleryItemId: "g1" },
-    { kind: "upload", url: "blob:whatever", thumbUrl: null, sourceUrl: null, title: null, assetId: "asset1", galleryItemId: null },
-    { kind: "upload", url: "", thumbUrl: null, sourceUrl: null, title: null, assetId: null, galleryItemId: null },
+    {
+      kind: "web",
+      url: "https://img.example/a.jpg",
+      thumbUrl: "https://img.example/t.jpg",
+      sourceUrl: "https://page.example/a",
+      title: "Peony",
+      assetId: null,
+      galleryItemId: null,
+    },
+    {
+      kind: "studio",
+      url: "/uploads/gallery/snake.jpg",
+      thumbUrl: null,
+      sourceUrl: "/gallery",
+      title: "Snake",
+      assetId: null,
+      galleryItemId: "g1",
+    },
+    {
+      kind: "upload",
+      url: "blob:whatever",
+      thumbUrl: null,
+      sourceUrl: null,
+      title: null,
+      assetId: "asset1",
+      galleryItemId: null,
+    },
+    {
+      kind: "upload",
+      url: "",
+      thumbUrl: null,
+      sourceUrl: null,
+      title: null,
+      assetId: null,
+      galleryItemId: null,
+    },
   ],
 };
 
@@ -28,13 +60,19 @@ describe("parseMoodboardData", () => {
     expect(parseMoodboardData({ version: 2, items: [] })).toBeNull();
   });
   it("fills defaults for a minimal valid object", () => {
-    const d = parseMoodboardData({ version: 1, items: [{ kind: "link", url: "https://x.test/a.png" }] });
+    const d = parseMoodboardData({
+      version: 1,
+      items: [{ kind: "link", url: "https://x.test/a.png" }],
+    });
     expect(d).not.toBeNull();
     expect(d!.styles).toEqual([]);
     expect(d!.items[0].thumbUrl).toBeNull();
   });
   it("rejects more than 12 items", () => {
-    const items = Array.from({ length: 13 }, (_, i) => ({ kind: "link", url: `https://x.test/${i}.png` }));
+    const items = Array.from({ length: 13 }, (_, i) => ({
+      kind: "link",
+      url: `https://x.test/${i}.png`,
+    }));
     expect(parseMoodboardData({ version: 1, items })).toBeNull();
   });
 });
@@ -51,6 +89,8 @@ describe("finaliseMoodboardData", () => {
     expect(out.assetIds).toEqual(["asset1"]);
   });
   it("strips a trailing slash from the origin", () => {
-    expect(assetUrl("https://x.test/", "a")).toBe("https://x.test/api/inkling/assets/a");
+    expect(assetUrl("https://x.test/", "a")).toBe(
+      "https://x.test/api/inkling/assets/a",
+    );
   });
 });

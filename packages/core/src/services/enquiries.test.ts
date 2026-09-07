@@ -116,8 +116,12 @@ describe("createEnquiry (DB + mocked email)", () => {
     });
     enquiries.push(e.id);
     if (e.customerId) customers.push(e.customerId);
-    const attached = await db().moodboardAsset.findUniqueOrThrow({ where: { id: asset.id } });
+    const attached = await db().moodboardAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+    });
     expect(attached.enquiryId).toBe(e.id);
-    expect((e.moodboardData as { styles: string[] }).styles).toEqual(["Fine-line"]);
+    expect((e.moodboardData as { styles: string[] }).styles).toEqual([
+      "Fine-line",
+    ]);
   });
 });
