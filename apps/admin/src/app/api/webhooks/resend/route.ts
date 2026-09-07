@@ -21,6 +21,14 @@ import { recordWebhookFailure } from "@bnb/core/services/webhook-failures";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Unauthenticated route: cap the body before doing any work with it. Checked
+ * twice — against the (spoofable) `content-length` header before reading the
+ * body at all, and again against the actual byte count after, since a caller
+ * can omit or lie about the header.
+ */
+const MAX_BODY_BYTES = 1_048_576;
+
 /** Best-effort id for the failure row, so the panel can name the email. */
 function externalIdOf(event: unknown): string | null {
   const id = (event as { data?: { email_id?: unknown } } | null)?.data?.email_id;
@@ -51,9 +59,18 @@ export async function POST(req: Request): Promise<Response> {
     return jsonError(503, "RESEND_WEBHOOK_SECRET is not configured");
   }
 
+  const declaredLength = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return jsonError(413, "Payload too large");
+  }
+
   // The raw text, not req.json(): re-serialising changes bytes and breaks
   // the signature.
   const raw = await req.text();
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
+    return jsonError(413, "Payload too large");
+  }
+
   const verified = verifyWebhookSignature({
     secret,
     payload: raw,
@@ -70,6 +87,8 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     await noteFailure({
       externalId: null,
+      // Truncated for display only — an unparseable body can't be replayed
+      // as an event anyway, so the panel just needs enough to diagnose it.
       payload: { raw: raw.slice(0, 4000) },
       error: "Malformed JSON body on a correctly signed request",
     });

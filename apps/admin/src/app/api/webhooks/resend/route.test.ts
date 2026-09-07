@@ -165,4 +165,71 @@ describe("POST /api/webhooks/resend", () => {
     });
     expect(recordWebhookFailure).not.toHaveBeenCalled();
   });
+
+  it("200s with a WebhookFailure row when processing rejects with a plain string", async () => {
+    ingestResendEvent.mockRejectedValue("boom");
+    const res = await POST(signedRequest(EVENT));
+    expect(res.status).toBe(200);
+    expect((await res.json()) as unknown).toMatchObject({
+      ok: false,
+      status: "failed",
+    });
+    expect(recordWebhookFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "resend",
+        error: expect.any(String),
+      }),
+    );
+    const call = recordWebhookFailure.mock.calls[0]?.[0] as { error: string };
+    expect(call.error.length).toBeGreaterThan(0);
+  });
+
+  it("200s with a WebhookFailure row when processing rejects with a plain object", async () => {
+    ingestResendEvent.mockRejectedValue({ code: "ESOCKET" });
+    const res = await POST(signedRequest(EVENT));
+    expect(res.status).toBe(200);
+    expect((await res.json()) as unknown).toMatchObject({
+      ok: false,
+      status: "failed",
+    });
+    expect(recordWebhookFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "resend",
+        error: expect.any(String),
+      }),
+    );
+    const call = recordWebhookFailure.mock.calls[0]?.[0] as { error: string };
+    expect(call.error.length).toBeGreaterThan(0);
+  });
+
+  it("413s a request whose declared content-length exceeds the cap", async () => {
+    const payload = JSON.stringify(EVENT);
+    const id = "msg_2Xk9QmQ1x7pC4bR";
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = signWebhookPayload({ secret: SECRET, id, timestamp, payload });
+    const res = await POST(
+      new Request("http://admin.test/api/webhooks/resend", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "svix-id": id,
+          "svix-timestamp": String(timestamp),
+          "svix-signature": signature,
+          "content-length": String(1_048_576 + 1),
+        },
+        body: payload,
+      }),
+    );
+    expect(res.status).toBe(413);
+    expect(ingestResendEvent).not.toHaveBeenCalled();
+    expect(recordWebhookFailure).not.toHaveBeenCalled();
+  });
+
+  it("413s an undeclared oversize body even with a valid signature", async () => {
+    const big = "x".repeat(1_048_576 + 1);
+    const res = await POST(signedRequest(big));
+    expect(res.status).toBe(413);
+    expect(ingestResendEvent).not.toHaveBeenCalled();
+    expect(recordWebhookFailure).not.toHaveBeenCalled();
+  });
 });
