@@ -20,11 +20,14 @@ comes from env vars.
      reception origins. **Changing it later invalidates all staff passkeys.**
    - `WEB_ORIGIN` / `ADMIN_ORIGIN` / `RECEPTION_ORIGIN` must exactly match
      the domains you assign in step 4 (https, no trailing slash).
-   - `GOOGLE_CSE_KEY` / `GOOGLE_CSE_CX` (optional) — Google Programmable
-     Search credentials for the Inkling mood-board image search; create an
-     engine at programmablesearchengine.google.com with *Image search* on
-     and *Search the entire web* on, and an API key in Google Cloud for the
-     Custom Search JSON API (100 free queries/day).
+   - `BRAVE_SEARCH_KEY` (optional) — Brave Search API key for the Inkling
+     mood-board image search: sign up at api-dashboard.search.brave.com,
+     subscribe to the *Data for Search* plan (includes the images endpoint;
+     2,000 free queries/month, then ~$5 per 1,000) and create a key. Without
+     it the builder shows studio-gallery matches + uploads only.
+     `GOOGLE_CSE_KEY` / `GOOGLE_CSE_CX` are still read as a legacy fallback,
+     but Google no longer grants new projects access to the Custom Search
+     JSON API (new projects get `PERMISSION_DENIED`).
 4. **Domains** — in the resource's service list, assign a domain to each app
    service with its container port: `web` → your apex/www domain, port 3000;
    `admin` → admin subdomain, port 3001; `reception` → reception subdomain,

@@ -4,7 +4,7 @@ import type { BoardColour } from "./moodboard-data";
 /**
  * Inkling inspiration search: a deterministic query built from the visitor's
  * brief, run against (a) the studio's own gallery and (b) a web image-search
- * provider (Google Programmable Search). The provider sits behind a tiny
+ * provider (Brave Search images; Google Programmable Search kept as legacy). The provider sits behind a tiny
  * interface so it can be swapped; results are cached in-process to protect
  * the daily quota. No AI.
  */
@@ -120,9 +120,77 @@ export function googleCseProvider(opts: {
   };
 }
 
+interface BraveImageResult {
+  title?: string;
+  /** Page the image was found on. */
+  url?: string;
+  thumbnail?: { src?: string };
+  properties?: { url?: string };
+}
+interface BraveImageResponse {
+  results?: BraveImageResult[];
+}
+
+/** Results requested per Brave call; the endpoint has no offset paging. */
+const BRAVE_COUNT = 40;
+
+/**
+ * Brave Search image API. Web-wide image search with strict SafeSearch;
+ * returns one page of up to BRAVE_COUNT results (no offset pagination, so
+ * `nextStart` is always null).
+ */
+export function braveImageProvider(opts: {
+  key: string;
+  fetchImpl?: typeof fetch;
+}): ImageSearchProvider {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  return {
+    name: "brave-images",
+    async search(query) {
+      const u = new URL("https://api.search.brave.com/res/v1/images/search");
+      u.searchParams.set("q", query);
+      u.searchParams.set("safesearch", "strict");
+      u.searchParams.set("count", String(BRAVE_COUNT));
+      u.searchParams.set("spellcheck", "1");
+      const res = await fetchImpl(u.toString(), {
+        headers: {
+          Accept: "application/json",
+          "Accept-Encoding": "gzip",
+          "X-Subscription-Token": opts.key,
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Image search provider responded ${res.status}`);
+      }
+      const body = (await res.json()) as BraveImageResponse;
+      const results: WebImageResult[] = (body.results ?? [])
+        .filter(
+          (r): r is BraveImageResult & { properties: { url: string } } =>
+            typeof r.properties?.url === "string",
+        )
+        .map((r) => ({
+          url: r.properties.url,
+          thumbUrl: r.thumbnail?.src ?? null,
+          sourceUrl: r.url ?? null,
+          title: r.title ?? null,
+          width: null,
+          height: null,
+        }));
+      return { results, nextStart: null };
+    },
+  };
+}
+
+/**
+ * Pick the configured provider: Brave when `BRAVE_SEARCH_KEY` is set,
+ * otherwise Google when both CSE values are set (legacy — Google no longer
+ * grants new projects access to the Custom Search JSON API), else null.
+ */
 export function providerFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): ImageSearchProvider | null {
+  const brave = env.BRAVE_SEARCH_KEY?.trim();
+  if (brave) return braveImageProvider({ key: brave });
   const key = env.GOOGLE_CSE_KEY?.trim();
   const cx = env.GOOGLE_CSE_CX?.trim();
   if (!key || !cx) return null;

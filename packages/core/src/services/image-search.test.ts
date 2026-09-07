@@ -5,6 +5,7 @@ import {
   findStudioMatches,
   googleCseProvider,
   providerFromEnv,
+  braveImageProvider,
   searchInspiration,
   type ImageSearchProvider,
 } from "./image-search";
@@ -115,6 +116,82 @@ describe("googleCseProvider", () => {
         GOOGLE_CSE_CX: "c",
       } as NodeJS.ProcessEnv)?.name,
     ).toBe("google-cse");
+  });
+});
+
+describe("braveImageProvider", () => {
+  const payload = {
+    type: "images",
+    results: [
+      {
+        title: "Peony sleeve",
+        url: "https://page.test/peony",
+        source: "page.test",
+        thumbnail: { src: "https://imgs.search.brave.com/t.jpg" },
+        properties: { url: "https://img.test/peony.jpg" },
+      },
+      { title: "No image", url: "https://page.test/none", properties: {} },
+    ],
+  };
+  it("calls the Brave images endpoint with the token header and maps results", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify(payload), { status: 200 }),
+    );
+    const p = braveImageProvider({
+      key: "TOKEN",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    const page = await p.search("peony tattoo", 1);
+    const [urlArg, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
+    const url = new URL(urlArg);
+    expect(url.origin + url.pathname).toBe(
+      "https://api.search.brave.com/res/v1/images/search",
+    );
+    expect(url.searchParams.get("q")).toBe("peony tattoo");
+    expect(url.searchParams.get("safesearch")).toBe("strict");
+    expect(url.searchParams.get("count")).toBe("40");
+    expect(
+      (init.headers as Record<string, string>)["X-Subscription-Token"],
+    ).toBe("TOKEN");
+    expect(page.results).toEqual([
+      {
+        url: "https://img.test/peony.jpg",
+        thumbUrl: "https://imgs.search.brave.com/t.jpg",
+        sourceUrl: "https://page.test/peony",
+        title: "Peony sleeve",
+        width: null,
+        height: null,
+      },
+    ]);
+    // Brave's image endpoint has no offset pagination.
+    expect(page.nextStart).toBeNull();
+  });
+  it("throws a clean error on non-200 without leaking the token", async () => {
+    const fetchImpl = vi.fn(async () => new Response("nope", { status: 422 }));
+    const p = braveImageProvider({
+      key: "SECRET",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await expect(p.search("x", 1)).rejects.toThrow(/422/);
+    await expect(p.search("x", 1)).rejects.not.toThrow(/SECRET/);
+  });
+  it("providerFromEnv prefers Brave when its key is set", () => {
+    expect(
+      providerFromEnv({ BRAVE_SEARCH_KEY: "b" } as NodeJS.ProcessEnv)?.name,
+    ).toBe("brave-images");
+    expect(
+      providerFromEnv({
+        BRAVE_SEARCH_KEY: "b",
+        GOOGLE_CSE_KEY: "k",
+        GOOGLE_CSE_CX: "c",
+      } as NodeJS.ProcessEnv)?.name,
+    ).toBe("brave-images");
+    expect(
+      providerFromEnv({ BRAVE_SEARCH_KEY: "  " } as NodeJS.ProcessEnv),
+    ).toBeNull();
   });
 });
 

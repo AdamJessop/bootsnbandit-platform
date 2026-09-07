@@ -37,6 +37,7 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM:-}
       APP_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      BRAVE_SEARCH_KEY: ${BRAVE_SEARCH_KEY:-}
       GOOGLE_CSE_KEY: ${GOOGLE_CSE_KEY:-}
       GOOGLE_CSE_CX: ${GOOGLE_CSE_CX:-}
     healthcheck:
