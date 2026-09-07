@@ -21,7 +21,10 @@ const schema = z.object({
 export async function POST(req: Request): Promise<Response> {
   try {
     if (!limiter.hit(clientIp(req))) {
-      return jsonError(429, "Too many searches — please try again in a minute.");
+      return jsonError(
+        429,
+        "Too many searches — please try again in a minute.",
+      );
     }
     const input = await parseBody(req, schema);
     if (input.styles.length === 0 && input.description.length < 3) {

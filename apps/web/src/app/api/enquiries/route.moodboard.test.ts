@@ -1,16 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prisma = vi.hoisted(() => ({ siteSettings: { findFirst: vi.fn() } }));
-const createEnquiry = vi.hoisted(() => vi.fn(async (input: Record<string, unknown>) => ({ id: "e1", ...input })));
+const createEnquiry = vi.hoisted(() =>
+  vi.fn(async (input: Record<string, unknown>) => ({ id: "e1", ...input })),
+);
 vi.mock("@bnb/core/db", () => ({ prisma }));
 vi.mock("@bnb/core/services/enquiries", () => ({ createEnquiry }));
 const { POST } = await import("./route");
 
 let ip = 0;
 const post = (body: unknown) =>
-  POST(new Request("http://web.test/api/enquiries", {
-    method: "POST", headers: { "x-forwarded-for": `10.3.${++ip}.1` }, body: JSON.stringify(body),
-  }));
+  POST(
+    new Request("http://web.test/api/enquiries", {
+      method: "POST",
+      headers: { "x-forwarded-for": `10.3.${++ip}.1` },
+      body: JSON.stringify(body),
+    }),
+  );
 
 beforeEach(() => {
   prisma.siteSettings.findFirst.mockResolvedValue({ enquiriesOpen: true });
@@ -22,13 +28,21 @@ describe("POST /api/enquiries — mood board", () => {
   it("finalises moodboardData: asset urls, absolute urls, moodboard[] + assetIds", async () => {
     process.env.APP_ORIGIN = "https://site.test";
     const res = await post({
-      contactName: "Board", contactPhone: "07123456789", source: "inkling",
+      contactName: "Board",
+      contactPhone: "07123456789",
+      source: "inkling",
       moodboardData: {
-        version: 1, styles: ["Fine-line"], description: "peony",
+        version: 1,
+        styles: ["Fine-line"],
+        description: "peony",
         items: [
           { kind: "upload", url: "/pending", assetId: "as1" },
           { kind: "studio", url: "/uploads/g.jpg", galleryItemId: "g1" },
-          { kind: "web", url: "https://i.test/a.jpg", sourceUrl: "https://p.test/a" },
+          {
+            kind: "web",
+            url: "https://i.test/a.jpg",
+            sourceUrl: "https://p.test/a",
+          },
         ],
       },
     });
@@ -43,11 +57,26 @@ describe("POST /api/enquiries — mood board", () => {
     expect((input.moodboardData as { items: unknown[] }).items).toHaveLength(3);
   });
   it("falls back to the request origin when APP_ORIGIN is unset", async () => {
-    await post({ contactName: "B", contactPhone: "07123456789", moodboardData: { version: 1, items: [{ kind: "upload", url: "/pending", assetId: "as2" }] } });
+    await post({
+      contactName: "B",
+      contactPhone: "07123456789",
+      moodboardData: {
+        version: 1,
+        items: [{ kind: "upload", url: "/pending", assetId: "as2" }],
+      },
+    });
     const input = createEnquiry.mock.calls[0][0] as { moodboard: string[] };
     expect(input.moodboard).toEqual(["http://web.test/api/inkling/assets/as2"]);
   });
   it("400s on an invalid board", async () => {
-    expect((await post({ contactName: "B", contactPhone: "07123456789", moodboardData: { version: 3, items: [] } })).status).toBe(400);
+    expect(
+      (
+        await post({
+          contactName: "B",
+          contactPhone: "07123456789",
+          moodboardData: { version: 3, items: [] },
+        })
+      ).status,
+    ).toBe(400);
   });
 });

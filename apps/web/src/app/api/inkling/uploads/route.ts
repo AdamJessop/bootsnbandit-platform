@@ -30,17 +30,27 @@ export async function POST(req: Request): Promise<Response> {
     const file = form?.get("file");
     if (!(file instanceof File)) return jsonError(400, "No file provided");
     if (file.size === 0) return jsonError(400, "Empty file");
-    if (file.size > MAX_BYTES) return jsonError(413, "Image too large (max 5MB)");
+    if (file.size > MAX_BYTES)
+      return jsonError(413, "Image too large (max 5MB)");
     if (!isAllowedImageMime(file.type)) {
-      return jsonError(415, `Unsupported image type: ${file.type || "unknown"}`);
+      return jsonError(
+        415,
+        `Unsupported image type: ${file.type || "unknown"}`,
+      );
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const sniffed = sniffImageMime(bytes);
     if (!sniffed || sniffed !== file.type) {
-      return jsonError(415, "File content does not match a supported image format");
+      return jsonError(
+        415,
+        "File content does not match a supported image format",
+      );
     }
     const asset = await createMoodboardAsset({ bytes, mime: sniffed });
-    return json({ assetId: asset.id, url: `/api/inkling/assets/${asset.id}` }, 201);
+    return json(
+      { assetId: asset.id, url: `/api/inkling/assets/${asset.id}` },
+      201,
+    );
   } catch (err) {
     return handleApiError(err);
   }

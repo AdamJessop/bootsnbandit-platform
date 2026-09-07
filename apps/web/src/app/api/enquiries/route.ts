@@ -61,7 +61,8 @@ export async function POST(req: Request): Promise<Response> {
       payload = {
         ...payload,
         moodboard: board.urls,
-        moodboardData: board.data as unknown as CreateEnquiryInput["moodboardData"],
+        moodboardData:
+          board.data as unknown as CreateEnquiryInput["moodboardData"],
         assetIds: board.assetIds,
       };
     }
