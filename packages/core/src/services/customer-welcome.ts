@@ -5,6 +5,12 @@ import {
   mintSetPasswordToken,
   SET_PASSWORD_TOKEN_TTL_DAYS,
 } from "./customer-auth";
+import {
+  DuplicateContactError,
+  isUniqueViolation,
+  normaliseEmail,
+  normalisePhone,
+} from "./contact-identity";
 
 /**
  * Customer onboarding orchestration: create the Customer (with DOB), mint a
@@ -48,14 +54,24 @@ async function sendWelcome(
 export async function createCustomerWithWelcome(
   input: CreateCustomerWithWelcomeInput,
 ): Promise<Customer> {
-  const customer = await prisma.customer.create({
-    data: {
-      name: input.name,
-      email: input.email,
-      phone: input.phone ?? null,
-      dob: input.dob ?? null,
-    },
-  });
+  let customer: Customer;
+  try {
+    customer = await prisma.customer.create({
+      data: {
+        name: input.name,
+        email: normaliseEmail(input.email),
+        phone: normalisePhone(input.phone),
+        dob: input.dob ?? null,
+      },
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new DuplicateContactError(
+        "A customer with that email or phone already exists — search for them instead.",
+      );
+    }
+    throw err;
+  }
   await sendWelcome(customer, input.email, input.siteOrigin);
   return customer;
 }

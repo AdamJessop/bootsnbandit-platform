@@ -49,7 +49,7 @@ describe("customers service (DB)", () => {
     if (!(await dbReachable())) return;
     // An existing customer with known phone + consent.
     const email = `${uid("c")}@example.com`;
-    const phone = `+44${Date.now()}`;
+    const phone = `+447700${String(Date.now()).slice(-6)}`;
     const original = await createCustomer({
       name: "Existing",
       email,

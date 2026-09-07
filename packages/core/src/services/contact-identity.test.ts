@@ -184,4 +184,59 @@ describe("findOrCreateCustomer + linkIdentity (DB)", () => {
       }),
     ).toMatchObject({ customerId: first.id });
   });
+
+  it("the database refuses a second customer with the same email or phone", async () => {
+    if (!(await dbReachable())) return;
+    const local = uid("uniq");
+    const first = track(
+      await findOrCreateCustomer({
+        name: "Uniq",
+        email: `${local}@example.com`,
+        phone: "07700 900126",
+      }),
+    );
+    await expect(
+      db().customer.create({
+        data: { name: "Copy", email: `${local}@example.com` },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+    await expect(
+      db().customer.create({ data: { name: "Copy", phone: "+447700900126" } }),
+    ).rejects.toMatchObject({ code: "P2002" });
+    // Many contact-less customers are fine — Postgres treats NULLs as distinct.
+    const a = track(await db().customer.create({ data: { name: `Blank ${uid()}` } }));
+    const b = track(await db().customer.create({ data: { name: `Blank ${uid()}` } }));
+    expect(a.id).not.toBe(b.id);
+    expect(first.email).toBe(`${local}@example.com`);
+  });
+});
+
+describe("duplicate-contact guards (DB)", () => {
+  const db = () => testDb();
+  const made: string[] = [];
+
+  afterAll(async () => {
+    if ((await dbReachable()) && made.length) {
+      await db().customer.deleteMany({ where: { id: { in: made } } });
+    }
+    await closeTestDb();
+  });
+
+  it("createCustomer normalises and reports a duplicate readably", async () => {
+    if (!(await dbReachable())) return;
+    const { createCustomer } = await import("./customers");
+    const { DuplicateContactError } = await import("./contact-identity");
+    const local = uid("guard");
+    const c = await createCustomer({
+      name: "Guard",
+      email: `  ${local}@EXAMPLE.com `,
+      phone: "07700 900127",
+    });
+    made.push(c.id);
+    expect(c.email).toBe(`${local}@example.com`);
+    expect(c.phone).toBe("+447700900127");
+    await expect(
+      createCustomer({ name: "Guard 2", email: `${local}@example.com` }),
+    ).rejects.toBeInstanceOf(DuplicateContactError);
+  });
 });

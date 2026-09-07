@@ -253,8 +253,8 @@ model Artist {
 model Customer {
   id                String   @id @default(cuid())
   name              String
-  email             String?
-  phone             String?
+  email             String?  @unique
+  phone             String?  @unique
   dob               DateTime?
   passwordHash      String?
   notes             String?
@@ -272,9 +272,6 @@ model Customer {
   passwordTokens CustomerPasswordToken[]
   identities      CustomerIdentity[]
   enquiryMessages EnquiryMessage[]
-
-  @@index([email])
-  @@index([phone])
 }
 
 // One-time set-password (account activation) token emailed to a customer.

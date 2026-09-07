@@ -1,6 +1,12 @@
 import type { Customer, Prisma } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
-import { findOrCreateCustomer } from "./contact-identity";
+import {
+  DuplicateContactError,
+  findOrCreateCustomer,
+  isUniqueViolation,
+  normaliseEmail,
+  normalisePhone,
+} from "./contact-identity";
 
 /**
  * Customer (CRM) service — directory + find-or-create used by enquiry/flash
@@ -16,19 +22,29 @@ export interface CreateCustomerInput {
   tags?: string[];
 }
 
+/**
+ * Create a customer with normalised contact details. Email and phone are
+ * unique at the database, so a clash raises DuplicateContactError rather than
+ * a raw P2002 — callers surface `err.message` to staff.
+ */
 export async function createCustomer(
   input: CreateCustomerInput,
 ): Promise<Customer> {
-  return prisma.customer.create({
-    data: {
-      name: input.name,
-      email: input.email ?? null,
-      phone: input.phone ?? null,
-      notes: input.notes ?? null,
-      marketingConsent: input.marketingConsent ?? false,
-      tags: input.tags ?? [],
-    },
-  });
+  try {
+    return await prisma.customer.create({
+      data: {
+        name: input.name,
+        email: normaliseEmail(input.email),
+        phone: normalisePhone(input.phone),
+        notes: input.notes ?? null,
+        marketingConsent: input.marketingConsent ?? false,
+        tags: input.tags ?? [],
+      },
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new DuplicateContactError();
+    throw err;
+  }
 }
 
 /**
@@ -110,5 +126,13 @@ export async function updateCustomer(
   id: string,
   input: UpdateCustomerInput,
 ): Promise<Customer> {
-  return prisma.customer.update({ where: { id }, data: input });
+  const data: Prisma.CustomerUpdateInput = { ...input };
+  if ("email" in input) data.email = normaliseEmail(input.email);
+  if ("phone" in input) data.phone = normalisePhone(input.phone);
+  try {
+    return await prisma.customer.update({ where: { id }, data });
+  } catch (err) {
+    if (isUniqueViolation(err)) throw new DuplicateContactError();
+    throw err;
+  }
 }

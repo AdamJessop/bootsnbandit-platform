@@ -332,8 +332,11 @@ export async function mergeDuplicateCustomers(
         where: { customerId: { in: ids } },
         data: { customerId: keep.id },
       }),
-      prisma.customer.update({ where: { id: keep.id }, data: fields }),
+      // Delete the duplicates BEFORE writing their email/phone onto the
+      // survivor: while both rows exist, that value would transiently
+      // collide with itself on the unique index the duplicates still hold.
       prisma.customer.deleteMany({ where: { id: { in: ids } } }),
+      prisma.customer.update({ where: { id: keep.id }, data: fields }),
     ]);
     merged += dupes.length;
   }

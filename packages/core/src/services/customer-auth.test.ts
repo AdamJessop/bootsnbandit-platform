@@ -127,20 +127,20 @@ describe("set-password token lifecycle (DB)", () => {
     });
   });
 
-  it("signs in the newest credentialed customer for an email", async () => {
+  it("signs in a credentialed customer by email", async () => {
     if (!(await dbReachable())) return;
+    // Customer.email is unique at the DB (Task 5), so signInCustomer's
+    // findFirst can only ever match one row — this exercises that path
+    // rather than a since-impossible same-email duplicate.
     const email = `${uid("dup")}@example.com`;
-    const older = await makeCustomer(email);
-    const newer = await makeCustomer(email);
-    const token = await mintSetPasswordToken(newer.id);
+    const customer = await makeCustomer(email);
+    const token = await mintSetPasswordToken(customer.id);
     await redeemSetPasswordToken(token, "letmein-42");
 
     const hit = await signInCustomer(email, "letmein-42");
-    expect(hit?.id).toBe(newer.id);
+    expect(hit?.id).toBe(customer.id);
     expect(await signInCustomer(email, "wrong")).toBeNull();
     expect(await signInCustomer("nobody@example.com", "x")).toBeNull();
-    // The older, credential-less record never matches.
-    expect(older.passwordHash).toBeNull();
   });
 });
 

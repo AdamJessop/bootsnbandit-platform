@@ -199,3 +199,11 @@ export function isUniqueViolation(err: unknown): boolean {
     (err as { code?: string }).code === "P2002"
   );
 }
+
+/** A write hit the unique email/phone index — surfaced with a readable message. */
+export class DuplicateContactError extends Error {
+  constructor(message = "A customer with that email or phone already exists.") {
+    super(message);
+    this.name = "DuplicateContactError";
+  }
+}
