@@ -1,7 +1,12 @@
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
+import {
+  listThreadsFor,
+  unreadCountsFor,
+} from "@bnb/core/services/enquiry-messages";
 import { parseMoodboardData } from "@bnb/core/services/moodboard-data";
-import { artistInboxWhere, buildThreadMap } from "./enquiry-helpers";
+import { artistInboxWhere } from "./enquiry-helpers";
+import type { ThreadItem } from "./EnquiryThread";
 import {
   EnquiryInbox,
   type ArtistOption,
@@ -9,21 +14,28 @@ import {
 } from "./EnquiryInbox";
 
 /**
- * Enquiries inbox (BACKOFHOUSE-IA E1/E2). Owners see the whole inbox; artists
- * see enquiries that prefer them PLUS unassigned Inkling mood boards, which
- * they can take or claim by responding (mirrors /api/enquiries GET). Reply /
- * assign / convert / claim run through colocated server actions.
+ * Enquiries inbox (BACKOFHOUSE-IA E1/E2). Owners see the whole inbox with an
+ * assigned-artist pill on every row; artists see enquiries that prefer them
+ * PLUS every unassigned enquiry on any channel, which they can take or claim
+ * by responding. Each row carries its full message thread and this user's
+ * unread flag. Reply / note / assign / convert / claim / close run through
+ * colocated server actions.
  */
 export const dynamic = "force-dynamic";
 
 export default async function EnquiriesPage() {
   const user = await requireRole();
   const owner = user.role === "OWNER";
+  const viewer = {
+    userId: user.id,
+    role: user.role,
+    artistId: user.artistId ?? null,
+  };
 
-  const [enquiries, artists] = await Promise.all([
+  const [enquiries, artists, unread] = await Promise.all([
     prisma.enquiry.findMany({
       where: owner ? {} : artistInboxWhere(user.artistId ?? "__none__"),
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       take: 300,
     }),
     prisma.artist.findMany({
@@ -31,48 +43,40 @@ export default async function EnquiriesPage() {
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true },
     }),
+    unreadCountsFor(viewer),
   ]);
 
-  // Message history per customer (past replies / confirmations) for the
-  // detail-thread view. One query for the whole inbox — no per-enquiry reads.
-  const customerIds = [
-    ...new Set(
-      enquiries.map((e) => e.customerId).filter((id): id is string => !!id),
-    ),
-  ];
-  const messages =
-    customerIds.length > 0
-      ? await prisma.messageLog.findMany({
-          where: { customerId: { in: customerIds } },
-          orderBy: { createdAt: "desc" },
-          take: 1000,
-          select: {
-            id: true,
-            customerId: true,
-            type: true,
-            status: true,
-            subject: true,
-            sentAt: true,
-            createdAt: true,
-          },
-        })
-      : [];
-  const threads = buildThreadMap(
-    messages.map((m) => ({
+  // One query for every thread on screen — no per-enquiry reads.
+  const threads = await listThreadsFor(enquiries.map((e) => e.id));
+  const unreadIds = new Set(unread.enquiryIds);
+  const artistName = new Map(artists.map((a) => [a.id, a.name]));
+
+  const toThreadItems = (enquiryId: string): ThreadItem[] =>
+    (threads.get(enquiryId) ?? []).map((m) => ({
       id: m.id,
-      customerId: m.customerId,
-      type: m.type,
-      status: m.status,
+      direction: m.direction,
+      channel: m.channel,
+      authorName: m.authorName,
+      fromName: m.fromName,
       subject: m.subject,
-      sentAtISO: m.sentAt?.toISOString() ?? null,
+      bodyText: m.bodyText,
+      deliveryStatus: m.deliveryStatus,
       createdAtISO: m.createdAt.toISOString(),
-    })),
-  );
+      attachments: m.attachments.map((a) => ({
+        id: a.id,
+        mime: a.mime,
+        size: a.size,
+        filename: a.filename,
+        url: a.url,
+        hasBytes: a.hasBytes,
+      })),
+    }));
 
   const items: EnquiryItem[] = enquiries.map((e) => ({
     id: e.id,
     contactName: e.contactName,
     contactEmail: e.contactEmail,
+    subject: e.subject,
     style: e.style,
     placement: e.placement,
     size: e.size,
@@ -82,9 +86,15 @@ export default async function EnquiriesPage() {
     moodboardData: parseMoodboardData(e.moodboardData),
     status: e.status,
     source: e.source,
+    channel: e.channel,
     preferredArtistId: e.preferredArtistId,
+    preferredArtistName: e.preferredArtistId
+      ? (artistName.get(e.preferredArtistId) ?? null)
+      : null,
     createdAtISO: e.createdAt.toISOString(),
-    thread: e.customerId ? (threads.get(e.customerId) ?? []) : [],
+    lastMessageAtISO: e.lastMessageAt?.toISOString() ?? null,
+    unread: unreadIds.has(e.id),
+    thread: toThreadItems(e.id),
   }));
 
   const artistOptions: ArtistOption[] = owner
@@ -98,7 +108,8 @@ export default async function EnquiriesPage() {
         Enquiries
       </h1>
       <p className="mt-2 max-w-[60ch] text-sm text-text-muted">
-        Inbound leads — reply, assign an artist, or convert to a booking.
+        Inbound leads — read the thread, reply, leave a note, assign an artist,
+        or convert to a booking.
       </p>
       <div className="mt-8">
         <EnquiryInbox
@@ -106,6 +117,7 @@ export default async function EnquiriesPage() {
           artists={artistOptions}
           canConvert={owner || Boolean(user.artistId)}
           viewerArtistId={owner ? null : (user.artistId ?? null)}
+          showAssignedPill={owner}
         />
       </div>
     </main>

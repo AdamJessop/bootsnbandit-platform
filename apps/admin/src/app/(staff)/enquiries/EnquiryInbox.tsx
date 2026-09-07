@@ -1,13 +1,19 @@
 "use client";
 
 /**
- * Enquiry inbox (BACKOFHOUSE-IA E1/E2): status tabs (new/replied/converted/
- * closed), a list of leads, and a detail dialog to reply (email), assign an
- * artist, or convert → booking. Server actions do the work; this island wires
- * the UI + toasts.
+ * Enquiry inbox (BACKOFHOUSE-IA E1/E2): status tabs (new/customer replied/
+ * replied/converted/closed), a list of leads carrying their unread flag and
+ * assigned artist, and a detail dialog showing the full message thread with
+ * reply, internal note, assign, take and convert → booking. Server actions do
+ * the work (including every authorisation decision); this island wires the UI
+ * + toasts.
  */
 import { useMemo, useState, useTransition } from "react";
-import type { EnquirySource, EnquiryStatus } from "@prisma/client";
+import type {
+  EnquiryChannel,
+  EnquirySource,
+  EnquiryStatus,
+} from "@prisma/client";
 import { toast } from "sonner";
 import type { MoodboardData } from "@bnb/core/services/moodboard-data";
 import { Badge } from "@/components/ui/badge";
@@ -38,19 +44,20 @@ import {
   countByStatus,
   distinctStyles,
   filterEnquiries,
-  isOpenBoard,
-  type ThreadEntry,
+  isUnassigned,
 } from "./enquiry-helpers";
 import {
   MoodBoardBriefSection,
   MoodboardSection,
-  ThreadSection,
 } from "./EnquiryDetailSections";
+import { EnquiryThread, type ThreadItem } from "./EnquiryThread";
 import {
+  addInternalNote,
   assignEnquiry,
   claimEnquiry,
   closeEnquiry,
   convertEnquiry,
+  markEnquiryRead,
   replyToEnquiry,
 } from "./actions";
 
@@ -58,6 +65,7 @@ export interface EnquiryItem {
   id: string;
   contactName: string;
   contactEmail: string | null;
+  subject: string | null;
   style: string | null;
   placement: string | null;
   size: string | null;
@@ -67,10 +75,17 @@ export interface EnquiryItem {
   moodboardData: MoodboardData | null;
   status: EnquiryStatus;
   source: EnquirySource;
+  channel: EnquiryChannel;
   preferredArtistId: string | null;
+  /** Resolved name for the preferred artist, or null when unassigned. */
+  preferredArtistName: string | null;
   createdAtISO: string;
-  /** Past messages on the customer's timeline (newest first). */
-  thread: ThreadEntry[];
+  /** Newest message on the thread, or null when nothing has landed yet. */
+  lastMessageAtISO: string | null;
+  /** Customer traffic this viewer has not caught up on. */
+  unread: boolean;
+  /** The full message thread, oldest first. */
+  thread: ThreadItem[];
 }
 
 export interface ArtistOption {
@@ -80,12 +95,26 @@ export interface ArtistOption {
 
 const ALL = "__all__";
 
-const STATUS_ORDER: EnquiryStatus[] = ["new", "replied", "converted", "closed"];
+const STATUS_ORDER: EnquiryStatus[] = [
+  "new",
+  "customer_replied",
+  "replied",
+  "converted",
+  "closed",
+];
 
-const SOURCE_LABEL: Record<EnquirySource, string> = {
+/**
+ * How a row badges the enquiry. The channel supersedes the older source for
+ * display — an emailed lead still records source `web` — so the row shows the
+ * channel while the dropdown below still filters on source.
+ */
+const CHANNEL_BADGE: Record<EnquiryChannel, string> = {
   web: "Web",
   flash: "Flash",
   inkling: "Mood board",
+  email: "Email",
+  messenger: "Messenger",
+  instagram: "Instagram",
 };
 
 const SOURCE_FILTER_ITEMS = [
@@ -100,11 +129,14 @@ export function EnquiryInbox({
   artists,
   canConvert,
   viewerArtistId,
+  showAssignedPill,
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
   canConvert: boolean;
   viewerArtistId: string | null;
+  /** Owners see who owns each lead; artists see only an Unassigned flag. */
+  showAssignedPill: boolean;
 }) {
   const [tab, setTab] = useState<EnquiryStatus>("new");
   const [artistFilter, setArtistFilter] = useState(ALL);
@@ -217,6 +249,7 @@ export function EnquiryInbox({
                 artists={artists}
                 canConvert={canConvert}
                 viewerArtistId={viewerArtistId}
+                showAssignedPill={showAssignedPill}
               />
             </li>
           ))}
@@ -232,15 +265,18 @@ function EnquiryRow({
   artists,
   canConvert,
   viewerArtistId,
+  showAssignedPill,
 }: {
   item: EnquiryItem;
   artists: ArtistOption[];
   canConvert: boolean;
   viewerArtistId: string | null;
+  showAssignedPill: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [reply, setReply] = useState("");
+  const [note, setNote] = useState("");
   const [artistId, setArtistId] = useState(item.preferredArtistId ?? "");
   const [startISO, setStartISO] = useState("");
   const [durationMin, setDurationMin] = useState("60");
@@ -250,33 +286,65 @@ function EnquiryRow({
     [artists],
   );
 
-  function run(fn: () => Promise<{ ok: boolean; message?: string }>) {
+  /**
+   * Most actions finish the job, so the dialog closes on success; the note
+   * composer passes `close: false` so several notes can be added in a row.
+   */
+  function run(
+    fn: () => Promise<{ ok: boolean; message?: string }>,
+    opts: { close?: boolean } = { close: true },
+  ) {
     start(async () => {
       const res = await fn();
       toast[res.ok ? "success" : "error"](res.message ?? "");
-      if (res.ok) setOpen(false);
+      if (res.ok && opts.close !== false) setOpen(false);
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // Opening the thread is what counts as reading it.
+        if (next && item.unread) void markEnquiryRead(item.id);
+      }}
+    >
       <DialogTrigger className="w-full rounded-lg border border-border-default bg-bg-card px-5 py-4 text-left transition-colors hover:border-border-strong">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-medium text-text-primary">
+          <span className="flex items-center gap-2 font-medium text-text-primary">
+            {item.unread && (
+              <span
+                className="size-2 shrink-0 rounded-full bg-bb-crimson"
+                role="img"
+                aria-label="Unread"
+              />
+            )}
             {item.contactName}
           </span>
           <span className="flex items-center gap-2">
-            <Badge variant="outline">{SOURCE_LABEL[item.source]}</Badge>
-            {isOpenBoard(item) && <Badge>Open board</Badge>}
+            <Badge variant="outline">{CHANNEL_BADGE[item.channel]}</Badge>
+            {showAssignedPill && (
+              <Badge
+                variant={item.preferredArtistName ? "secondary" : "default"}
+              >
+                {item.preferredArtistName ?? "Unassigned"}
+              </Badge>
+            )}
+            {!showAssignedPill && isUnassigned(item) && (
+              <Badge>Unassigned</Badge>
+            )}
             <span className="text-xs text-text-muted">
-              {formatDateTime(item.createdAtISO)}
+              {formatDateTime(item.lastMessageAtISO ?? item.createdAtISO)}
             </span>
           </span>
         </div>
         <p className="mt-1 line-clamp-1 text-sm text-text-muted">
-          {[item.style, item.placement, item.size]
-            .filter(Boolean)
-            .join(" · ") || "No brief"}
+          {item.subject ??
+            ([item.style, item.placement, item.size]
+              .filter(Boolean)
+              .join(" · ") ||
+              "No brief")}
           {item.budgetPence != null
             ? ` · budget ${formatPence(item.budgetPence)}`
             : ""}
@@ -312,14 +380,14 @@ function EnquiryRow({
 
         <MoodBoardBriefSection data={item.moodboardData} />
         <MoodboardSection urls={item.moodboard} data={item.moodboardData} />
-        <ThreadSection thread={item.thread} />
+        <EnquiryThread items={item.thread} />
 
-        {viewerArtistId && isOpenBoard(item) && (
+        {viewerArtistId && isUnassigned(item) && (
           <Button
             disabled={pending}
             onClick={() => run(() => claimEnquiry(item.id))}
           >
-            Take this board
+            Take this enquiry
           </Button>
         )}
 
@@ -356,8 +424,8 @@ function EnquiryRow({
         {/* Reply */}
         <section className="space-y-2">
           <Label htmlFor={`reply-${item.id}`}>
-            {viewerArtistId && isOpenBoard(item)
-              ? "Reply (emails customer — responding to an open board assigns it to you)"
+            {viewerArtistId && isUnassigned(item)
+              ? "Reply (emails customer — responding to an unassigned enquiry assigns it to you)"
               : "Reply (emails customer)"}
           </Label>
           <Textarea
@@ -374,6 +442,36 @@ function EnquiryRow({
             }
           >
             {item.source === "inkling" ? "Respond" : "Send reply"}
+          </Button>
+        </section>
+
+        {/* Internal note */}
+        <section className="space-y-2">
+          <Label htmlFor={`note-${item.id}`}>
+            Internal note (staff only — never sent)
+          </Label>
+          <Textarea
+            id={`note-${item.id}`}
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Context for whoever picks this up…"
+          />
+          <Button
+            variant="outline"
+            disabled={pending || !note.trim()}
+            onClick={() =>
+              run(
+                async () => {
+                  const res = await addInternalNote(item.id, { body: note });
+                  if (res.ok) setNote("");
+                  return res;
+                },
+                { close: false },
+              )
+            }
+          >
+            Add note
           </Button>
         </section>
 

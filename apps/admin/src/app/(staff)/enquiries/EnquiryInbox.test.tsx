@@ -4,10 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 // The "use server" actions module imports server-only auth/db/email — stub it
 // so the component module graph loads in node.
 vi.mock("./actions", () => ({
+  addInternalNote: vi.fn(),
   assignEnquiry: vi.fn(),
   claimEnquiry: vi.fn(),
   closeEnquiry: vi.fn(),
   convertEnquiry: vi.fn(),
+  markEnquiryRead: vi.fn(),
   replyToEnquiry: vi.fn(),
 }));
 
@@ -34,6 +36,7 @@ const items: EnquiryItem[] = [
     id: "1",
     contactName: "Amy",
     contactEmail: "amy@x.com",
+    subject: "ladybird",
     style: "fine line",
     placement: "arm",
     size: "small",
@@ -43,15 +46,24 @@ const items: EnquiryItem[] = [
     moodboardData: null,
     status: "new",
     source: "web",
+    channel: "web",
     preferredArtistId: "a1",
+    preferredArtistName: null,
     createdAtISO: "2026-06-01T10:00:00Z",
+    lastMessageAtISO: null,
+    unread: false,
     thread: [
       {
         id: "m1",
-        type: "enquiry_ack",
-        status: "sent",
+        direction: "inbound",
+        channel: "web",
+        authorName: null,
+        fromName: "Amy",
         subject: "Thanks for your enquiry",
-        whenISO: "2026-06-01T10:01:00Z",
+        bodyText: "A ladybird on the forearm please",
+        deliveryStatus: "logged",
+        createdAtISO: "2026-06-01T10:01:00Z",
+        attachments: [],
       },
     ],
   },
@@ -59,6 +71,7 @@ const items: EnquiryItem[] = [
     id: "2",
     contactName: "Bob",
     contactEmail: null,
+    subject: null,
     style: null,
     placement: null,
     size: null,
@@ -68,8 +81,12 @@ const items: EnquiryItem[] = [
     moodboardData: null,
     status: "converted",
     source: "flash",
+    channel: "flash",
     preferredArtistId: null,
+    preferredArtistName: null,
     createdAtISO: "2026-06-02T10:00:00Z",
+    lastMessageAtISO: null,
+    unread: false,
     thread: [],
   },
 ];
@@ -80,6 +97,7 @@ describe("countByStatus", () => {
     expect(counts.new).toBe(1);
     expect(counts.converted).toBe(1);
     expect(counts.replied).toBe(0);
+    expect(counts.customer_replied).toBe(0);
     expect(counts.closed).toBe(0);
   });
 });
@@ -92,6 +110,7 @@ describe("EnquiryInbox closed select labels", () => {
         artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
         canConvert
         viewerArtistId={null}
+        showAssignedPill={false}
       />,
     );
     const triggers = [
@@ -105,5 +124,71 @@ describe("EnquiryInbox closed select labels", () => {
     // Assign select is seeded with the preferred artist's cuid.
     expect(triggers).toContain("Sarah North");
     expect(triggers).not.toContain("cln4artist1aaaa");
+  });
+});
+
+describe("EnquiryInbox row chrome", () => {
+  it("shows the status tabs including Customer replied", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={items}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill={false}
+      />,
+    );
+    expect(html).toContain("Customer replied");
+  });
+
+  it("shows an unread dot and the assigned-artist pill for owners", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={[
+          { ...items[0], unread: true, preferredArtistName: "Sarah North" },
+        ]}
+        artists={[{ id: "a1", name: "Sarah North" }]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+      />,
+    );
+    expect(html).toContain('aria-label="Unread"');
+    expect(html).toContain("Sarah North");
+  });
+
+  it("labels an unassigned enquiry for owners", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={[
+          {
+            ...items[1],
+            status: "new",
+            preferredArtistId: null,
+            preferredArtistName: null,
+          },
+        ]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+      />,
+    );
+    expect(html).toContain("Unassigned");
+  });
+
+  it("offers artists a take + internal-note composer, and renders the thread", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={[{ ...items[0], preferredArtistId: null }]}
+        artists={[{ id: "a1", name: "Sarah North" }]}
+        canConvert
+        viewerArtistId="a1"
+        showAssignedPill={false}
+      />,
+    );
+    expect(html).toContain("Take this enquiry");
+    expect(html).toContain("Internal note (staff only — never sent)");
+    expect(html).toContain("A ladybird on the forearm please");
   });
 });

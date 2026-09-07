@@ -3,9 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   MoodBoardBriefSection,
   MoodboardSection,
-  ThreadSection,
 } from "./EnquiryDetailSections";
-import { looksLikeImageUrl, type ThreadEntry } from "./enquiry-helpers";
+import { looksLikeImageUrl } from "./enquiry-helpers";
 
 /**
  * The sections render in the enquiry detail dialog (node test env — no DOM);
@@ -15,26 +14,15 @@ import { looksLikeImageUrl, type ThreadEntry } from "./enquiry-helpers";
 describe("EnquiryDetailSections", () => {
   it("exports component functions", () => {
     expect(typeof MoodboardSection).toBe("function");
-    expect(typeof ThreadSection).toBe("function");
+    expect(typeof MoodBoardBriefSection).toBe("function");
   });
 
-  it("renders nothing for an empty mood board / thread", () => {
+  it("renders nothing for an empty mood board", () => {
     expect(MoodboardSection({ urls: [] })).toBeNull();
-    expect(ThreadSection({ thread: [] })).toBeNull();
   });
 
   it("returns markup when there is content", () => {
-    const thread: ThreadEntry[] = [
-      {
-        id: "m1",
-        type: "staff_reply",
-        status: "sent",
-        subject: "Re: your enquiry",
-        whenISO: "2026-06-01T10:00:00Z",
-      },
-    ];
     expect(MoodboardSection({ urls: ["https://x.test/a.jpg"] })).not.toBeNull();
-    expect(ThreadSection({ thread })).not.toBeNull();
   });
 
   it("distinguishes image URLs from other references", () => {

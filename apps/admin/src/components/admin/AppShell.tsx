@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Crown,
   LogOut,
@@ -33,6 +33,20 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
+/** Unread count pill on a nav item; nothing at all when there is nothing new. */
+function UnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="grid min-w-5 place-items-center rounded-full bg-bb-crimson px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white"
+      role="img"
+      aria-label={`${count} unread enquiries`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 /**
  * Responsive back-of-house shell. ≥1024px: persistent left sidebar + top bar.
  * <1024px: top bar + fixed bottom-nav (4 pinned items + a "More" sheet with
@@ -43,12 +57,22 @@ import {
  */
 export function AppShell({
   role = "owner",
+  enquiriesUnread = 0,
   children,
 }: {
   role?: AdminRole;
+  /** Unread enquiry threads for this user — badged on the Enquiries item. */
+  enquiriesUnread?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  // Keep the unread badge honest without a socket: the same 60 s refresh the
+  // kiosk board uses. force-dynamic pages re-render server-side on refresh.
+  useEffect(() => {
+    const t = setInterval(() => router.refresh(), 60_000);
+    return () => clearInterval(t);
+  }, [router]);
   const items = visibleNavItems(role);
   const bottom = bottomNavItems(role);
   const more = moreNavItems(role);
@@ -93,6 +117,9 @@ export function AppShell({
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" />
                 <span className="flex-1">{item.label}</span>
+                {item.id === "enquiries" && (
+                  <UnreadBadge count={enquiriesUnread} />
+                )}
                 {item.ownerOnly && (
                   <Crown
                     className="h-3.5 w-3.5 text-bb-gold"
@@ -164,7 +191,12 @@ export function AppShell({
               )}
             >
               <Icon className="h-5 w-5" />
-              {item.label}
+              <span className="flex items-center gap-1">
+                {item.label}
+                {item.id === "enquiries" && (
+                  <UnreadBadge count={enquiriesUnread} />
+                )}
+              </span>
             </Link>
           );
         })}
@@ -210,6 +242,9 @@ export function AppShell({
                   <Icon className="h-5 w-5" />
                   <span className="flex items-center gap-1">
                     {item.label}
+                    {item.id === "enquiries" && (
+                      <UnreadBadge count={enquiriesUnread} />
+                    )}
                     {item.ownerOnly && (
                       <Crown
                         className="h-3 w-3 text-bb-gold"

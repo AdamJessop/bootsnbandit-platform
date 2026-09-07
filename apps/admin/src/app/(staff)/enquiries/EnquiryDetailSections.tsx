@@ -2,13 +2,13 @@
 
 /**
  * Detail-dialog sections for the enquiry inbox (BACKOFHOUSE-IA E2): the
- * customer's mood-board references (image thumbnails linking out, with a
- * graceful non-image fallback) and the past message thread from MessageLog.
+ * customer's Inkling brief and their mood-board references (image thumbnails
+ * linking out, with a graceful non-image fallback). The message thread itself
+ * lives in EnquiryThread.tsx.
  */
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { formatDateTime } from "../_shared/labels";
-import { looksLikeImageUrl, type ThreadEntry } from "./enquiry-helpers";
+import { looksLikeImageUrl } from "./enquiry-helpers";
 import type {
   MoodboardData,
   MoodboardItem,
@@ -149,38 +149,6 @@ export function MoodboardSection({
                 </span>
               )}
             </a>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-export function ThreadSection({ thread }: { thread: ThreadEntry[] }) {
-  if (thread.length === 0) return null;
-  return (
-    <section className="space-y-2">
-      <Label>Message history</Label>
-      <ul className="divide-y divide-border-default rounded-md border border-border-default">
-        {thread.map((t) => (
-          <li
-            key={t.id}
-            className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-sm"
-          >
-            <span className="capitalize text-text-primary">
-              {t.type.replace(/_/g, " ")}
-            </span>
-            {t.subject && (
-              <span className="line-clamp-1 text-text-muted">{t.subject}</span>
-            )}
-            <span className="ml-auto flex items-center gap-2">
-              <Badge variant="outline" className="capitalize">
-                {t.status}
-              </Badge>
-              <span className="text-xs text-text-muted">
-                {formatDateTime(t.whenISO)}
-              </span>
-            </span>
           </li>
         ))}
       </ul>
