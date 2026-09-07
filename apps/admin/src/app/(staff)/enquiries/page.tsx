@@ -1,6 +1,7 @@
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
-import { buildThreadMap } from "./enquiry-helpers";
+import { parseMoodboardData } from "@bnb/core/services/moodboard-data";
+import { artistInboxWhere, buildThreadMap } from "./enquiry-helpers";
 import {
   EnquiryInbox,
   type ArtistOption,
@@ -9,19 +10,19 @@ import {
 
 /**
  * Enquiries inbox (BACKOFHOUSE-IA E1/E2). Owners see the whole inbox; artists
- * see enquiries that prefer them (mirrors /api/enquiries GET). Reply / assign /
- * convert run through colocated server actions.
+ * see enquiries that prefer them PLUS unassigned Inkling mood boards, which
+ * they can take or claim by responding (mirrors /api/enquiries GET). Reply /
+ * assign / convert / claim run through colocated server actions.
  */
 export const dynamic = "force-dynamic";
 
 export default async function EnquiriesPage() {
   const user = await requireRole();
   const owner = user.role === "OWNER";
-  const artistId = owner ? undefined : (user.artistId ?? "__none__");
 
   const [enquiries, artists] = await Promise.all([
     prisma.enquiry.findMany({
-      where: artistId ? { preferredArtistId: artistId } : {},
+      where: owner ? {} : artistInboxWhere(user.artistId ?? "__none__"),
       orderBy: { createdAt: "desc" },
       take: 300,
     }),
@@ -78,6 +79,7 @@ export default async function EnquiriesPage() {
     budgetPence: e.budgetPence,
     description: e.description,
     moodboard: e.moodboard,
+    moodboardData: parseMoodboardData(e.moodboardData),
     status: e.status,
     source: e.source,
     preferredArtistId: e.preferredArtistId,
@@ -103,6 +105,7 @@ export default async function EnquiriesPage() {
           items={items}
           artists={artistOptions}
           canConvert={owner || Boolean(user.artistId)}
+          viewerArtistId={owner ? null : (user.artistId ?? null)}
         />
       </div>
     </main>

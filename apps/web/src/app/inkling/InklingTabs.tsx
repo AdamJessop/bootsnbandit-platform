@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { StyleMatcher } from "./StyleMatcher";
-import { MoodBoard } from "./MoodBoard";
+import { MoodBoardBuilder } from "./moodboard/MoodBoardBuilder";
 import styles from "../enquire/enquire.module.css";
 
 export interface InklingArtist {
@@ -18,9 +18,11 @@ type Tab = "match" | "mood";
 export function InklingTabs({
   initialTab = "match",
   artists,
+  styleOptions,
 }: {
   initialTab?: Tab;
   artists: InklingArtist[];
+  styleOptions: string[];
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
 
@@ -47,7 +49,11 @@ export function InklingTabs({
         </button>
       </div>
 
-      {tab === "match" ? <StyleMatcher /> : <MoodBoard artists={artists} />}
+      {tab === "match" ? (
+        <StyleMatcher />
+      ) : (
+        <MoodBoardBuilder artists={artists} styleOptions={styleOptions} />
+      )}
     </div>
   );
 }

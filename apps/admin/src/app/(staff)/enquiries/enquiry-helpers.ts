@@ -2,7 +2,12 @@
  * Pure helpers for the enquiry triage server actions (kept out of the
  * "use server" module so they unit-test without server-only imports).
  */
-import type { BookingType, EnquiryStatus } from "@prisma/client";
+import type {
+  BookingType,
+  EnquirySource,
+  EnquiryStatus,
+  Prisma,
+} from "@prisma/client";
 import type { CreateBookingInput } from "@bnb/core/services/bookings";
 
 /** Tally enquiries per status (pure; used by the inbox tabs). */
@@ -81,11 +86,17 @@ export interface InboxFilter {
   artistId: string | null;
   /** Style to match (case-insensitive), or null for all. */
   style: string | null;
+  /** Enquiry source to match, or null for all. */
+  source: EnquirySource | null;
 }
 
-/** Apply the artist + style dropdown filters to the inbox list. Pure. */
+/** Apply the artist + style + source dropdown filters to the inbox list. Pure. */
 export function filterEnquiries<
-  T extends { preferredArtistId: string | null; style: string | null },
+  T extends {
+    preferredArtistId: string | null;
+    style: string | null;
+    source?: EnquirySource | null;
+  },
 >(items: T[], filter: InboxFilter): T[] {
   const style = filter.style?.trim().toLowerCase() ?? null;
   return items.filter((i) => {
@@ -93,8 +104,40 @@ export function filterEnquiries<
       return false;
     }
     if (style && (i.style ?? "").trim().toLowerCase() !== style) return false;
+    if (filter.source && i.source !== filter.source) return false;
     return true;
   });
+}
+
+/** Artists see enquiries that prefer them PLUS unassigned Inkling mood boards. */
+export function artistInboxWhere(artistId: string): Prisma.EnquiryWhereInput {
+  return {
+    OR: [
+      { preferredArtistId: artistId },
+      { source: "inkling", preferredArtistId: null },
+    ],
+  };
+}
+
+/** True for an Inkling mood board that has not been claimed by an artist. */
+export function isOpenBoard(e: {
+  source: EnquirySource;
+  preferredArtistId: string | null;
+}): boolean {
+  return e.source === "inkling" && e.preferredArtistId === null;
+}
+
+/**
+ * Can this staff user see/act on this enquiry? Owners see everything;
+ * artists see enquiries that prefer them plus any open (unclaimed) board.
+ */
+export function canAccessEnquiry(
+  user: { role: "OWNER" | "ARTIST"; artistId?: string | null },
+  e: { source: EnquirySource; preferredArtistId: string | null },
+): boolean {
+  if (user.role === "OWNER") return true;
+  if (!user.artistId) return false;
+  return e.preferredArtistId === user.artistId || isOpenBoard(e);
 }
 
 /** Distinct non-empty styles across the inbox (case-insensitive, sorted). */

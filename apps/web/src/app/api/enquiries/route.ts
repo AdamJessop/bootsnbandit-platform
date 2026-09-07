@@ -4,6 +4,10 @@ import {
   createEnquiry,
   type CreateEnquiryInput,
 } from "@bnb/core/services/enquiries";
+import {
+  finaliseMoodboardData,
+  moodboardDataSchema,
+} from "@bnb/core/services/moodboard-data";
 import { handleApiError, json, jsonError, parseBody } from "@bnb/core/http";
 import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 
@@ -27,6 +31,7 @@ const createSchema = z.object({
   description: z.string().nullish(),
   moodboard: z.array(z.string()).optional(),
   matchData: z.unknown().optional(),
+  moodboardData: moodboardDataSchema.optional(),
   source: z.enum(["web", "flash", "inkling"]).optional(),
   marketingConsent: z.boolean().optional(),
 });
@@ -49,7 +54,19 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
     const input = await parseBody(req, createSchema);
-    const enquiry = await createEnquiry(input as unknown as CreateEnquiryInput);
+    let payload: CreateEnquiryInput = input as unknown as CreateEnquiryInput;
+    if (input.moodboardData) {
+      const origin = process.env.APP_ORIGIN ?? new URL(req.url).origin;
+      const board = finaliseMoodboardData(input.moodboardData, origin);
+      payload = {
+        ...payload,
+        moodboard: board.urls,
+        moodboardData:
+          board.data as unknown as CreateEnquiryInput["moodboardData"],
+        assetIds: board.assetIds,
+      };
+    }
+    const enquiry = await createEnquiry(payload);
     return json({ enquiry }, 201);
   } catch (err) {
     return handleApiError(err);

@@ -9,6 +9,7 @@
 import { useMemo, useState, useTransition } from "react";
 import type { EnquirySource, EnquiryStatus } from "@prisma/client";
 import { toast } from "sonner";
+import type { MoodboardData } from "@bnb/core/services/moodboard-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,11 +38,17 @@ import {
   countByStatus,
   distinctStyles,
   filterEnquiries,
+  isOpenBoard,
   type ThreadEntry,
 } from "./enquiry-helpers";
-import { MoodboardSection, ThreadSection } from "./EnquiryDetailSections";
+import {
+  MoodBoardBriefSection,
+  MoodboardSection,
+  ThreadSection,
+} from "./EnquiryDetailSections";
 import {
   assignEnquiry,
+  claimEnquiry,
   closeEnquiry,
   convertEnquiry,
   replyToEnquiry,
@@ -57,6 +64,7 @@ export interface EnquiryItem {
   budgetPence: number | null;
   description: string | null;
   moodboard: string[];
+  moodboardData: MoodboardData | null;
   status: EnquiryStatus;
   source: EnquirySource;
   preferredArtistId: string | null;
@@ -74,18 +82,34 @@ const ALL = "__all__";
 
 const STATUS_ORDER: EnquiryStatus[] = ["new", "replied", "converted", "closed"];
 
+const SOURCE_LABEL: Record<EnquirySource, string> = {
+  web: "Web",
+  flash: "Flash",
+  inkling: "Mood board",
+};
+
+const SOURCE_FILTER_ITEMS = [
+  { value: ALL, label: "All sources" },
+  { value: "inkling", label: "Mood boards" },
+  { value: "web", label: "Web" },
+  { value: "flash", label: "Flash" },
+];
+
 export function EnquiryInbox({
   items,
   artists,
   canConvert,
+  viewerArtistId,
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
   canConvert: boolean;
+  viewerArtistId: string | null;
 }) {
   const [tab, setTab] = useState<EnquiryStatus>("new");
   const [artistFilter, setArtistFilter] = useState(ALL);
   const [styleFilter, setStyleFilter] = useState(ALL);
+  const [sourceFilter, setSourceFilter] = useState(ALL);
   const counts = useMemo(() => countByStatus(items), [items]);
   const styles = useMemo(() => distinctStyles(items), [items]);
   // Let the closed filter triggers render labels, never the raw "__all__"
@@ -109,6 +133,7 @@ export function EnquiryInbox({
     {
       artistId: artistFilter === ALL ? null : artistFilter,
       style: styleFilter === ALL ? null : styleFilter,
+      source: sourceFilter === ALL ? null : (sourceFilter as EnquirySource),
     },
   );
 
@@ -161,6 +186,22 @@ export function EnquiryInbox({
             ))}
           </SelectContent>
         </Select>
+        <Select
+          items={SOURCE_FILTER_ITEMS}
+          value={sourceFilter}
+          onValueChange={(v) => setSourceFilter(v ?? ALL)}
+        >
+          <SelectTrigger className="w-40" aria-label="Filter by source">
+            <SelectValue placeholder="All sources" />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCE_FILTER_ITEMS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {visible.length === 0 ? (
@@ -175,6 +216,7 @@ export function EnquiryInbox({
                 item={item}
                 artists={artists}
                 canConvert={canConvert}
+                viewerArtistId={viewerArtistId}
               />
             </li>
           ))}
@@ -189,10 +231,12 @@ function EnquiryRow({
   item,
   artists,
   canConvert,
+  viewerArtistId,
 }: {
   item: EnquiryItem;
   artists: ArtistOption[];
   canConvert: boolean;
+  viewerArtistId: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -222,9 +266,8 @@ function EnquiryRow({
             {item.contactName}
           </span>
           <span className="flex items-center gap-2">
-            <Badge variant="outline" className="capitalize">
-              {item.source}
-            </Badge>
+            <Badge variant="outline">{SOURCE_LABEL[item.source]}</Badge>
+            {isOpenBoard(item) && <Badge>Open board</Badge>}
             <span className="text-xs text-text-muted">
               {formatDateTime(item.createdAtISO)}
             </span>
@@ -267,8 +310,18 @@ function EnquiryRow({
           </p>
         )}
 
-        <MoodboardSection urls={item.moodboard} />
+        <MoodBoardBriefSection data={item.moodboardData} />
+        <MoodboardSection urls={item.moodboard} data={item.moodboardData} />
         <ThreadSection thread={item.thread} />
+
+        {viewerArtistId && isOpenBoard(item) && (
+          <Button
+            disabled={pending}
+            onClick={() => run(() => claimEnquiry(item.id))}
+          >
+            Take this board
+          </Button>
+        )}
 
         {/* Assign */}
         <section className="space-y-2">
@@ -302,7 +355,11 @@ function EnquiryRow({
 
         {/* Reply */}
         <section className="space-y-2">
-          <Label htmlFor={`reply-${item.id}`}>Reply (emails customer)</Label>
+          <Label htmlFor={`reply-${item.id}`}>
+            {viewerArtistId && isOpenBoard(item)
+              ? "Reply (emails customer — responding to an open board assigns it to you)"
+              : "Reply (emails customer)"}
+          </Label>
           <Textarea
             id={`reply-${item.id}`}
             rows={3}
@@ -316,7 +373,7 @@ function EnquiryRow({
               run(() => replyToEnquiry(item.id, { message: reply }))
             }
           >
-            Send reply
+            {item.source === "inkling" ? "Respond" : "Send reply"}
           </Button>
         </section>
 

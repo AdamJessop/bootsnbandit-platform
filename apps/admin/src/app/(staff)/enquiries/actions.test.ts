@@ -11,7 +11,11 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@bnb/core/auth", () => ({ requireRole: vi.fn() }));
 vi.mock("@bnb/core/db", () => ({
   prisma: {
-    enquiry: { findUniqueOrThrow: vi.fn(), update: vi.fn() },
+    enquiry: {
+      findUniqueOrThrow: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     messageLog: { create: vi.fn() },
   },
 }));
@@ -45,6 +49,7 @@ const ENQUIRY = {
   preferredArtistId: "art1",
   style: "fine line",
   placement: "arm",
+  source: "web" as const,
 };
 
 beforeEach(() => {
@@ -53,6 +58,7 @@ beforeEach(() => {
   vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue(
     ENQUIRY as never,
   );
+  vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({ count: 1 } as never);
   vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "sent" });
 });
 
@@ -146,5 +152,141 @@ describe("enquiry actions input contracts", () => {
       type: "consult",
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe("artist access + claiming", () => {
+  const ARTIST = {
+    id: "u2",
+    email: "a@x",
+    role: "ARTIST" as const,
+    displayName: "Art",
+    artistId: "art9",
+  };
+
+  it("forbids an artist replying to another artist's enquiry", async () => {
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    await expect(replyToEnquiry("e1", { message: "hi" })).rejects.toThrow(
+      /Forbidden/,
+    );
+  });
+
+  it("lets an artist reply to an open Inkling board and claims it", async () => {
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    const res = await replyToEnquiry("e1", {
+      message: "Love this — let's talk.",
+    });
+    expect(res.ok).toBe(true);
+    expect(prisma.enquiry.updateMany).toHaveBeenCalledWith({
+      where: { id: "e1", preferredArtistId: null },
+      data: { preferredArtistId: "art9" },
+    });
+  });
+
+  it("still sends the reply but does not claim the board when another artist won the race", async () => {
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    const res = await replyToEnquiry("e1", { message: "Love this!" });
+    expect(res.ok).toBe(true);
+    expect(res.message).toMatch(/taken by another artist/i);
+  });
+
+  it("claimEnquiry assigns an open board to the artist, refuses taken ones", async () => {
+    const { claimEnquiry } = await import("./actions");
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    expect((await claimEnquiry("e1")).ok).toBe(true);
+    expect(prisma.enquiry.updateMany).toHaveBeenCalledWith({
+      where: { id: "e1", preferredArtistId: null },
+      data: { preferredArtistId: "art9" },
+    });
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: "art1",
+    } as never);
+    await expect(claimEnquiry("e1")).rejects.toThrow(/Forbidden/);
+  });
+
+  it("claimEnquiry refuses when another artist wins the race (updateMany matches 0 rows)", async () => {
+    const { claimEnquiry } = await import("./actions");
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    const res = await claimEnquiry("e1");
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/already been taken/i);
+  });
+});
+
+describe("assignEnquiry authorisation", () => {
+  const ARTIST = {
+    id: "u2",
+    email: "a@x",
+    role: "ARTIST" as const,
+    displayName: "Art",
+    artistId: "art9",
+  };
+
+  it("forbids an artist from assigning an enquiry to another artist", async () => {
+    const { assignEnquiry } = await import("./actions");
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    const res = await assignEnquiry("e1", "someone_else");
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/only assign enquiries to yourself/i);
+    expect(prisma.enquiry.update).not.toHaveBeenCalled();
+  });
+
+  it("lets an artist assign an open board to themselves", async () => {
+    const { assignEnquiry } = await import("./actions");
+    vi.mocked(requireRole).mockResolvedValue(ARTIST);
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      ...ENQUIRY,
+      source: "inkling",
+      preferredArtistId: null,
+    } as never);
+    const res = await assignEnquiry("e1", "art9");
+    expect(res.ok).toBe(true);
+    expect(prisma.enquiry.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { preferredArtistId: "art9" },
+    });
+  });
+
+  it("still lets an owner assign to any artist", async () => {
+    const { assignEnquiry } = await import("./actions");
+    const res = await assignEnquiry("e1", "art2");
+    expect(res.ok).toBe(true);
+    expect(prisma.enquiry.update).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { preferredArtistId: "art2" },
+    });
   });
 });

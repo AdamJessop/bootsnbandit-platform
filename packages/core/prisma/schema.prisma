@@ -280,6 +280,7 @@ model Enquiry {
   description       String?
   moodboard         String[]      @default([])
   matchData         Json?
+  moodboardData     Json?
   status            EnquiryStatus @default(new)
   source            EnquirySource @default(web)
   createdAt         DateTime      @default(now())
@@ -288,11 +289,26 @@ model Enquiry {
   customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   preferredArtist Artist?   @relation(fields: [preferredArtistId], references: [id], onDelete: SetNull)
   bookings        Booking[]
+  moodboardAssets MoodboardAsset[]
 
   @@index([status])
   @@index([source])
   @@index([customerId])
   @@index([preferredArtistId])
+}
+
+model MoodboardAsset {
+  id        String   @id @default(cuid())
+  enquiryId String?
+  mime      String
+  size      Int
+  bytes     Bytes
+  createdAt DateTime @default(now())
+
+  enquiry Enquiry? @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId])
+  @@index([createdAt])
 }
 
 // ---------------------------------------------------------------------------
