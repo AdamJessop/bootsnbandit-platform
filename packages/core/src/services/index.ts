@@ -15,3 +15,4 @@ export * from "./reception";
 export * from "./moodboard-assets";
 export * from "./moodboard-data";
 export * from "./image-search";
+export * from "./customer-merge";

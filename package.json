@@ -20,7 +20,8 @@
     "db:migrate": "npm -w @bnb/core run db:migrate",
     "db:push": "npm -w @bnb/core run db:push",
     "db:seed": "npm -w @bnb/core run db:seed",
-    "admin:link": "tsx --env-file=.env scripts/admin-link.ts"
+    "admin:link": "tsx --env-file=.env scripts/admin-link.ts",
+    "customers:merge": "tsx --env-file=.env scripts/merge-duplicate-customers.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
