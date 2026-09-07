@@ -1708,8 +1708,8 @@ Add `export * from "./customer-merge";` to `packages/core/src/services/index.ts`
  * land (Phase 1 of the enquiries omnichannel work).
  *
  * Usage:
- *   npm run customers:merge -- --dry-run    # report only, writes nothing
- *   npm run customers:merge                 # merge for real
+ *   npm run customers:merge                 # DRY RUN — reports, writes nothing
+ *   npm run customers:merge -- --apply      # performs the merge (irreversible)
  *
  * Idempotent: a second run finds no groups and re-normalises nothing. Run it
  * AFTER the enquiry_threads migration and BEFORE customer_contact_unique.
@@ -1745,9 +1745,9 @@ Add to root `package.json` `scripts`, after `"admin:link"`:
 
 ```bash
 npm test -w @bnb/core -- src/services/customer-merge.test.ts
-npm run customers:merge -- --dry-run
-npm run customers:merge
-npm run customers:merge -- --dry-run
+npm run customers:merge              # dry run (the default — writes nothing)
+npm run customers:merge -- --apply   # the irreversible one
+npm run customers:merge              # dry run again: proves idempotency
 ```
 Expected: tests PASS; the first dry run lists any groups; the real run merges them; the second dry run prints `0 duplicate group(s)` and `re-normalised 0 row(s)` — proving idempotency and that Task 5's unique indexes will apply cleanly.
 
@@ -1891,7 +1891,7 @@ CREATE UNIQUE INDEX "Customer_phone_key" ON "Customer"("phone");
 ```
 Apply with `npm -w @bnb/core run db:migrate`, then `npm run db:generate`.
 
-If the migration errors with `could not create unique index`, it means duplicates remain: re-run `npm run customers:merge`, then `npm -w @bnb/core run db:migrate` again.
+If the migration errors with `could not create unique index`, it means duplicates remain: re-run `npm run customers:merge -- --apply` (plain `npm run customers:merge` is a dry run and writes nothing), then `npm -w @bnb/core run db:migrate` again.
 
 - [ ] **Step 4: Guard the remaining write paths**
 
