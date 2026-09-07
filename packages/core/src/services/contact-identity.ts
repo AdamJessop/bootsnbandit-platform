@@ -60,6 +60,10 @@ export interface FindOrCreateCustomerInput {
   email?: string | null;
   phone?: string | null;
   marketingConsent?: boolean;
+  /** Applied ONLY when creating a brand-new customer — never on a match. */
+  notes?: string | null;
+  /** Applied ONLY when creating a brand-new customer — never on a match. */
+  tags?: string[];
   identity?: ContactIdentityInput | null;
 }
 
@@ -152,6 +156,8 @@ export async function findOrCreateCustomer(
     email,
     phone,
     marketingConsent: input.marketingConsent ?? false,
+    notes: input.notes ?? null,
+    tags: input.tags ?? [],
   };
 
   let created: Customer;
@@ -159,6 +165,9 @@ export async function findOrCreateCustomer(
     created = await prisma.customer.create({ data });
   } catch (err) {
     // Unique email/phone: a concurrent request won the race — take theirs.
+    // Not yet reachable in practice — Customer.email/phone have no unique
+    // constraint until Task 5 adds them; the findFirst above is the only
+    // guard for now, and this branch becomes live once that lands.
     if (isUniqueViolation(err) && or.length) {
       const winner = await prisma.customer.findFirst({
         where: { OR: or },

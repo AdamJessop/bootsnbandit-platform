@@ -49,6 +49,8 @@ export async function upsertCustomerByContact(
     email: input.email,
     phone: input.phone,
     marketingConsent: input.marketingConsent,
+    notes: input.notes,
+    tags: input.tags,
   });
 }
 

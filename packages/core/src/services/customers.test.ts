@@ -81,6 +81,30 @@ describe("customers service (DB)", () => {
     expect(c.id).toBeTruthy();
   });
 
+  it("upsertCustomerByContact persists notes + tags on create, and does not overwrite them on a later match", async () => {
+    if (!(await dbReachable())) return;
+    const email = `${uid("c")}@example.com`;
+    const first = await upsertCustomerByContact({
+      name: "Notesy",
+      email,
+      notes: "Prefers evening slots",
+      tags: ["vip"],
+    });
+    created.push(first.id);
+    expect(first.notes).toBe("Prefers evening slots");
+    expect(first.tags).toEqual(["vip"]);
+
+    const second = await upsertCustomerByContact({
+      name: "Notesy",
+      email,
+      notes: "Different notes from a later call",
+      tags: ["different-tag"],
+    });
+    expect(second.id).toBe(first.id);
+    expect(second.notes).toBe("Prefers evening slots");
+    expect(second.tags).toEqual(["vip"]);
+  });
+
   it("getCustomer + listCustomers return rows", async () => {
     if (!(await dbReachable())) return;
     const c = await createCustomer({ name: `List ${uid()}` });
