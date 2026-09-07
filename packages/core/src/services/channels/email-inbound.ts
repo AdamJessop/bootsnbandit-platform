@@ -57,9 +57,7 @@ export async function ingestResendEvent(
     };
   }
 
-  const parsed = deps
-    ? await parseResendInbound(event, deps)
-    : await parseResendInbound(event);
+  const parsed = await parseResendInbound(event, deps);
 
   // Anything from our own send domain is our own mail coming back (a loop, a
   // forward, a mailer-daemon). Never thread it as customer traffic.
@@ -119,6 +117,19 @@ export async function ingestResendEvent(
   // that loses the unique index gets the winner's row back. Reporting the
   // thread it *would* have used would point the caller (and the retry button's
   // "view enquiry" link) at an empty enquiry that holds no message.
+  //
+  // That loser also freshly `create`d an Enquiry that now holds no message
+  // (its message went to the winner's enquiry instead) — an orphan that would
+  // otherwise sit in the inbox forever. Clean it up here; the `messages: none`
+  // guard makes this a no-op unless this call actually lost the race, and the
+  // only other child relations (MoodboardAsset, EnquiryRead, Booking) all
+  // cascade or SetNull on delete, so none of them can block it.
+  if (thread.created && row.enquiryId !== thread.enquiryId) {
+    await prisma.enquiry.deleteMany({
+      where: { id: thread.enquiryId, messages: { none: {} } },
+    });
+  }
+
   return {
     status: "recorded",
     enquiryId: row.enquiryId,

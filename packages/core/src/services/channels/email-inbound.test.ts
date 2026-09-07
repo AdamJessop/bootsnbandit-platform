@@ -354,6 +354,15 @@ describe("ingestResendEvent (DB)", () => {
       expect(outcome.messageId).toBe(rows[0].id);
       expect(outcome.enquiryId).toBe(rows[0].enquiryId);
     }
+
+    // The loser of the race also `create`d an Enquiry that never got a
+    // message — it must be cleaned up rather than left as an empty orphan.
+    const customerEnquiries = await db().enquiry.findMany({
+      where: { customerId: customer.id },
+      select: { id: true },
+    });
+    expect(customerEnquiries).toHaveLength(1);
+    expect(customerEnquiries[0].id).toBe(rows[0].enquiryId);
   });
 
   it("ignores a reply token belonging to a different customer", async () => {

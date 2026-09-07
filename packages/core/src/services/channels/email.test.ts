@@ -4,6 +4,7 @@ import {
   isEmailReceivedEvent,
   MAX_INBOUND_ATTACHMENTS,
   parseResendInbound,
+  resendInboundDeps,
   type ResendAttachmentLink,
   type ResendInboundDeps,
   type ResendInboundEmail,
@@ -440,5 +441,46 @@ describe("parseResendInbound — hostile inputs", () => {
     const parsed = await parseResendInbound(EVENT, deps());
     expect(parsed.threadToken).toBeNull();
     expect(parsed.autoSubmitted).toBe(false);
+  });
+});
+
+/**
+ * resendInboundDeps().download streams the body itself rather than trusting
+ * Content-Length, so a host that omits or lies about that header can't force
+ * an unbounded buffer. `fetchImpl` is injected so these never touch a socket.
+ */
+describe("resendInboundDeps().download", () => {
+  function streamResponse(
+    chunks: Uint8Array[],
+    init: ResponseInit = {},
+  ): Response {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    return new Response(stream, init);
+  }
+
+  it("degrades to no bytes when a content-length-less stream exceeds the cap", async () => {
+    const chunks = [new Uint8Array(6), new Uint8Array(6)]; // 12 bytes total
+    const fetchImpl = vi.fn(async () => streamResponse(chunks));
+    const bytes = await resendInboundDeps(
+      fetchImpl as unknown as typeof fetch,
+    ).download("https://attachments.resend.test/big", 10);
+    expect(bytes).toBeNull();
+  });
+
+  it("stores the bytes when the streamed body is under the cap", async () => {
+    const chunks = [
+      new Uint8Array([1, 2, 3]),
+      new Uint8Array([4, 5, 6, 7]),
+    ];
+    const fetchImpl = vi.fn(async () => streamResponse(chunks));
+    const bytes = await resendInboundDeps(
+      fetchImpl as unknown as typeof fetch,
+    ).download("https://attachments.resend.test/small", 100);
+    expect(bytes).toEqual(new Uint8Array([1, 2, 3, 4, 5, 6, 7]));
   });
 });

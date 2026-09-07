@@ -29,6 +29,9 @@ import {
 /** Cap on attachments processed per email — a mail bomb must not stall the route. */
 export const MAX_INBOUND_ATTACHMENTS = 20;
 
+/** Hard ceiling on how long a single attachment download may take. */
+const DOWNLOAD_TIMEOUT_MS = 15_000;
+
 /** Subset of resend@6's `EmailReceivedEvent` that we rely on. */
 export interface ResendReceivedEvent {
   type: string;
@@ -136,8 +139,14 @@ function requireApiKey(): string {
   return key;
 }
 
-/** The real network deps. Only ever constructed on the webhook/retry path. */
-export function resendInboundDeps(): ResendInboundDeps {
+/**
+ * The real network deps. Only ever constructed on the webhook/retry path.
+ * `fetchImpl` defaults to the global `fetch` — tests inject their own to
+ * exercise `download`'s streaming/cap logic without touching the network.
+ */
+export function resendInboundDeps(
+  fetchImpl: typeof fetch = fetch,
+): ResendInboundDeps {
   return {
     async getEmail(emailId) {
       const { Resend } = await import("resend");
@@ -164,14 +173,48 @@ export function resendInboundDeps(): ResendInboundDeps {
       return data.data as unknown as ResendAttachmentLink[];
     },
     async download(url, maxBytes) {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const declared = Number(res.headers.get("content-length") ?? "0");
-      if (declared > maxBytes) return null;
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      return bytes.byteLength > 0 && bytes.byteLength <= maxBytes
-        ? bytes
-        : null;
+      try {
+        const res = await fetchImpl(url, {
+          signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+        });
+        if (!res.ok) return null;
+        const declared = Number(res.headers.get("content-length") ?? "0");
+        if (declared > maxBytes) return null;
+        if (!res.body) {
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          return bytes.byteLength > 0 && bytes.byteLength <= maxBytes
+            ? bytes
+            : null;
+        }
+
+        // Content-Length can be absent or lie, so the cap is enforced on the
+        // actual bytes seen — the reader is aborted the instant the running
+        // total crosses maxBytes, never buffering an unbounded body.
+        const reader = res.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let total = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          total += value.byteLength;
+          if (total > maxBytes) {
+            await reader.cancel();
+            return null;
+          }
+          chunks.push(value);
+        }
+        if (total === 0) return null;
+        const bytes = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          bytes.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        return bytes;
+      } catch {
+        return null;
+      }
     },
   };
 }

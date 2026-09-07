@@ -40,13 +40,13 @@ export function parseAddress(
   const value = raw?.trim();
   if (!value) return null;
 
-  const angled = /^(.*?)<([^<>]+)>\s*$/s.exec(value);
+  const angled = /^([\s\S]*?)<([^<>]+)>\s*$/.exec(value);
   if (angled) {
     const address = angled[2].trim().toLowerCase();
     if (!BARE_ADDRESS.test(address)) return null;
     const name = angled[1]
       .trim()
-      .replace(/^"(.*)"$/s, "$1")
+      .replace(/^"([\s\S]*)"$/, "$1")
       .replace(/\\(.)/g, "$1")
       .trim();
     return { name: name || null, address };
