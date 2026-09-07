@@ -81,6 +81,39 @@ describe("webhook failures (DB)", () => {
     ).toBeInstanceOf(Date);
   });
 
+  it("openOnly excludes retried rows, leaving default behaviour unchanged", async () => {
+    if (!(await dbReachable())) return;
+    const marker = uid("open");
+    const open = await recordWebhookFailure({
+      provider: "resend",
+      externalId: `${marker}-open`,
+      payload: { n: 1 },
+      error: "still failing",
+    });
+    const retried = await recordWebhookFailure({
+      provider: "resend",
+      externalId: `${marker}-retried`,
+      payload: { n: 2 },
+      error: "was failing",
+    });
+    ids.push(open as string, retried as string);
+    await markWebhookFailureRetried(retried as string);
+
+    const withRetried = await listRecentWebhookFailures({ provider: "resend" });
+    expect(
+      withRetried.some((r) => r.externalId === `${marker}-retried`),
+    ).toBe(true);
+
+    const openOnly = await listRecentWebhookFailures({
+      provider: "resend",
+      openOnly: true,
+    });
+    expect(openOnly.some((r) => r.externalId === `${marker}-open`)).toBe(true);
+    expect(
+      openOnly.some((r) => r.externalId === `${marker}-retried`),
+    ).toBe(false);
+  });
+
   it("records a fresh error message on a failed retry", async () => {
     if (!(await dbReachable())) return;
     const id = await recordWebhookFailure({

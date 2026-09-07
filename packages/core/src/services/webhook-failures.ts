@@ -82,15 +82,22 @@ export async function recordWebhookFailure(
   }
 }
 
-/** Newest first, within the window. Never selects `payload` (it can be large). */
+/**
+ * Newest first, within the window. Never selects `payload` (it can be large).
+ * `openOnly` (default false, so existing callers are unchanged) restricts to
+ * rows that have not been successfully replayed — the shape the Channels
+ * panel's "failed events" list actually needs.
+ */
 export async function listRecentWebhookFailures(opts?: {
   provider?: string;
   sinceDays?: number;
   take?: number;
+  openOnly?: boolean;
 }): Promise<WebhookFailureRow[]> {
   return prisma.webhookFailure.findMany({
     where: {
       ...(opts?.provider ? { provider: opts.provider } : {}),
+      ...(opts?.openOnly ? { retriedAt: null } : {}),
       createdAt: { gte: since(opts?.sinceDays ?? WEBHOOK_FAILURE_WINDOW_DAYS) },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],

@@ -90,4 +90,22 @@ describe("retryWebhookFailureAction", () => {
     await retryWebhookFailureAction(form("wf2"));
     expect(ingestResendEvent).not.toHaveBeenCalled();
   });
+
+  it("refuses to mark retried a payload that was never a replayable event", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf3",
+      provider: "resend",
+      payload: { raw: "not json" },
+    });
+    vi.mocked(ingestResendEvent).mockResolvedValue({
+      status: "ignored",
+      reason: "unsupported_event",
+    });
+    await retryWebhookFailureAction(form("wf3"));
+    expect(markWebhookFailureRetried).not.toHaveBeenCalled();
+    expect(setWebhookFailureError).toHaveBeenCalledWith(
+      "wf3",
+      expect.stringContaining("not a replayable"),
+    );
+  });
 });

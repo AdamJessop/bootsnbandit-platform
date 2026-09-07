@@ -63,7 +63,9 @@ describe("ChannelsPage", () => {
     expect(html).toContain("Not set");
   });
 
-  it("lists failed events with a retry button", async () => {
+  it("lists only open failed events, with a retry button", async () => {
+    // listRecentWebhookFailures({ openOnly: true }) is the DB-level filter,
+    // so a retried row is never in the fixture the panel renders from.
     countOpenWebhookFailures.mockResolvedValue(2);
     listRecentWebhookFailures.mockResolvedValue([
       {
@@ -80,17 +82,20 @@ describe("ChannelsPage", () => {
         externalId: null,
         error: "Malformed JSON body",
         createdAt: new Date("2026-09-07T09:20:00.000Z"),
-        retriedAt: new Date("2026-09-07T10:00:00.000Z"),
+        retriedAt: null,
       },
     ]);
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
+    expect(listRecentWebhookFailures).toHaveBeenCalledWith(
+      expect.objectContaining({ openOnly: true }),
+    );
     expect(html).toContain("2 failed events");
     expect(html).toContain("Resend 500");
     expect(html).toContain("9f1c2f7a");
     expect(html).toContain('value="wf1"');
+    expect(html).toContain('value="wf2"');
     expect(html).toContain("Retry");
-    expect(html).toContain("Retried");
   });
 
   it("says so when no inbound email has ever arrived", async () => {

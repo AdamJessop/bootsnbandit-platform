@@ -25,6 +25,8 @@ const CHANNELS_PATH = "/studio/channels";
 
 export async function retryWebhookFailureAction(fd: FormData): Promise<void> {
   await requireRole("OWNER");
+  // Unlike `_lib/actions.ts`, a missing id here is a hidden-input value the
+  // owner never typed — no-op rather than throw into an error boundary.
   const id = String(fd.get("id") ?? "").trim();
   if (!id) return;
 
@@ -33,8 +35,18 @@ export async function retryWebhookFailureAction(fd: FormData): Promise<void> {
   if (!row || row.provider !== "resend") return;
 
   try {
-    await ingestResendEvent(row.payload);
-    await markWebhookFailureRetried(id);
+    const outcome = await ingestResendEvent(row.payload);
+    if (outcome.status === "ignored" && outcome.reason === "unsupported_event") {
+      // The route stored this because the original body could not even be
+      // parsed as an event (e.g. malformed JSON) — there is nothing to
+      // replay, so treat it as a fresh failure rather than declaring victory.
+      await setWebhookFailureError(
+        id,
+        "Stored payload is not a replayable Resend event (original body could not be parsed) — check the delivery in the Resend dashboard.",
+      );
+    } else {
+      await markWebhookFailureRetried(id);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[channels] retry of ${id} failed again:`, err);

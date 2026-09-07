@@ -56,7 +56,7 @@ export default async function ChannelsPage() {
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
-    listRecentWebhookFailures({ provider: "resend" }),
+    listRecentWebhookFailures({ provider: "resend", openOnly: true }),
     countOpenWebhookFailures({ provider: "resend" }),
   ]);
 
