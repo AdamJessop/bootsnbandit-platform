@@ -1,0 +1,30 @@
+{
+  "type": "email.received",
+  "created_at": "2026-09-08T09:14:02.117Z",
+  "data": {
+    "email_id": "9f1c2f7a-2f18-4a3a-9a0e-1f0c4a6d7b21",
+    "created_at": "2026-09-08T09:14:01.902Z",
+    "from": "Amy Jones <amy.jones@example.com>",
+    "to": ["enq-clw9k2x0a0001qq3f8h2m5t7z@mail.bootsnbandit.test"],
+    "cc": [],
+    "bcc": [],
+    "message_id": "<CAF7n8Qk9m0v2s7YfQ@mail.gmail.com>",
+    "subject": "Re: Sleeve idea",
+    "attachments": [
+      {
+        "id": "att_01HZX9Q0000000000000000001",
+        "filename": "reference.png",
+        "content_type": "image/png",
+        "content_disposition": "attachment",
+        "content_id": null
+      },
+      {
+        "id": "att_01HZX9Q0000000000000000002",
+        "filename": "consent.pdf",
+        "content_type": "application/pdf",
+        "content_disposition": "attachment",
+        "content_id": null
+      }
+    ]
+  }
+}

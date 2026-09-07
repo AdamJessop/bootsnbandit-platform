@@ -1,0 +1,39 @@
+{
+  "object": "email",
+  "id": "9f1c2f7a-2f18-4a3a-9a0e-1f0c4a6d7b21",
+  "to": ["enq-clw9k2x0a0001qq3f8h2m5t7z@mail.bootsnbandit.test"],
+  "from": "Amy Jones <amy.jones@example.com>",
+  "created_at": "2026-09-08T09:14:01.902Z",
+  "subject": "Re: Sleeve idea",
+  "bcc": null,
+  "cc": ["Studio <hello@bootsnbandit.test>"],
+  "reply_to": null,
+  "html": "<div>Tuesday works for me, reference attached.</div><blockquote class=\"gmail_quote\"><p>On Mon, 7 Sep 2026 at 10:04, Sarah at Boots 'n' Bandit wrote:</p><p>Hi Amy, how about Tuesday?</p></blockquote>",
+  "text": "Tuesday works for me, reference attached.\n\nOn Mon, 7 Sep 2026 at 10:04, Sarah at Boots 'n' Bandit <enquiries@mail.bootsnbandit.test> wrote:\n> Hi Amy, how about Tuesday?\n> - Sarah",
+  "headers": {
+    "Message-ID": "<CAF7n8Qk9m0v2s7YfQ@mail.gmail.com>",
+    "In-Reply-To": "<0100019255ab@resend.dev>",
+    "References": "<0100019255ab@resend.dev>",
+    "Content-Type": "multipart/mixed"
+  },
+  "message_id": "<CAF7n8Qk9m0v2s7YfQ@mail.gmail.com>",
+  "raw": null,
+  "attachments": [
+    {
+      "id": "att_01HZX9Q0000000000000000001",
+      "filename": "reference.png",
+      "size": 68,
+      "content_type": "image/png",
+      "content_id": null,
+      "content_disposition": "attachment"
+    },
+    {
+      "id": "att_01HZX9Q0000000000000000002",
+      "filename": "consent.pdf",
+      "size": 240128,
+      "content_type": "application/pdf",
+      "content_id": null,
+      "content_disposition": "attachment"
+    }
+  ]
+}

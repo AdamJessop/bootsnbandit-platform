@@ -1,0 +1,318 @@
+import { sniffImageMime } from "@bnb/core/uploads";
+import {
+  isInlineableAttachment,
+  MAX_INLINE_ATTACHMENT_BYTES,
+  type StoreAttachmentInput,
+} from "../assets";
+import {
+  formatMessageId,
+  headerValue,
+  htmlToText,
+  inboundEmailDomain,
+  isAutoSubmitted,
+  parseAddress,
+  parseAddressList,
+  stripQuotedReply,
+  threadTokenFrom,
+  tokenFromText,
+} from "./email-format";
+
+/**
+ * The email channel.
+ *
+ * INBOUND: Resend's `email.received` webhook carries metadata only, so the
+ * body and the attachment download URLs are fetched from the API. Everything
+ * network-facing sits behind `ResendInboundDeps`, so the parsing rules are
+ * testable without a key, a socket or a mock server.
+ */
+
+/** Cap on attachments processed per email — a mail bomb must not stall the route. */
+export const MAX_INBOUND_ATTACHMENTS = 20;
+
+/** Subset of resend@6's `EmailReceivedEvent` that we rely on. */
+export interface ResendReceivedEvent {
+  type: string;
+  created_at?: string;
+  data: {
+    email_id: string;
+    created_at?: string;
+    from?: string;
+    to?: string[];
+    cc?: string[] | null;
+    bcc?: string[] | null;
+    subject?: string;
+    message_id?: string;
+    attachments?: {
+      id: string;
+      filename?: string | null;
+      content_type?: string;
+    }[];
+  };
+}
+
+/** Subset of `GetReceivingEmailResponseSuccess` (GET /emails/receiving/{id}). */
+export interface ResendInboundEmail {
+  id: string;
+  to: string[];
+  from: string;
+  created_at: string;
+  subject: string | null;
+  cc: string[] | null;
+  bcc: string[] | null;
+  reply_to: string[] | null;
+  html: string | null;
+  text: string | null;
+  headers: Record<string, string> | null;
+  message_id: string;
+  attachments: {
+    id: string;
+    filename: string | null;
+    size: number;
+    content_type: string;
+    content_id: string | null;
+    content_disposition: string | null;
+  }[];
+}
+
+/** Subset of `AttachmentData` (GET /emails/receiving/{id}/attachments). */
+export interface ResendAttachmentLink {
+  id: string;
+  filename?: string | null;
+  size: number;
+  content_type: string;
+  content_disposition?: string | null;
+  download_url: string;
+  expires_at?: string;
+}
+
+export interface ResendInboundDeps {
+  getEmail(emailId: string): Promise<ResendInboundEmail>;
+  listAttachments(emailId: string): Promise<ResendAttachmentLink[]>;
+  /** Resolves null when the body is missing, too large or unreadable. */
+  download(url: string, maxBytes: number): Promise<Uint8Array | null>;
+}
+
+export interface ParsedInboundEmail {
+  /** Resend's email id — the idempotency key on EnquiryMessage.externalId. */
+  externalId: string;
+  /** RFC 5322 Message-ID, angle-wrapped, for our reply's In-Reply-To. */
+  messageId: string | null;
+  fromAddress: string;
+  fromName: string | null;
+  toAddresses: string[];
+  ccAddresses: string[];
+  subject: string | null;
+  /** Quoted history removed — what the customer actually wrote. */
+  bodyText: string;
+  /** The original HTML, untouched. */
+  bodyHtml: string | null;
+  threadToken: string | null;
+  receivedAt: Date;
+  autoSubmitted: boolean;
+  attachments: StoreAttachmentInput[];
+}
+
+export function isEmailReceivedEvent(
+  value: unknown,
+): value is ResendReceivedEvent {
+  if (typeof value !== "object" || value === null) return false;
+  const event = value as { type?: unknown; data?: { email_id?: unknown } };
+  return (
+    event.type === "email.received" &&
+    typeof event.data === "object" &&
+    event.data !== null &&
+    typeof event.data.email_id === "string" &&
+    event.data.email_id.length > 0
+  );
+}
+
+function requireApiKey(): string {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      "RESEND_API_KEY is not configured — inbound email cannot be fetched.",
+    );
+  }
+  return key;
+}
+
+/** The real network deps. Only ever constructed on the webhook/retry path. */
+export function resendInboundDeps(): ResendInboundDeps {
+  return {
+    async getEmail(emailId) {
+      const { Resend } = await import("resend");
+      const resend = new Resend(requireApiKey());
+      const { data, error } = await resend.emails.receiving.get(emailId);
+      if (error || !data) {
+        throw new Error(
+          `Resend inbound fetch failed for ${emailId}: ${error?.message ?? "no data"}`,
+        );
+      }
+      return data as unknown as ResendInboundEmail;
+    },
+    async listAttachments(emailId) {
+      const { Resend } = await import("resend");
+      const resend = new Resend(requireApiKey());
+      const { data, error } = await resend.emails.receiving.attachments.list({
+        emailId,
+      });
+      if (error || !data) {
+        throw new Error(
+          `Resend attachment listing failed for ${emailId}: ${error?.message ?? "no data"}`,
+        );
+      }
+      return data.data as unknown as ResendAttachmentLink[];
+    },
+    async download(url, maxBytes) {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const declared = Number(res.headers.get("content-length") ?? "0");
+      if (declared > maxBytes) return null;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      return bytes.byteLength > 0 && bytes.byteLength <= maxBytes
+        ? bytes
+        : null;
+    },
+  };
+}
+
+/** `image/png; charset=x` → `image/png`. */
+function baseMime(raw: string | null | undefined): string {
+  const value = raw?.split(";")[0]?.trim().toLowerCase();
+  return value || "application/octet-stream";
+}
+
+/**
+ * Images become inline rows, everything else a link.
+ *
+ * The security rule (carried from the Phase-1 review): bytes are stored ONLY
+ * when `sniffImageMime` recognises them, and the row records the **sniffed**
+ * mime, never the sender's `content_type` — an `image/png` label on an SVG or
+ * an HTML payload must not end up served back to staff as an image.
+ *
+ * A row with neither bytes nor url is unreachable in the inbox, so it is
+ * dropped rather than written.
+ */
+async function collectAttachments(
+  email: ResendInboundEmail,
+  deps: ResendInboundDeps,
+): Promise<StoreAttachmentInput[]> {
+  const metas = (email.attachments ?? []).slice(0, MAX_INBOUND_ATTACHMENTS);
+  if (metas.length === 0) return [];
+
+  let links: ResendAttachmentLink[] = [];
+  try {
+    links = await deps.listAttachments(email.id);
+  } catch (err) {
+    console.error(
+      `[email] attachment listing failed for ${email.id} — recording none:`,
+      err,
+    );
+    return [];
+  }
+  const byId = new Map(links.map((link) => [link.id, link]));
+
+  const out: StoreAttachmentInput[] = [];
+  for (const meta of metas) {
+    const link = byId.get(meta.id) ?? null;
+    const url = link?.download_url ?? null;
+    const declared = baseMime(meta.content_type ?? link?.content_type);
+    const filename = meta.filename ?? link?.filename ?? null;
+    const size = meta.size ?? link?.size ?? 0;
+
+    let bytes: Uint8Array | null = null;
+    let mime = declared;
+    if (url && isInlineableAttachment(declared, size)) {
+      let downloaded: Uint8Array | null = null;
+      try {
+        downloaded = await deps.download(url, MAX_INLINE_ATTACHMENT_BYTES);
+      } catch (err) {
+        console.error(
+          `[email] attachment download failed for ${meta.id}:`,
+          err,
+        );
+      }
+      const sniffed = downloaded ? sniffImageMime(downloaded) : null;
+      if (downloaded && sniffed) {
+        bytes = downloaded;
+        mime = sniffed;
+      }
+    }
+
+    if (bytes) out.push({ mime, filename, bytes });
+    else if (url) out.push({ mime: declared, filename, url });
+    // else: neither reachable nor storable — skip it entirely.
+  }
+  return out;
+}
+
+export async function parseResendInbound(
+  event: ResendReceivedEvent,
+  deps: ResendInboundDeps = resendInboundDeps(),
+): Promise<ParsedInboundEmail> {
+  const email = await deps.getEmail(event.data.email_id);
+
+  const sender =
+    parseAddress(email.from) ?? parseAddress(event.data.from ?? "");
+  if (!sender) {
+    throw new Error(
+      `Inbound email ${email.id} has an unparseable From header: ${email.from}`,
+    );
+  }
+
+  const toAddresses = parseAddressList(email.to).map((a) => a.address);
+  const ccAddresses = parseAddressList(email.cc).map((a) => a.address);
+
+  const domain = inboundEmailDomain();
+  // The reply address is authoritative; References is the fallback for
+  // clients that rewrite the recipient list on reply.
+  const threadToken =
+    threadTokenFrom([...toAddresses, ...ccAddresses], domain) ??
+    tokenFromText(
+      `${headerValue(email.headers, "references") ?? ""} ${
+        headerValue(email.headers, "in-reply-to") ?? ""
+      }`,
+      domain,
+    );
+
+  const text = email.text?.trim() ? email.text : htmlToText(email.html);
+  const bodyText = stripQuotedReply(text) || "(no message body)";
+
+  const receivedRaw =
+    email.created_at ?? event.data.created_at ?? event.created_at;
+  const receivedAt = receivedRaw ? new Date(receivedRaw) : new Date();
+
+  return {
+    externalId: email.id,
+    messageId: formatMessageId(
+      // `||` not `??`: Resend types Message-ID as a non-null string, so an
+      // absent one arrives as "" and must fall through to the header/event.
+      email.message_id ||
+        headerValue(email.headers, "message-id") ||
+        event.data.message_id,
+    ),
+    fromAddress: sender.address,
+    fromName: sender.name,
+    toAddresses,
+    ccAddresses,
+    subject: email.subject?.trim() || null,
+    bodyText,
+    bodyHtml: email.html,
+    threadToken,
+    receivedAt: Number.isNaN(receivedAt.getTime()) ? new Date() : receivedAt,
+    // Auto-replies, bounces and list traffic are flagged, and so is anything
+    // sent from our own inbound domain — that is our own outbound mail (or a
+    // forward of it) coming back around, and recording it would loop the
+    // thread against itself.
+    autoSubmitted:
+      isAutoSubmitted(email.headers) || isOwnDomain(sender.address, domain),
+    attachments: await collectAttachments(email, deps),
+  };
+}
+
+/** True when the sender is @our inbound mail domain — i.e. our own mail, looping. */
+function isOwnDomain(address: string, domain: string | null): boolean {
+  if (!domain) return false;
+  const host = address.slice(address.lastIndexOf("@") + 1).toLowerCase();
+  return host === domain.trim().toLowerCase();
+}
