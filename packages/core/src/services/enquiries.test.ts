@@ -9,7 +9,8 @@ const sendEmail = vi.fn(
 );
 vi.mock("@bnb/core/email", () => ({ sendEmail }));
 
-const { createEnquiry } = await import("./enquiries");
+const { channelForSource, createEnquiry, enquiryBriefText, enquirySubject } =
+  await import("./enquiries");
 
 describe("createEnquiry (DB + mocked email)", () => {
   const customers: string[] = [];
@@ -123,5 +124,136 @@ describe("createEnquiry (DB + mocked email)", () => {
     expect((e.moodboardData as { styles: string[] }).styles).toEqual([
       "Fine-line",
     ]);
+  });
+});
+
+describe("enquiry channel + brief helpers", () => {
+  it("maps the legacy source to a channel", () => {
+    expect(channelForSource("web")).toBe("web");
+    expect(channelForSource("flash")).toBe("flash");
+    expect(channelForSource("inkling")).toBe("inkling");
+  });
+
+  it("summarises the brief when there is no description", () => {
+    expect(
+      enquiryBriefText({
+        description: "  Peony on the forearm  ",
+        style: "Fine-line",
+        placement: "Forearm",
+        size: null,
+        budgetPence: null,
+      }),
+    ).toBe("Peony on the forearm");
+    expect(
+      enquiryBriefText({
+        description: null,
+        style: "Fine-line",
+        placement: "Forearm",
+        size: "Palm-sized",
+        budgetPence: 15000,
+      }),
+    ).toBe("Style: Fine-line · Placement: Forearm · Size: Palm-sized · Budget: £150.00");
+    expect(
+      enquiryBriefText({
+        description: "   ",
+        style: null,
+        placement: null,
+        size: null,
+        budgetPence: null,
+      }),
+    ).toBe("(no details given)");
+  });
+
+  it("derives a short subject", () => {
+    expect(enquirySubject({ description: "Peony on the forearm", style: "Fine-line" })).toBe(
+      "Peony on the forearm",
+    );
+    expect(enquirySubject({ description: null, style: "Fine-line" })).toBe("Fine-line");
+    expect(enquirySubject({ description: null, style: null })).toBeNull();
+    expect(enquirySubject({ description: "x".repeat(200), style: null })?.length).toBe(120);
+  });
+});
+
+describe("createEnquiry threads (DB)", () => {
+  // Own cleanup arrays — the ones above are scoped to the first describe block.
+  const customers: string[] = [];
+  const enquiries: string[] = [];
+
+  afterAll(async () => {
+    if (await dbReachable()) {
+      if (enquiries.length)
+        await db().enquiry.deleteMany({ where: { id: { in: enquiries } } });
+      if (customers.length)
+        await db().customer.deleteMany({ where: { id: { in: customers } } });
+    }
+    await closeTestDb();
+  });
+
+  it("normalises the customer, sets the channel and opens the thread with an inbound message", async () => {
+    if (!(await dbReachable())) return;
+    sendEmail.mockClear();
+    const local = uid("thread");
+    const enq = await createEnquiry({
+      contactName: "Amy Jones",
+      contactEmail: `  ${local}@EXAMPLE.com `,
+      contactPhone: "07700 900128",
+      style: "Fine-line",
+      description: "Peony on the forearm",
+    });
+    enquiries.push(enq.id);
+    if (enq.customerId) customers.push(enq.customerId);
+
+    expect(enq.channel).toBe("web");
+    expect(enq.subject).toBe("Peony on the forearm");
+    expect(enq.threadToken).toBeTruthy();
+
+    const customer = await db().customer.findUniqueOrThrow({
+      where: { id: enq.customerId as string },
+    });
+    expect(customer.email).toBe(`${local}@example.com`);
+    expect(customer.phone).toBe("+447700900128");
+
+    const messages = await db().enquiryMessage.findMany({
+      where: { enquiryId: enq.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      direction: "inbound",
+      channel: "web",
+      bodyText: "Peony on the forearm",
+      fromName: "Amy Jones",
+      fromAddress: `${local}@example.com`,
+    });
+
+    const after = await db().enquiry.findUniqueOrThrow({ where: { id: enq.id } });
+    expect(after.status).toBe("new");
+    expect(after.lastInboundAt).not.toBeNull();
+    // The ack is sent with the enquiry id so Phase-1 threads show it too.
+    expect(sendEmail.mock.calls[0][0].enquiryId).toBe(enq.id);
+  });
+
+  it("sets channel=flash / channel=inkling from the source", async () => {
+    if (!(await dbReachable())) return;
+    const flash = await createEnquiry({
+      contactName: `Flash ${uid()}`,
+      source: "flash",
+      description: "Flash claim: Bandit Rose",
+    });
+    enquiries.push(flash.id);
+    if (flash.customerId) customers.push(flash.customerId);
+    expect(flash.channel).toBe("flash");
+
+    const inkling = await createEnquiry({
+      contactName: `Inkling ${uid()}`,
+      source: "inkling",
+    });
+    enquiries.push(inkling.id);
+    if (inkling.customerId) customers.push(inkling.customerId);
+    expect(inkling.channel).toBe("inkling");
+    const body = await db().enquiryMessage.findFirstOrThrow({
+      where: { enquiryId: inkling.id },
+    });
+    expect(body.bodyText).toBe("(no details given)");
   });
 });

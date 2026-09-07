@@ -2,6 +2,7 @@
    Keep this signature; add templates/clients in src/lib/email as needed. */
 import type { MessageType } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
+import { recordOutbound } from "@bnb/core/services/enquiry-messages";
 import { renderEmail } from "./render";
 
 export type EmailType =
@@ -21,6 +22,12 @@ export interface SendEmailInput {
   type: EmailType;
   customerId?: string | null;
   relatedBookingId?: string | null;
+  /**
+   * When set, the sent email is also recorded as an outbound EnquiryMessage so
+   * it appears on the enquiry's thread. MessageLog is still written for the
+   * customer timeline — the two logs serve different screens.
+   */
+  enquiryId?: string | null;
   data: Record<string, unknown>;
 }
 
@@ -119,6 +126,28 @@ export async function sendEmail(
       err,
     );
     if (!id) id = `unlogged_${Date.now()}`;
+  }
+
+  // 4. Mirror the send onto the enquiry thread when this email belongs to one.
+  //    Never fatal: a thread write must not fail a delivered email.
+  if (input.enquiryId) {
+    try {
+      await recordOutbound({
+        enquiryId: input.enquiryId,
+        customerId: input.customerId ?? null,
+        channel: "email",
+        subject: subject || null,
+        bodyText: (input.data?.body as string | undefined) ?? (subject || ""),
+        bodyHtml: html || null,
+        fromAddress: input.to,
+        deliveryStatus: toDbStatus(status),
+      });
+    } catch (err) {
+      console.error(
+        `[email] failed to record EnquiryMessage for "${input.type}":`,
+        err,
+      );
+    }
   }
 
   return { id, status };

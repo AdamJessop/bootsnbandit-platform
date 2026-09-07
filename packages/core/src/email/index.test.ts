@@ -18,6 +18,9 @@ vi.mock("@bnb/core/db", () => ({
   },
 }));
 
+const recordOutbound = vi.hoisted(() => vi.fn(async () => ({ id: "em_1" })));
+vi.mock("@bnb/core/services/enquiry-messages", () => ({ recordOutbound }));
+
 describe("sendEmail", () => {
   const originalKey = process.env.RESEND_API_KEY;
 
@@ -140,5 +143,40 @@ describe("sendEmail", () => {
     const arg = createMock.mock.calls[0][0] as { data: { body: string } };
     expect(arg.data.body).toContain("£125.00");
     expect(arg.data.body).toContain("BNB-1042");
+  });
+});
+
+describe("sendEmail enquiry threading", () => {
+  it("records an outbound email message when an enquiryId is given", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { sendEmail } = await import("./index");
+    recordOutbound.mockClear();
+    await sendEmail({
+      to: "amy@example.com",
+      type: "staff_reply",
+      customerId: "c1",
+      enquiryId: "e1",
+      data: { customerName: "Amy", body: "Tuesday works!" },
+    });
+    expect(recordOutbound).toHaveBeenCalledTimes(1);
+    expect(recordOutbound.mock.calls[0][0]).toMatchObject({
+      enquiryId: "e1",
+      customerId: "c1",
+      channel: "email",
+      deliveryStatus: "logged",
+      fromAddress: "amy@example.com",
+    });
+  });
+
+  it("records nothing when no enquiryId is given", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { sendEmail } = await import("./index");
+    recordOutbound.mockClear();
+    await sendEmail({
+      to: "amy@example.com",
+      type: "reminder",
+      data: { customerName: "Amy" },
+    });
+    expect(recordOutbound).not.toHaveBeenCalled();
   });
 });

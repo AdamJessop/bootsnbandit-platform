@@ -1,8 +1,14 @@
 import { Prisma } from "@prisma/client";
-import type { Enquiry, EnquirySource, EnquiryStatus } from "@prisma/client";
+import type {
+  Enquiry,
+  EnquiryChannel,
+  EnquirySource,
+  EnquiryStatus,
+} from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
-import { upsertCustomerByContact } from "./customers";
+import { findOrCreateCustomer } from "./contact-identity";
+import { recordInbound } from "./enquiry-messages";
 import { attachMoodboardAssets } from "./moodboard-assets";
 
 /**
@@ -28,20 +34,66 @@ export interface CreateEnquiryInput {
   moodboardData?: Prisma.InputJsonValue | null;
   assetIds?: string[];
   source?: EnquirySource;
+  channel?: EnquiryChannel;
   status?: EnquiryStatus;
   marketingConsent?: boolean;
+}
+
+/** The three public forms map one-to-one onto the matching channel. */
+export function channelForSource(source: EnquirySource): EnquiryChannel {
+  return source as EnquiryChannel;
+}
+
+function poundsFromPence(pence: number): string {
+  return `£${(pence / 100).toFixed(2)}`;
+}
+
+/**
+ * The customer's own words become the first message on the thread. When the
+ * form carried no description, summarise the structured brief instead so the
+ * thread is never an empty bubble.
+ */
+export function enquiryBriefText(
+  input: Pick<
+    CreateEnquiryInput,
+    "description" | "style" | "placement" | "size" | "budgetPence"
+  >,
+): string {
+  const described = input.description?.trim();
+  if (described) return described;
+  const parts: string[] = [];
+  if (input.style) parts.push(`Style: ${input.style}`);
+  if (input.placement) parts.push(`Placement: ${input.placement}`);
+  if (input.size) parts.push(`Size: ${input.size}`);
+  if (input.budgetPence != null) {
+    parts.push(`Budget: ${poundsFromPence(input.budgetPence)}`);
+  }
+  return parts.length ? parts.join(" · ") : "(no details given)";
+}
+
+/** Short thread title for the inbox list (email threads set their own). */
+export function enquirySubject(
+  input: Pick<CreateEnquiryInput, "description" | "style">,
+): string | null {
+  const described = input.description?.trim();
+  if (described) return described.slice(0, 120);
+  const style = input.style?.trim();
+  return style ? style.slice(0, 120) : null;
 }
 
 export async function createEnquiry(
   input: CreateEnquiryInput,
 ): Promise<Enquiry> {
-  const customer = await upsertCustomerByContact({
+  // Identity first: normalised email/phone are unique, so this is the single
+  // place a public submission is bound to a CRM record.
+  const customer = await findOrCreateCustomer({
     name: input.contactName,
     email: input.contactEmail ?? null,
     phone: input.contactPhone ?? null,
     marketingConsent: input.marketingConsent,
   });
 
+  const source = input.source ?? "web";
   const enquiry = await prisma.enquiry.create({
     data: {
       customerId: customer.id,
@@ -57,9 +109,25 @@ export async function createEnquiry(
       moodboard: input.moodboard ?? [],
       matchData: input.matchData ?? Prisma.DbNull,
       moodboardData: input.moodboardData ?? Prisma.DbNull,
-      source: input.source ?? "web",
+      source,
+      channel: input.channel ?? channelForSource(source),
+      subject: enquirySubject(input),
       status: input.status ?? "new",
     },
+  });
+
+  // Every enquiry has a thread from birth: the form submission IS the first
+  // inbound message, so the admin thread view has something to show for web
+  // leads exactly as it will for email and Meta ones.
+  await recordInbound({
+    enquiryId: enquiry.id,
+    customerId: customer.id,
+    channel: "web",
+    bodyText: enquiryBriefText(input),
+    fromName: input.contactName,
+    fromAddress: customer.email ?? customer.phone ?? null,
+    subject: enquiry.subject,
+    at: enquiry.createdAt,
   });
 
   if (input.assetIds?.length) {
@@ -86,6 +154,7 @@ export async function createEnquiry(
       to: input.contactEmail,
       type: "enquiry_ack",
       customerId: customer.id,
+      enquiryId: enquiry.id,
       data: {
         customerName: input.contactName,
         artistName,
@@ -94,7 +163,8 @@ export async function createEnquiry(
     });
   }
 
-  return enquiry;
+  // Re-read so the caller sees the timestamps recordInbound set.
+  return prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } });
 }
 
 export async function getEnquiry(id: string): Promise<Enquiry | null> {
