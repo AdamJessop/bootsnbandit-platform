@@ -6,6 +6,7 @@ import {
   fromDisplayName,
   headerValue,
   htmlToText,
+  emailFromDomain,
   inboundEmailDomain,
   isAutoSubmitted,
   outboundAddressFor,
@@ -130,6 +131,21 @@ describe("inboundEmailDomain", () => {
   });
 });
 
+describe("emailFromDomain", () => {
+  it("reads the host out of EMAIL_FROM, defaulting to the studio address", () => {
+    expect(
+      emailFromDomain({ EMAIL_FROM: "Boots 'n' Bandit <Hello@Mail.Example.com>" }),
+    ).toBe("mail.example.com");
+    expect(emailFromDomain({ EMAIL_FROM: "hello@example.test" })).toBe(
+      "example.test",
+    );
+    // Unset falls back to the same default `sendEmail` actually sends from.
+    expect(emailFromDomain({})).toBe("bootsnbandit.co.uk");
+    // Unparseable is null rather than a bogus host.
+    expect(emailFromDomain({ EMAIL_FROM: "not an address" })).toBeNull();
+  });
+});
+
 describe("outbound identity", () => {
   it("uses the artist's first name in the From display name", () => {
     expect(firstName("Sarah North")).toBe("Sarah");
@@ -173,6 +189,16 @@ describe("outbound identity", () => {
     expect(subject).not.toContain("Bcc: attacker@evil.test\n");
 
     expect(formatMessageId(`abc@x.test${payload}`)).toBeNull();
+  });
+
+  it("caps the length of the values it puts on a header line", () => {
+    const from = formatFromHeader("N".repeat(500), "enquiries@mail.test");
+    expect(from).toBe(`"${"N".repeat(100)}" <enquiries@mail.test>`);
+
+    const subject = replySubject("S".repeat(500));
+    expect(subject).toBe(`Re: ${"S".repeat(200)}`);
+    // An already-prefixed subject is capped too, prefix included.
+    expect(replySubject(`Re: ${"S".repeat(500)}`).length).toBe(200);
   });
 });
 

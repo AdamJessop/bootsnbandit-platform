@@ -4,8 +4,13 @@ import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 const db = () => testDb();
 
 const sendEmail = vi.fn(
-  (input: { type: string; data: Record<string, unknown> }) =>
-    Promise.resolve({ id: uid("msg"), status: "sent", type: input.type }),
+  (input: {
+    type: string;
+    data: Record<string, unknown>;
+    enquiryId?: string | null;
+    from?: string | null;
+    replyTo?: string | null;
+  }) => Promise.resolve({ id: uid("msg"), status: "sent", type: input.type }),
 );
 vi.mock("@bnb/core/email", () => ({ sendEmail }));
 
@@ -231,6 +236,58 @@ describe("createEnquiry threads (DB)", () => {
     expect(after.lastInboundAt).not.toBeNull();
     // The ack is sent with the enquiry id so Phase-1 threads show it too.
     expect(sendEmail.mock.calls[0][0].enquiryId).toBe(enq.id);
+  });
+
+  it("gives the ack a reply token so a customer's reply lands on the thread", async () => {
+    if (!(await dbReachable())) return;
+    const original = process.env.INBOUND_EMAIL_DOMAIN;
+    process.env.INBOUND_EMAIL_DOMAIN = "mail.bootsnbandit.test";
+    try {
+      sendEmail.mockClear();
+      const artist = await db().artist.findFirstOrThrow();
+      const enq = await createEnquiry({
+        contactName: `Token ${uid()}`,
+        contactEmail: `${uid("t")}@example.com`,
+        preferredArtistId: artist.id,
+        description: "Reply to me",
+      });
+      enquiries.push(enq.id);
+      if (enq.customerId) customers.push(enq.customerId);
+
+      const call = sendEmail.mock.calls[0][0];
+      expect(call.replyTo).toBe(
+        `enq-${enq.threadToken}@mail.bootsnbandit.test`,
+      );
+      expect(call.from).toBe(
+        `"${artist.name.split(/\s+/)[0]} at Boots 'n' Bandit" <enquiries@mail.bootsnbandit.test>`,
+      );
+    } finally {
+      if (original === undefined) delete process.env.INBOUND_EMAIL_DOMAIN;
+      else process.env.INBOUND_EMAIL_DOMAIN = original;
+    }
+  });
+
+  it("sends the ack from the plain studio identity when no inbound domain is set", async () => {
+    if (!(await dbReachable())) return;
+    const original = process.env.INBOUND_EMAIL_DOMAIN;
+    delete process.env.INBOUND_EMAIL_DOMAIN;
+    try {
+      sendEmail.mockClear();
+      const enq = await createEnquiry({
+        contactName: `Plain ${uid()}`,
+        contactEmail: `${uid("p")}@example.com`,
+        description: "No token available",
+      });
+      enquiries.push(enq.id);
+      if (enq.customerId) customers.push(enq.customerId);
+
+      const call = sendEmail.mock.calls[0][0];
+      expect(call.replyTo).toBeNull();
+      expect(call.from).toBeNull();
+    } finally {
+      if (original === undefined) delete process.env.INBOUND_EMAIL_DOMAIN;
+      else process.env.INBOUND_EMAIL_DOMAIN = original;
+    }
   });
 
   it("sets channel=flash / channel=inkling from the source", async () => {

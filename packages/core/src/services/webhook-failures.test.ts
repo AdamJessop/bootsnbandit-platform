@@ -139,4 +139,24 @@ describe("webhook failures (DB)", () => {
     if (id) ids.push(id);
     expect(id === null || typeof id === "string").toBe(true);
   });
+
+  it("strips real NUL bytes without corrupting an escaped one", async () => {
+    if (!(await dbReachable())) return;
+    // Six literal characters — backslash, u, 0, 0, 0, 0 — as a customer could
+    // easily write in an email body. Stripping at the SERIALISED level would
+    // eat the escape and leave a stray backslash behind.
+    const escaped = "a\\u0000b";
+    const id = await recordWebhookFailure({
+      provider: "resend",
+      payload: { escaped, real: "x\u0000y" },
+      error: "nul handling",
+    });
+    expect(id).not.toBeNull();
+    if (id) ids.push(id);
+
+    const row = await getWebhookFailure(id as string);
+    const payload = row?.payload as { escaped: string; real: string };
+    expect(payload.escaped).toBe(escaped);
+    expect(payload.real).toBe("xy");
+  });
 });

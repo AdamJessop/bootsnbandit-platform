@@ -4,6 +4,7 @@ import { recordInbound } from "../enquiry-messages";
 import { resolveThread } from "../enquiry-threading";
 import {
   isEmailReceivedEvent,
+  isOwnDomain,
   parseResendInbound,
   type ResendInboundDeps,
 } from "./email";
@@ -67,8 +68,11 @@ export async function ingestResendEvent(
   // so checking that first would report every loop as `auto_reply` and hide
   // the misconfiguration that actually caused it. Both drop the message; only
   // the reason staff see on the Channels page differs.
-  const domain = inboundEmailDomain();
-  if (domain && parsed.fromAddress.endsWith(`@${domain}`)) {
+  //
+  // `isOwnDomain` covers both of our send identities: the inbound domain and
+  // the `EMAIL_FROM` host, so an unconfigured `INBOUND_EMAIL_DOMAIN` — the
+  // very state that causes the loop — still gets it caught.
+  if (isOwnDomain(parsed.fromAddress, inboundEmailDomain())) {
     return { status: "ignored", reason: "self_addressed" };
   }
 

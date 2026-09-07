@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isEmailReceivedEvent,
+  MAX_BODY_HTML_CHARS,
+  MAX_BODY_TEXT_CHARS,
   MAX_INBOUND_ATTACHMENTS,
+  MAX_INLINE_TOTAL_BYTES,
   parseResendInbound,
   resendInboundDeps,
   type ResendAttachmentLink,
@@ -82,6 +85,29 @@ describe("isEmailReceivedEvent", () => {
     expect(isEmailReceivedEvent(null)).toBe(false);
     expect(isEmailReceivedEvent("email.received")).toBe(false);
   });
+
+  it("rejects an email_id that is not a plain provider id", () => {
+    // The id is interpolated into the Resend API path — a traversal or an
+    // absurd length must never get that far.
+    expect(
+      isEmailReceivedEvent({
+        type: "email.received",
+        data: { email_id: "../../domains" },
+      }),
+    ).toBe(false);
+    expect(
+      isEmailReceivedEvent({
+        type: "email.received",
+        data: { email_id: "a".repeat(129) },
+      }),
+    ).toBe(false);
+    expect(
+      isEmailReceivedEvent({
+        type: "email.received",
+        data: { email_id: "9f1c2f7a-2f18-4a3a-9a0e-1f0c4a6d7b21" },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("parseResendInbound", () => {
@@ -158,6 +184,35 @@ describe("parseResendInbound", () => {
       deps({ getEmail: vi.fn(async () => email) }),
     );
     expect(parsed.bodyText).toBe("(no message body)");
+  });
+
+  it("truncates a huge plain-text body and marks the cut", async () => {
+    const email = structuredClone(EMAIL);
+    email.text = "z".repeat(100_000);
+    email.html = null;
+    const parsed = await parseResendInbound(
+      EVENT,
+      deps({ getEmail: vi.fn(async () => email) }),
+    );
+    expect(parsed.bodyText.length).toBeLessThanOrEqual(
+      MAX_BODY_TEXT_CHARS + 20,
+    );
+    expect(parsed.bodyText.startsWith("z".repeat(1000))).toBe(true);
+    expect(parsed.bodyText.endsWith("[… truncated]")).toBe(true);
+  });
+
+  it("drops an oversize html body but still derives text from it", async () => {
+    const email = structuredClone(EMAIL);
+    email.text = null;
+    email.html = `<p>Tuesday works for me.</p><p>${"y".repeat(
+      MAX_BODY_HTML_CHARS + 1,
+    )}</p>`;
+    const parsed = await parseResendInbound(
+      EVENT,
+      deps({ getEmail: vi.fn(async () => email) }),
+    );
+    expect(parsed.bodyHtml).toBeNull();
+    expect(parsed.bodyText.startsWith("Tuesday works for me.")).toBe(true);
   });
 
   it("flags an auto-reply so the caller can drop it", async () => {
@@ -316,6 +371,32 @@ describe("parseResendInbound — hostile inputs", () => {
     expect(parsed.autoSubmitted).toBe(true);
   });
 
+  it("flags our own mail by EMAIL_FROM when no inbound domain is configured", async () => {
+    const originalFrom = process.env.EMAIL_FROM;
+    delete process.env.INBOUND_EMAIL_DOMAIN;
+    process.env.EMAIL_FROM = "Boots 'n' Bandit <hello@studio.test>";
+    try {
+      const email = structuredClone(EMAIL);
+      email.from = "Boots 'n' Bandit <hello@studio.test>";
+      const parsed = await parseResendInbound(
+        EVENT,
+        deps({ getEmail: vi.fn(async () => email) }),
+      );
+      expect(parsed.autoSubmitted).toBe(true);
+
+      const other = structuredClone(EMAIL);
+      other.from = "Amy Jones <amy@example.com>";
+      const outside = await parseResendInbound(
+        EVENT,
+        deps({ getEmail: vi.fn(async () => other) }),
+      );
+      expect(outside.autoSubmitted).toBe(false);
+    } finally {
+      if (originalFrom === undefined) delete process.env.EMAIL_FROM;
+      else process.env.EMAIL_FROM = originalFrom;
+    }
+  });
+
   it("copes with a near-empty email: no subject, headers, cc or attachments", async () => {
     const email = {
       ...structuredClone(EMAIL),
@@ -404,6 +485,46 @@ describe("parseResendInbound — hostile inputs", () => {
       }),
     );
     expect(parsed.attachments).toHaveLength(MAX_INBOUND_ATTACHMENTS);
+  });
+
+  it("stops inlining once the per-email byte budget is spent", async () => {
+    const each = 7 * 1024 * 1024;
+    expect(each * 2).toBeLessThanOrEqual(MAX_INLINE_TOTAL_BYTES);
+    expect(each * 3).toBeGreaterThan(MAX_INLINE_TOTAL_BYTES);
+
+    const email = structuredClone(EMAIL);
+    email.attachments = [0, 1, 2].map((i) => ({
+      id: `att_big_${i}`,
+      filename: `big-${i}.png`,
+      size: each,
+      content_type: "image/png",
+      content_id: null,
+      content_disposition: "attachment",
+    }));
+    const links: ResendAttachmentLink[] = email.attachments.map((a) => ({
+      id: a.id,
+      filename: a.filename,
+      size: a.size,
+      content_type: a.content_type,
+      download_url: `https://attachments.resend.test/${a.id}`,
+    }));
+    const download = vi.fn(async () => PNG);
+    const parsed = await parseResendInbound(
+      EVENT,
+      deps({
+        getEmail: vi.fn(async () => email),
+        listAttachments: vi.fn(async () => links),
+        download,
+      }),
+    );
+
+    expect(download).toHaveBeenCalledTimes(2);
+    expect(parsed.attachments[0].bytes).toBeTruthy();
+    expect(parsed.attachments[1].bytes).toBeTruthy();
+    expect(parsed.attachments[2].bytes).toBeFalsy();
+    expect(parsed.attachments[2].url).toBe(
+      "https://attachments.resend.test/att_big_2",
+    );
   });
 
   it("drops an attachment that has no download link at all", async () => {
@@ -549,6 +670,59 @@ describe("loadEnquiryEmailContext", () => {
 
     findUnique.mockResolvedValue(null);
     expect(await loadEnquiryEmailContext("gone")).toBeNull();
+  });
+
+  it("falls back to the last inbound sender, then the CRM address", async () => {
+    const { loadEnquiryEmailContext } = await import("./email");
+    findUnique.mockResolvedValue({
+      id: "e1",
+      threadToken: "tok123456",
+      customerId: "c1",
+      contactName: "Amy",
+      contactEmail: null,
+      subject: null,
+      preferredArtist: null,
+      customer: { email: "crm@example.com" },
+      messages: [
+        {
+          channel: "email",
+          subject: null,
+          messageIdHeader: null,
+          fromAddress: "amy@example.com",
+        },
+      ],
+    });
+    expect((await loadEnquiryEmailContext("e1"))?.contactEmail).toBe(
+      "amy@example.com",
+    );
+
+    findUnique.mockResolvedValue({
+      id: "e1",
+      threadToken: "tok123456",
+      customerId: "c1",
+      contactName: "Amy",
+      contactEmail: null,
+      subject: null,
+      preferredArtist: null,
+      customer: { email: "crm@example.com" },
+      messages: [],
+    });
+    expect((await loadEnquiryEmailContext("e1"))?.contactEmail).toBe(
+      "crm@example.com",
+    );
+
+    findUnique.mockResolvedValue({
+      id: "e1",
+      threadToken: "tok123456",
+      customerId: null,
+      contactName: "Amy",
+      contactEmail: null,
+      subject: null,
+      preferredArtist: null,
+      customer: null,
+      messages: [{ channel: "web", subject: null, messageIdHeader: null, fromAddress: null }],
+    });
+    expect((await loadEnquiryEmailContext("e1"))?.contactEmail).toBeNull();
   });
 });
 

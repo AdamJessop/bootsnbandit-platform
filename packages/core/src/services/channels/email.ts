@@ -7,6 +7,7 @@ import {
   type StoreAttachmentInput,
 } from "../assets";
 import {
+  emailFromDomain,
   firstName,
   formatFromHeader,
   formatMessageId,
@@ -40,6 +41,32 @@ export const MAX_INBOUND_ATTACHMENTS = 20;
 
 /** Hard ceiling on how long a single attachment download may take. */
 const DOWNLOAD_TIMEOUT_MS = 15_000;
+
+/**
+ * Total bytes one email may pull into inline attachment rows. Each attachment
+ * is already capped at MAX_INLINE_ATTACHMENT_BYTES, but twenty of them are
+ * not: without a budget a single message could stream 160 MB into a bytea
+ * column inside the ingest transaction. Anything past the budget is still
+ * recorded — as a link back to Resend, not as stored bytes.
+ */
+export const MAX_INLINE_TOTAL_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Caps on the stored body. The text is what the inbox renders, so it is
+ * truncated with a visible marker; the HTML is only ever an archival copy, so
+ * an oversize one is dropped entirely rather than half-stored (a truncated
+ * document is invalid markup). Neither loses anything permanently — the
+ * original stays retrievable from Resend.
+ */
+export const MAX_BODY_TEXT_CHARS = 64_000;
+export const MAX_BODY_HTML_CHARS = 512_000;
+
+const TRUNCATION_MARKER = "\n\n[… truncated]";
+
+function capBodyText(text: string): string {
+  if (text.length <= MAX_BODY_TEXT_CHARS) return text;
+  return text.slice(0, MAX_BODY_TEXT_CHARS) + TRUNCATION_MARKER;
+}
 
 /** Subset of resend@6's `EmailReceivedEvent` that we rely on. */
 export interface ResendReceivedEvent {
@@ -134,9 +161,14 @@ export function isEmailReceivedEvent(
     typeof event.data === "object" &&
     event.data !== null &&
     typeof event.data.email_id === "string" &&
-    event.data.email_id.length > 0
+    // The id goes straight into a Resend API path, so it must look like a
+    // provider id and nothing else — no traversal, no separators, no novel.
+    EMAIL_ID.test(event.data.email_id)
   );
 }
+
+/** Shape of a Resend email id: an opaque, bounded, path-safe token. */
+const EMAIL_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 function requireApiKey(): string {
   const key = process.env.RESEND_API_KEY?.trim();
@@ -265,6 +297,10 @@ async function collectAttachments(
   const byId = new Map(links.map((link) => [link.id, link]));
 
   const out: StoreAttachmentInput[] = [];
+  // Bytes already pulled down for this email. Once the next candidate would
+  // push it past the budget the download is skipped outright, so the cap
+  // bounds the work done, not just what is written.
+  let spent = 0;
   for (const meta of metas) {
     const link = byId.get(meta.id) ?? null;
     const url = link?.download_url ?? null;
@@ -274,7 +310,8 @@ async function collectAttachments(
 
     let bytes: Uint8Array | null = null;
     let mime = declared;
-    if (url && isInlineableAttachment(declared, size)) {
+    const affordable = spent + Math.max(size, 0) <= MAX_INLINE_TOTAL_BYTES;
+    if (url && affordable && isInlineableAttachment(declared, size)) {
       let downloaded: Uint8Array | null = null;
       try {
         downloaded = await deps.download(url, MAX_INLINE_ATTACHMENT_BYTES);
@@ -284,6 +321,10 @@ async function collectAttachments(
           err,
         );
       }
+      // Charged against the budget whether or not the bytes end up stored —
+      // a failed sniff still cost the transfer. `size` can lie low, so the
+      // larger of the two is what counts.
+      if (downloaded) spent += Math.max(size, downloaded.byteLength);
       const sniffed = downloaded ? sniffImageMime(downloaded) : null;
       if (downloaded && sniffed) {
         bytes = downloaded;
@@ -328,7 +369,13 @@ export async function parseResendInbound(
     );
 
   const text = email.text?.trim() ? email.text : htmlToText(email.html);
-  const bodyText = stripQuotedReply(text) || "(no message body)";
+  // Cap AFTER the quoted history is stripped: the quote is usually the bulk
+  // of a long reply, so truncating first would cut the customer's own words.
+  const bodyText = capBodyText(stripQuotedReply(text) || "(no message body)");
+  const html = email.html ?? null;
+  // Dropped, not truncated — half a document is not valid HTML, and the
+  // original is always retrievable from Resend.
+  const bodyHtml = html && html.length > MAX_BODY_HTML_CHARS ? null : html;
 
   const receivedRaw =
     email.created_at ?? event.data.created_at ?? event.created_at;
@@ -349,7 +396,7 @@ export async function parseResendInbound(
     ccAddresses,
     subject: email.subject?.trim() || null,
     bodyText,
-    bodyHtml: email.html,
+    bodyHtml,
     threadToken,
     receivedAt: Number.isNaN(receivedAt.getTime()) ? new Date() : receivedAt,
     // Auto-replies, bounces and list traffic are flagged, and so is anything
@@ -362,11 +409,18 @@ export async function parseResendInbound(
   };
 }
 
-/** True when the sender is @our inbound mail domain — i.e. our own mail, looping. */
-function isOwnDomain(address: string, domain: string | null): boolean {
-  if (!domain) return false;
+/**
+ * True when the sender is one of OUR OWN send domains — i.e. our own mail,
+ * looping. Both identities count: the inbound domain replies are sent from,
+ * and the `EMAIL_FROM` host every transactional email leaves from. The second
+ * is what catches a loop on a deployment that never configured
+ * `INBOUND_EMAIL_DOMAIN` — exactly the deployment most likely to have one.
+ */
+export function isOwnDomain(address: string, domain: string | null): boolean {
   const host = address.slice(address.lastIndexOf("@") + 1).toLowerCase();
-  return host === domain.trim().toLowerCase();
+  if (!host) return false;
+  const ours = [domain?.trim().toLowerCase() || null, emailFromDomain()];
+  return ours.some((candidate) => candidate !== null && candidate === host);
 }
 
 /**
@@ -404,11 +458,17 @@ export async function loadEnquiryEmailContext(
       contactEmail: true,
       subject: true,
       preferredArtist: { select: { name: true } },
+      customer: { select: { email: true } },
       messages: {
         where: { direction: "inbound" },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 1,
-        select: { channel: true, subject: true, messageIdHeader: true },
+        select: {
+          channel: true,
+          subject: true,
+          messageIdHeader: true,
+          fromAddress: true,
+        },
       },
     },
   });
@@ -420,7 +480,20 @@ export async function loadEnquiryEmailContext(
     threadToken: enquiry.threadToken,
     customerId: enquiry.customerId,
     contactName: enquiry.contactName,
-    contactEmail: enquiry.contactEmail,
+    // A thread the customer emailed us on always has a reachable address,
+    // even when the enquiry row never captured one (a Meta or flash lead that
+    // later moved to email). Falling through to the last inbound sender —
+    // safe, because a message only joins this thread once it has resolved to
+    // this same customer — keeps the reply an email instead of silently
+    // downgrading it to an internal note.
+    // `fromAddress` is only an address for email traffic (a web lead stores
+    // the phone number there when it has no email), so it is parsed, not
+    // trusted.
+    contactEmail:
+      enquiry.contactEmail ??
+      parseAddress(last?.fromAddress)?.address ??
+      enquiry.customer?.email ??
+      null,
     subject: enquiry.subject,
     artistName: enquiry.preferredArtist?.name ?? null,
     lastInboundChannel: last?.channel ?? null,

@@ -222,6 +222,15 @@ async function createMessage(
  * without its side effects. A replayed `externalId` short-circuits before any
  * of that runs — the message already carries its original side effects.
  */
+/**
+ * These transactions write attachment bytea rows, so Prisma's 5 s default is
+ * not enough headroom: a mail with several inline images can spend longer
+ * than that on the inserts alone and roll back a perfectly good message.
+ * `maxWait` stays short — waiting for a connection is a queue problem, not a
+ * slow-write one, and failing fast there is the right answer.
+ */
+const TRANSACTION_OPTIONS = { timeout: 30_000, maxWait: 5_000 } as const;
+
 export async function recordInbound(
   input: RecordMessageInput,
 ): Promise<ThreadMessageRow> {
@@ -245,7 +254,7 @@ export async function recordInbound(
       data: { lastMessageAt: at, lastInboundAt: at },
     });
     return row;
-  });
+  }, TRANSACTION_OPTIONS);
 }
 
 /**
@@ -272,7 +281,7 @@ export async function recordOutbound(
       data: { lastMessageAt: input.at ?? row.createdAt },
     });
     return row;
-  });
+  }, TRANSACTION_OPTIONS);
 }
 
 /** A staff-only note. Never sent, and not customer traffic — no timestamps. */

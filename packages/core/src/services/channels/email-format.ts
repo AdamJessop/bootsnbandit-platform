@@ -26,6 +26,23 @@ export function inboundEmailDomain(
   return raw ? raw : null;
 }
 
+/**
+ * Fallback identity domain: the host of `EMAIL_FROM`, i.e. the domain every
+ * transactional email actually leaves from. Used only to recognise our OWN
+ * mail coming back at us when `INBOUND_EMAIL_DOMAIN` is unset — without it a
+ * misconfigured deployment threads its own bounces as customer replies. The
+ * default mirrors `sendEmail`'s, so an unset var still identifies real mail.
+ */
+export function emailFromDomain(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const parsed = parseAddress(
+    env.EMAIL_FROM?.trim() || "Boots 'n' Bandit <hello@bootsnbandit.co.uk>",
+  );
+  if (!parsed) return null;
+  return parsed.address.slice(parsed.address.lastIndexOf("@") + 1) || null;
+}
+
 export interface ParsedAddress {
   name: string | null;
   address: string;
@@ -185,9 +202,16 @@ export function fromDisplayName(artistName: string | null | undefined): string {
   return first ? `${first} at ${STUDIO_NAME}` : STUDIO_NAME;
 }
 
+/** Header lines are finite: cap what an inbound value can grow to. */
+export const MAX_DISPLAY_NAME_CHARS = 100;
+export const MAX_SUBJECT_CHARS = 200;
+
 /** RFC 5322 quoted-string display name — the studio name contains an apostrophe. */
 export function formatFromHeader(displayName: string, address: string): string {
-  const sanitized = sanitizeHeaderValue(displayName);
+  const sanitized = sanitizeHeaderValue(displayName).slice(
+    0,
+    MAX_DISPLAY_NAME_CHARS,
+  );
   const escaped = sanitized.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `"${escaped}" <${address}>`;
 }
@@ -204,7 +228,9 @@ export function formatMessageId(raw: string | null | undefined): string | null {
 }
 
 export function replySubject(subject: string | null | undefined): string {
-  const value = subject ? sanitizeHeaderValue(subject) : "";
+  const value = subject
+    ? sanitizeHeaderValue(subject).slice(0, MAX_SUBJECT_CHARS)
+    : "";
   if (!value) return "Re: your enquiry";
   return /^re:\s/i.test(value) ? value : `Re: ${value}`;
 }

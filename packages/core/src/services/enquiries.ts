@@ -7,6 +7,13 @@ import type {
 } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
+import {
+  formatFromHeader,
+  fromDisplayName,
+  inboundEmailDomain,
+  outboundAddressFor,
+  replyAddressFor,
+} from "./channels/email-format";
 import { findOrCreateCustomer } from "./contact-identity";
 import { recordInbound } from "./enquiry-messages";
 import { attachMoodboardAssets } from "./moodboard-assets";
@@ -150,11 +157,24 @@ export async function createEnquiry(
       });
       artistName = artist?.name;
     }
+    // The ack carries the same reply token a staff reply would: a customer who
+    // simply hits reply lands back on this thread instead of mailing
+    // EMAIL_FROM, which has no inbound MX. With no INBOUND_EMAIL_DOMAIN
+    // configured there is nowhere for a reply to land, so both headers fall
+    // back to the default studio identity rather than advertise a dead address.
+    const domain = inboundEmailDomain();
     await sendEmail({
       to: input.contactEmail,
       type: "enquiry_ack",
       customerId: customer.id,
       enquiryId: enquiry.id,
+      from: domain
+        ? formatFromHeader(
+            fromDisplayName(artistName ?? null),
+            outboundAddressFor(domain),
+          )
+        : null,
+      replyTo: domain ? replyAddressFor(enquiry.threadToken, domain) : null,
       data: {
         customerName: input.contactName,
         artistName,

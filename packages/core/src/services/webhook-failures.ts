@@ -42,11 +42,24 @@ const ROW_SELECT = {
   retriedAt: true,
 } as const;
 
-/** Postgres jsonb rejects NUL bytes in strings; strip them defensively. */
+/** The one byte Postgres jsonb refuses to hold. */
+const NUL = /\u0000/g;
+
+/**
+ * Postgres jsonb rejects NUL bytes in strings; strip them defensively.
+ *
+ * The strip happens at VALUE level, inside the replacer, not on the
+ * serialised text: a customer who writes the six characters `\u0000` in an
+ * email body produces the escape sequence `\\u0000` in the JSON, and a regex
+ * over the text would eat half of it and leave a stray backslash that no
+ * longer parses (or, worse, parses as something else).
+ */
 function asJson(payload: unknown): Prisma.InputJsonValue {
   try {
     return JSON.parse(
-      JSON.stringify(payload ?? null).replace(/\\u0000/g, ""),
+      JSON.stringify(payload ?? null, (_key, value) =>
+        typeof value === "string" ? value.replace(NUL, "") : value,
+      ),
     ) as Prisma.InputJsonValue;
   } catch {
     return { unserialisable: String(payload) } as Prisma.InputJsonValue;
