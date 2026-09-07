@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Check, ImagePlus, Link as LinkIcon, RefreshCw } from "lucide-react";
-import type { StudioImageResult, WebImageResult } from "@bnb/core/services/image-search";
 import {
   buildSearchRequest, hasItem, linkToItem, MAX_BOARD_ITEMS, parsePastedUrl, removeItem,
-  studioResultToItem, toggleItem, uploadToItem, webResultToItem, type BoardItem, type BuilderState,
+  studioResultToItem, toggleItem, uploadToItem, webResultToItem, type BoardItem, type BuilderState, type Set,
 } from "./logic";
 import { prepareImage } from "./image-prep";
 import type { ImageSearch } from "./useImageSearch";
 import enq from "../../enquire/enquire.module.css";
 import css from "./moodboard.module.css";
-
-type Set = (patch: Partial<BuilderState>) => void;
 
 async function uploadFile(file: File): Promise<{ assetId: string; url: string }> {
   const prepared = await prepareImage(file);
@@ -26,20 +23,40 @@ async function uploadFile(file: File): Promise<{ assetId: string; url: string }>
   return (await res.json()) as { assetId: string; url: string };
 }
 
+/** True when `target` is an editable element that lives outside `container`
+ * — a document-level paste listener must ignore those (typing/pasting into
+ * some unrelated field elsewhere on the page), but still handle a paste
+ * whose target isn't editable at all (e.g. nothing is focused yet) and any
+ * paste inside the step, including its own link input. */
+function isEditableOutsideStep(target: EventTarget | null, container: HTMLElement | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const editable = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+  if (!editable) return false;
+  return !(container && container.contains(target));
+}
+
 export function InspirationStep({ state, set, search }: { state: BuilderState; set: Set; search: ImageSearch }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
   const [link, setLink] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const ranFor = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Run the search once per brief when the step mounts / the brief changes.
+  // Mirrors the latest rendered `state.items`, refreshed every render, so
+  // async handlers (uploads, paste) can make synchronous "is this full? is
+  // this already on the board?" decisions without closing over a stale
+  // snapshot. The actual commits below still re-derive from the true state
+  // inside `set`'s functional form, so the committed result is always
+  // correct even if this ref is momentarily behind.
+  const itemsRef = useRef(state.items);
+  itemsRef.current = state.items;
+
+  // Run the search once per brief; survives the step unmounting (e.g. the
+  // visitor goes to Details and back) because the guard lives in the hook.
   const briefKey = JSON.stringify(buildSearchRequest(state));
   useEffect(() => {
-    if (ranFor.current === briefKey) return;
-    ranFor.current = briefKey;
-    void search.run(buildSearchRequest(state));
+    void search.ensure(buildSearchRequest(state));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [briefKey]);
 
@@ -48,53 +65,93 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
   }, [search.query, state.query, set]);
 
   function toggle(item: BoardItem) {
-    const r = toggleItem(state.items, item);
-    if (!r.ok) return setError(r.error);
+    const r = toggleItem(itemsRef.current, item);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
     setError(null);
-    set({ items: r.items });
+    set((s) => {
+      const merged = toggleItem(s.items, item);
+      return merged.ok ? { items: merged.items } : {};
+    });
   }
 
   async function addFiles(files: Iterable<File>) {
     setBusy(true);
     setError(null);
     try {
-      let items = state.items;
       for (const file of files) {
         if (!file.type.startsWith("image/")) continue;
-        const up = await uploadFile(file);
-        const r = toggleItem(items, uploadToItem(up, file.name));
+        let up: { assetId: string; url: string };
+        try {
+          up = await uploadFile(file);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+          break;
+        }
+        const item = uploadToItem(up, file.name);
+        const r = toggleItem(itemsRef.current, item);
         if (!r.ok) {
           setError(r.error);
           break;
         }
-        items = r.items;
+        // Commit this upload immediately so a later failure in the same
+        // batch can't discard it, and keep the local view current for the
+        // rest of the loop.
+        itemsRef.current = r.items;
+        set((s) => {
+          const merged = toggleItem(s.items, item);
+          return merged.ok ? { items: merged.items } : {};
+        });
       }
-      set({ items });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);
     }
   }
 
+  /** Adds a pasted link — a no-op (not a remove) if it's already on the
+   * board. Returns false only when `raw` isn't a usable http(s) link. */
   function addLink(raw: string): boolean {
     const url = parsePastedUrl(raw);
     if (!url) return false;
-    toggle(linkToItem(url));
     setLink("");
+    if (hasItem(itemsRef.current, url)) return true;
+    const item = linkToItem(url);
+    const r = toggleItem(itemsRef.current, item);
+    if (!r.ok) {
+      setError(r.error);
+      return true;
+    }
+    setError(null);
+    itemsRef.current = r.items;
+    set((s) => {
+      if (hasItem(s.items, url)) return {};
+      const merged = toggleItem(s.items, item);
+      return merged.ok ? { items: merged.items } : {};
+    });
     return true;
   }
 
-  function onPaste(e: ClipboardEvent<HTMLDivElement>) {
-    const files = Array.from(e.clipboardData.files ?? []);
-    if (files.length) {
-      e.preventDefault();
-      void addFiles(files);
-      return;
+  // Document-level so a paste works the moment the step is on screen, even
+  // when nothing inside it has been focused yet (the old root-div onPaste
+  // only fired once focus already bubbled through it).
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      if (isEditableOutsideStep(e.target, containerRef.current)) return;
+      const files = Array.from(e.clipboardData?.files ?? []);
+      if (files.length) {
+        e.preventDefault();
+        void addFiles(files);
+        return;
+      }
+      const text = e.clipboardData?.getData("text") ?? "";
+      if (text && addLink(text)) e.preventDefault();
     }
-    const text = e.clipboardData.getData("text");
-    if (text && addLink(text)) e.preventDefault();
-  }
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -106,7 +163,7 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
   const loading = search.status === "loading";
 
   return (
-    <div onPaste={onPaste}>
+    <div ref={containerRef}>
       <h2 className={enq.panelTitle}>Inspiration</h2>
       <p className={enq.panelSub}>
         Tap anything that feels right to add it to your board. Upload or paste your own too. References guide the look — we never copy another person&rsquo;s tattoo.
@@ -143,7 +200,7 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
       {search.providerConfigured && !loading && search.status === "done" && search.web.length === 0 && !search.webError && (
         <p className={css.hint}>No web results for that brief — try fewer words, or add your own images.</p>
       )}
-      {search.nextStart && (
+      {search.nextStart != null && (
         <div className={css.loadMore}>
           <button type="button" className="btn btn-ghost" disabled={loading} onClick={() => void search.more(buildSearchRequest(state, search.nextStart ?? 1))}>
             {loading ? "Loading…" : "Load more"}
@@ -204,7 +261,7 @@ export function InspirationStep({ state, set, search }: { state: BuilderState; s
               <div key={i.key} className={css.trayTile}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={i.thumbUrl ?? i.url} alt={i.title ?? "Board image"} loading="lazy" />
-                <button type="button" className={css.trayRemove} aria-label={`Remove ${i.title ?? "image"}`} onClick={() => set({ items: removeItem(state.items, i.key) })}>×</button>
+                <button type="button" className={css.trayRemove} aria-label={`Remove ${i.title ?? "image"}`} onClick={() => set((s) => ({ items: removeItem(s.items, i.key) }))}>×</button>
               </div>
             ))}
           </div>
@@ -234,5 +291,3 @@ function ResultTile({ item, items, onToggle }: { item: BoardItem; items: BoardIt
     </button>
   );
 }
-
-export type { StudioImageResult, WebImageResult };

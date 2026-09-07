@@ -46,6 +46,12 @@ export interface BuilderState {
   phone: string;
 }
 
+/** Shared updater type for the builder's `set`: a plain patch, or a function
+ * of the current state (so callers can merge against the latest state rather
+ * than a stale closure — important when multiple async operations, e.g.
+ * concurrent uploads, race to update `items`). */
+export type Set = (patch: Partial<BuilderState> | ((s: BuilderState) => Partial<BuilderState>)) => void;
+
 export function emptyBuilder(): BuilderState {
   return {
     styles: [], colour: null, description: "", query: null, items: [],
@@ -138,6 +144,20 @@ export function removeItem(items: BoardItem[], key: string): BoardItem[] {
 
 export function buildSearchRequest(s: BuilderState, start = 1) {
   return { styles: s.styles, colour: s.colour, description: s.description.trim(), start };
+}
+
+export type SearchStatus = "idle" | "loading" | "done" | "error";
+
+/**
+ * Should `useImageSearch` run a fresh search? Re-mounting the Inspiration
+ * step (e.g. after visiting Details and coming back) must reuse whatever the
+ * hook already has rather than re-searching and dropping any "Load more"
+ * pages — but a genuinely new brief, or retrying after an error, should run.
+ * "Search again" bypasses this and always runs.
+ */
+export function shouldRunSearch(lastKey: string | null, nextKey: string, status: SearchStatus): boolean {
+  if (lastKey !== nextKey) return true;
+  return status !== "done" && status !== "loading";
 }
 
 export function budgetToPence(raw: string): number | null {

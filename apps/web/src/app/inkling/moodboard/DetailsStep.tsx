@@ -2,11 +2,10 @@
 
 import { Chip, Field } from "@/components/site";
 import type { InklingArtist } from "../InklingTabs";
-import { PLACEMENTS, SIZES, type BuilderState } from "./logic";
+import { PLACEMENTS, SIZES, type BuilderState, type Set } from "./logic";
 import type { SizeChoice } from "../../enquire/logic";
 import styles from "../../enquire/enquire.module.css";
 
-type Set = (patch: Partial<BuilderState>) => void;
 const BUDGETS = [80, 150, 300, 500];
 
 export function DetailsStep({ state, set, artists }: { state: BuilderState; set: Set; artists: InklingArtist[] }) {

@@ -1,10 +1,8 @@
 "use client";
 
 import { Chip, Field } from "@/components/site";
-import { COLOUR_OPTIONS, MAX_BOARD_STYLES, toggleStyle, type BuilderState } from "./logic";
+import { COLOUR_OPTIONS, MAX_BOARD_STYLES, toggleStyle, type BuilderState, type Set } from "./logic";
 import styles from "../../enquire/enquire.module.css";
-
-type Set = (patch: Partial<BuilderState>) => void;
 
 export function BriefStep({ state, set, styleOptions }: { state: BuilderState; set: Set; styleOptions: string[] }) {
   return (

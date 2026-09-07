@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { InspirationResponse, StudioImageResult, WebImageResult } from "@bnb/core/services/image-search";
+import { shouldRunSearch, type SearchStatus } from "./logic";
 
 export interface SearchRequest {
   styles: string[];
@@ -11,7 +12,7 @@ export interface SearchRequest {
 }
 
 export interface ImageSearchState {
-  status: "idle" | "loading" | "done" | "error";
+  status: SearchStatus;
   error: string | null;
   query: string | null;
   studio: StudioImageResult[];
@@ -24,6 +25,16 @@ export interface ImageSearchState {
 export interface ImageSearch extends ImageSearchState {
   run(req: SearchRequest): Promise<void>;
   more(req: SearchRequest): Promise<void>;
+  /** Runs `req` only if the brief changed since the last run, or the last
+   * run isn't in-flight/done (see `shouldRunSearch`). Reuses whatever the
+   * hook already has otherwise — safe to call on every mount. */
+  ensure(req: SearchRequest): Promise<void>;
+}
+
+/** Identifies a "brief" for the once-per-brief guard — ignores `start` so
+ * paging doesn't look like a new brief. */
+function keyFor(req: SearchRequest): string {
+  return JSON.stringify({ styles: req.styles, colour: req.colour, description: req.description });
 }
 
 const initial: ImageSearchState = {
@@ -46,8 +57,12 @@ async function post(req: SearchRequest): Promise<InspirationResponse> {
 
 export function useImageSearch(): ImageSearch {
   const [state, setState] = useState<ImageSearchState>(initial);
+  const statusRef = useRef(state.status);
+  statusRef.current = state.status;
+  const lastKeyRef = useRef<string | null>(null);
 
   const run = useCallback(async (req: SearchRequest) => {
+    lastKeyRef.current = keyFor(req);
     setState((s) => ({ ...s, status: "loading", error: null }));
     try {
       const r = await post({ ...req, start: 1 });
@@ -68,5 +83,11 @@ export function useImageSearch(): ImageSearch {
     }
   }, []);
 
-  return { ...state, run, more };
+  const ensure = useCallback(async (req: SearchRequest) => {
+    const key = keyFor(req);
+    if (!shouldRunSearch(lastKeyRef.current, key, statusRef.current)) return;
+    await run(req);
+  }, [run]);
+
+  return { ...state, run, more, ensure };
 }

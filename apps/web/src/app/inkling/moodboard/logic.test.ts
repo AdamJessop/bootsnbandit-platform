@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BOARD_STEPS, budgetToPence, buildBoardEnquiryPayload, buildSearchRequest, canAdvance,
-  emptyBuilder, linkToItem, parsePastedUrl, removeItem, studioResultToItem, toggleItem,
+  emptyBuilder, linkToItem, parsePastedUrl, removeItem, shouldRunSearch, studioResultToItem, toggleItem,
   uploadToItem, webResultToItem, type BoardItem, type BuilderState,
 } from "./logic";
 
@@ -77,5 +77,22 @@ describe("requests + payload", () => {
     expect(p.description).toBe("peony forearm\n\nWould love it wrapping.");
     expect(p.moodboardData.items[1]).not.toHaveProperty("key");
     expect(p.moodboardData).toMatchObject({ version: 1, styles: ["Fine-line"], colour: "bw", notes: "Would love it wrapping." });
+  });
+});
+
+describe("shouldRunSearch", () => {
+  it("runs when the brief key changed, regardless of status", () => {
+    expect(shouldRunSearch(null, "a", "idle")).toBe(true);
+    expect(shouldRunSearch("a", "b", "done")).toBe(true);
+    expect(shouldRunSearch("a", "b", "loading")).toBe(true);
+    expect(shouldRunSearch("a", "b", "error")).toBe(true);
+  });
+  it("is a no-op when the key matches and a run is done or in flight", () => {
+    expect(shouldRunSearch("a", "a", "done")).toBe(false);
+    expect(shouldRunSearch("a", "a", "loading")).toBe(false);
+  });
+  it("still runs when the key matches but the last run errored or hasn't started", () => {
+    expect(shouldRunSearch("a", "a", "error")).toBe(true);
+    expect(shouldRunSearch("a", "a", "idle")).toBe(true);
   });
 });

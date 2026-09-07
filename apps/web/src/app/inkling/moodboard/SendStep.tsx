@@ -1,10 +1,8 @@
 "use client";
 
 import { Field } from "@/components/site";
-import type { BuilderState } from "./logic";
+import type { BuilderState, Set } from "./logic";
 import styles from "../../enquire/enquire.module.css";
-
-type Set = (patch: Partial<BuilderState>) => void;
 
 export function SendStep({ state, set }: { state: BuilderState; set: Set }) {
   return (

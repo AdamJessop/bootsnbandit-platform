@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import type { InklingArtist } from "../InklingTabs";
-import { BOARD_STEPS, buildBoardEnquiryPayload, canAdvance, emptyBuilder, type BuilderState } from "./logic";
+import { BOARD_STEPS, buildBoardEnquiryPayload, canAdvance, emptyBuilder, type BuilderState, type Set } from "./logic";
 import { BriefStep } from "./BriefStep";
 import { InspirationStep } from "./InspirationStep";
 import { DetailsStep } from "./DetailsStep";
@@ -26,7 +26,7 @@ export function MoodBoardBuilder({ artists, styleOptions }: { artists: InklingAr
   const search = useImageSearch();
 
   const step = BOARD_STEPS[stepIdx];
-  const set = (patch: Partial<BuilderState>) => setState((s) => ({ ...s, ...patch }));
+  const set: Set = (patch) => setState((s) => ({ ...s, ...(typeof patch === "function" ? patch(s) : patch) }));
 
   function next() {
     if (!canAdvance(step, state)) return;

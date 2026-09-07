@@ -15,7 +15,7 @@ const set = () => {};
 const ARTISTS = [{ id: "a1", name: "Sarah Boots", role: "Co-owner", slug: "sarah", booksStatus: "open" as const }];
 const idleSearch = {
   status: "idle" as const, error: null, query: null, studio: [], web: [], nextStart: null,
-  providerConfigured: true, webError: false, run: async () => {}, more: async () => {},
+  providerConfigured: true, webError: false, run: async () => {}, more: async () => {}, ensure: async () => {},
 };
 
 describe("mood-board steps", () => {
