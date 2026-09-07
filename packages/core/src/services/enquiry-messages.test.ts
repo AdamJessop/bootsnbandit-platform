@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { prisma } from "@bnb/core/db";
 import {
   listThread,
   listThreadsFor,
@@ -128,6 +129,83 @@ describe("enquiry messages (DB)", () => {
     });
     expect(again.id).toBe(first.id);
     expect(again.bodyText).toBe("first");
+    expect(
+      await db().enquiryMessage.count({ where: { enquiryId: enquiry.id } }),
+    ).toBe(1);
+  });
+
+  it("a duplicate externalId delivery re-applies no side effects", async () => {
+    if (!(await dbReachable())) return;
+    const { enquiry } = await seed("new");
+    const externalId = uid("mid-dup");
+    const first = await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "email",
+      bodyText: "first",
+      externalId,
+      at: new Date("2026-09-05T09:00:00.000Z"),
+    });
+    // Simulate a staff reply having happened after the first delivery landed.
+    await db().enquiry.update({
+      where: { id: enquiry.id },
+      data: { status: "replied" },
+    });
+    const before = await db().enquiry.findUniqueOrThrow({
+      where: { id: enquiry.id },
+    });
+
+    const again = await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "email",
+      bodyText: "duplicate delivery",
+      externalId,
+      at: new Date("2026-09-06T09:00:00.000Z"),
+    });
+
+    expect(again.id).toBe(first.id);
+    const after = await db().enquiry.findUniqueOrThrow({
+      where: { id: enquiry.id },
+    });
+    expect(after.status).toBe("replied");
+    expect(after.lastInboundAt?.toISOString()).toBe(
+      before.lastInboundAt?.toISOString(),
+    );
+    expect(
+      await db().enquiryMessage.count({ where: { enquiryId: enquiry.id } }),
+    ).toBe(1);
+  });
+
+  it("a concurrent duplicate insert loses the race but returns the winner's row", async () => {
+    if (!(await dbReachable())) return;
+    const { enquiry } = await seed();
+    const externalId = uid("mid-race");
+    const winner = await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "messenger",
+      bodyText: "winner",
+      externalId,
+    });
+
+    // Force the fast-path idempotency check to miss the row that is really
+    // already there, as it would if this call ran a moment before the
+    // winner's insert committed — the code then proceeds to its own create
+    // and collides for real on the unique index, exactly the P2002 the
+    // recovery branch handles. The recovery branch's own re-read is left
+    // real, so it has to actually find the winner for the test to pass.
+    const spy = vi
+      .spyOn(prisma.enquiryMessage, "findUnique")
+      .mockResolvedValueOnce(null);
+    try {
+      const loser = await recordInbound({
+        enquiryId: enquiry.id,
+        channel: "messenger",
+        bodyText: "loser",
+        externalId,
+      });
+      expect(loser.id).toBe(winner.id);
+    } finally {
+      spy.mockRestore();
+    }
     expect(
       await db().enquiryMessage.count({ where: { enquiryId: enquiry.id } }),
     ).toBe(1);

@@ -1,3 +1,4 @@
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 
 /**
@@ -10,6 +11,9 @@ import { prisma } from "@bnb/core/db";
  * SVG is never inlined: it is XML and can carry script, and these bytes are
  * served back to signed-in staff.
  */
+
+/** Either the top-level client or an in-flight `$transaction` callback client. */
+export type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export const MAX_INLINE_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
@@ -62,10 +66,11 @@ function toMeta(row: {
 
 export async function storeAttachment(
   input: StoreAttachmentInput,
+  client: DbClient = prisma,
 ): Promise<AttachmentMeta> {
   const size = input.bytes?.byteLength ?? 0;
   const inline = Boolean(input.bytes) && isInlineableAttachment(input.mime, size);
-  const row = await prisma.attachment.create({
+  const row = await client.attachment.create({
     data: {
       messageId: input.messageId ?? null,
       mime: input.mime,
@@ -94,10 +99,11 @@ export async function getAttachment(
 /** Attachments for a batch of messages, grouped by message id (inbox render). */
 export async function listAttachmentsFor(
   messageIds: string[],
+  client: DbClient = prisma,
 ): Promise<Map<string, AttachmentMeta[]>> {
   const map = new Map<string, AttachmentMeta[]>();
   if (messageIds.length === 0) return map;
-  const rows = await prisma.attachment.findMany({
+  const rows = await client.attachment.findMany({
     where: { messageId: { in: messageIds } },
     orderBy: { createdAt: "asc" },
     select: {
