@@ -201,8 +201,8 @@ export default async function HomePage() {
                   <span>
                     <b>Mood Board</b>
                     <small>
-                      Gather inspiration from the web and our work into one
-                      board.
+                      Pick styles, describe the piece, and build a board from
+                      web inspiration and our work.
                     </small>
                   </span>
                   <ChevronRight className="ai-row-go" />

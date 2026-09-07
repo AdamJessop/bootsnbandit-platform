@@ -1,10 +1,10 @@
 /**
- * Pure logic for the Inkling page (Style Matcher quiz + Mood Board capture).
+ * Pure logic for the Inkling Style Matcher (the mood-board builder has its
+ * own logic in `./moodboard/logic.ts`).
  *
  * The matcher's scoring lives server-side in `lib/services/match.ts`; this
- * module only handles the questionnaire state, the `POST /api/match` request
- * shape, and building the `POST /api/enquiries` (source=inkling) body when a
- * visitor sends a board or enquires from a match result. Deterministic, no AI.
+ * module only handles the questionnaire state and the `POST /api/match`
+ * request shape. Deterministic, no AI.
  */
 
 import { PLACEMENTS } from "../enquire/logic";
@@ -138,66 +138,4 @@ export interface MatchResultLike {
   pct: number;
   matchedStyles: string[];
   bestFit: boolean;
-}
-
-export interface InklingEnquiryInput {
-  name: string;
-  email: string;
-  phone: string;
-  note?: string;
-  moodboard: string[];
-  artistId: string | null;
-  /** Set when enquiring from a matcher result. */
-  match?: { quiz: QuizState; result: MatchResultLike };
-}
-
-export interface InklingEnquiryPayload {
-  contactName: string;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  preferredArtistId: string | null;
-  style: string | null;
-  description: string | null;
-  moodboard: string[];
-  matchData: Record<string, unknown> | null;
-  source: "inkling";
-}
-
-export function buildInklingEnquiryPayload(
-  input: InklingEnquiryInput,
-): InklingEnquiryPayload {
-  const descParts: string[] = [];
-  if (input.match) {
-    descParts.push(
-      `Inkling match: ${input.match.result.pct}% with ${input.match.result.artist.name}.`,
-    );
-  } else if (input.moodboard.length) {
-    descParts.push(
-      `Mood board from Inkling (${input.moodboard.length} reference${
-        input.moodboard.length === 1 ? "" : "s"
-      }).`,
-    );
-  }
-  if (input.note && input.note.trim()) descParts.push(input.note.trim());
-
-  return {
-    contactName: input.name.trim(),
-    contactEmail: input.email.trim() ? input.email.trim() : null,
-    contactPhone: input.phone.trim() ? input.phone.trim() : null,
-    preferredArtistId: input.artistId,
-    style: input.match?.result.matchedStyles.length
-      ? input.match.result.matchedStyles.join(", ")
-      : null,
-    description: descParts.length ? descParts.join(" ") : null,
-    moodboard: input.moodboard,
-    matchData: input.match
-      ? {
-          quiz: input.match.quiz,
-          pct: input.match.result.pct,
-          artistId: input.match.result.artist.id,
-          matchedStyles: input.match.result.matchedStyles,
-        }
-      : null,
-    source: "inkling",
-  };
 }
