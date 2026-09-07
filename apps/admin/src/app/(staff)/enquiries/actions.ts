@@ -50,7 +50,12 @@ async function loadEnquiryScoped(enquiryId: string) {
   return { user, enquiry };
 }
 
-/** An artist responding to an open (unclaimed) Inkling board takes it. */
+/**
+ * An artist responding to an open (unclaimed) Inkling board takes it. The
+ * claim is conditional at the database (`preferredArtistId: null` in the
+ * `where`) so two concurrent claimants can't both "win" a TOCTOU race after
+ * a separate read + isOpenBoard check — only one `updateMany` matches a row.
+ */
 async function claimIfOpen(
   user: SessionUser,
   enquiry: {
@@ -58,14 +63,25 @@ async function claimIfOpen(
     source: EnquirySource;
     preferredArtistId: string | null;
   },
-) {
+): Promise<{ attempted: boolean; claimed: boolean }> {
   if (user.role === "OWNER" || !user.artistId || !isOpenBoard(enquiry)) {
-    return;
+    return { attempted: false, claimed: false };
   }
-  await prisma.enquiry.update({
-    where: { id: enquiry.id },
+  const { count } = await prisma.enquiry.updateMany({
+    where: { id: enquiry.id, preferredArtistId: null },
     data: { preferredArtistId: user.artistId },
   });
+  return { attempted: true, claimed: count > 0 };
+}
+
+/** Append a note when a reply's implicit claim lost the race. */
+function withClaimNote(
+  message: string,
+  claim: { attempted: boolean; claimed: boolean },
+): string {
+  return claim.attempted && !claim.claimed
+    ? `${message} This board was taken by another artist a moment ago.`
+    : message;
 }
 
 export async function replyToEnquiry(
@@ -90,11 +106,14 @@ export async function replyToEnquiry(
       },
     });
     await updateEnquiryStatus(enquiryId, "replied");
-    await claimIfOpen(user, enquiry);
+    const claim = await claimIfOpen(user, enquiry);
     revalidatePath("/enquiries");
     return {
       ok: true,
-      message: "No email on file — reply logged to the timeline (not sent).",
+      message: withClaimNote(
+        "No email on file — reply logged to the timeline (not sent).",
+        claim,
+      ),
     };
   }
 
@@ -116,15 +135,17 @@ export async function replyToEnquiry(
     };
   }
   await updateEnquiryStatus(enquiryId, "replied");
-  await claimIfOpen(user, enquiry);
+  const claim = await claimIfOpen(user, enquiry);
 
   revalidatePath("/enquiries");
   return {
     ok: true,
-    message:
+    message: withClaimNote(
       result.status === "sent"
         ? "Reply emailed to the customer and enquiry marked replied."
         : "Reply logged (email delivery not configured) and enquiry marked replied.",
+      claim,
+    ),
   };
 }
 
@@ -136,10 +157,15 @@ export async function claimEnquiry(enquiryId: string): Promise<ActionState> {
   if (!isOpenBoard(enquiry)) {
     return { ok: false, message: "This board has already been taken." };
   }
-  await prisma.enquiry.update({
-    where: { id: enquiryId },
+  // Conditional on `preferredArtistId: null` at the database so a concurrent
+  // claim can't both "win" — only the first updateMany matches a row.
+  const { count } = await prisma.enquiry.updateMany({
+    where: { id: enquiryId, preferredArtistId: null },
     data: { preferredArtistId: user.artistId },
   });
+  if (count === 0) {
+    return { ok: false, message: "This board has already been taken." };
+  }
   revalidatePath("/enquiries");
   return {
     ok: true,
@@ -151,7 +177,15 @@ export async function assignEnquiry(
   enquiryId: string,
   artistId: string,
 ): Promise<ActionState> {
-  await loadEnquiryScoped(enquiryId);
+  const { user } = await loadEnquiryScoped(enquiryId);
+  // Non-owners may only assign an enquiry to themselves — otherwise a direct
+  // action call would let an artist hand an open board to any artist id.
+  if (user.role !== "OWNER" && artistId !== user.artistId) {
+    return {
+      ok: false,
+      message: "You can only assign enquiries to yourself.",
+    };
+  }
   await prisma.enquiry.update({
     where: { id: enquiryId },
     data: { preferredArtistId: artistId || null },
