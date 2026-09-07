@@ -158,6 +158,21 @@ export function tokenFromText(
   return match ? match[1] : null;
 }
 
+/**
+ * Header values (subjects, display names, Message-IDs) can originate from
+ * attacker-controlled inbound mail. Strip ASCII control characters (this
+ * removes the CR/LF that would otherwise let a value smuggle a second header
+ * line, e.g. a `Bcc:`) and collapse whitespace runs so nothing but plain text
+ * survives into an outbound header.
+ */
+function sanitizeHeaderValue(value: string): string {
+  // eslint-disable-next-line no-control-regex -- deliberately stripping control chars
+  return value
+    .replace(/[\x00-\x1f\x7f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function firstName(full: string | null | undefined): string | null {
   const trimmed = full?.trim();
   if (!trimmed) return null;
@@ -172,19 +187,24 @@ export function fromDisplayName(artistName: string | null | undefined): string {
 
 /** RFC 5322 quoted-string display name — the studio name contains an apostrophe. */
 export function formatFromHeader(displayName: string, address: string): string {
-  const escaped = displayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const sanitized = sanitizeHeaderValue(displayName);
+  const escaped = sanitized.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `"${escaped}" <${address}>`;
 }
 
+/** A bare Message-ID local@domain, no whitespace or angle brackets/@ inside either part. */
+const BARE_MESSAGE_ID = /^[^\s<>@]+@[^\s<>@]+$/;
+
 export function formatMessageId(raw: string | null | undefined): string | null {
-  const value = raw?.trim();
+  const value = raw ? sanitizeHeaderValue(raw) : "";
   if (!value) return null;
   const bare = value.replace(/^<+/, "").replace(/>+$/, "").trim();
-  return bare ? `<${bare}>` : null;
+  if (!bare || !BARE_MESSAGE_ID.test(bare)) return null;
+  return `<${bare}>`;
 }
 
 export function replySubject(subject: string | null | undefined): string {
-  const value = subject?.trim();
+  const value = subject ? sanitizeHeaderValue(subject) : "";
   if (!value) return "Re: your enquiry";
   return /^re:\s/i.test(value) ? value : `Re: ${value}`;
 }
@@ -259,14 +279,38 @@ const CUT_LINE: RegExp[] = [
   /^>/,
 ];
 
+/** A mobile mail-app footer, matched only as the very last content line. */
+const SIGNATURE_LINE: RegExp[] = [
+  /^sent from my (iphone|ipad|galaxy|samsung device|android)$/i,
+  /^get outlook for (ios|android)$/i,
+  /^sent from (yahoo|outlook|mail) for .+$/i,
+];
+
+/**
+ * Trim a trailing mobile-app signature ("Sent from my iPhone" and its kin) —
+ * only when it is the last non-blank line, so a sentence that merely mentions
+ * a phone is never touched.
+ */
+function stripTrailingSignature(text: string): string {
+  const lines = text.split("\n");
+  let end = lines.length;
+  while (end > 0 && lines[end - 1].trim() === "") end -= 1;
+  if (end === 0) return text;
+  const last = lines[end - 1].trim();
+  if (!SIGNATURE_LINE.some((re) => re.test(last))) return text;
+  return lines.slice(0, end - 1).join("\n");
+}
+
 /**
  * Remove the quoted history from a plain-text reply so the inbox shows what
  * the customer actually wrote. Deliberately conservative:
  *
  * - only well-known *structural* markers cut (Gmail's "On … wrote:", Outlook's
  *   original-message divider and its `From:/Sent:/To:` block, a `>` quote run);
- * - signatures are NOT stripped — "quoted reply" means quoted reply, and a
- *   lone `--` in a body is too easy to hit by accident;
+ * - free-text signatures are NOT stripped — a lone `--` in a body is too easy
+ *   to hit by accident — but a small, narrowly-anchored set of mobile mail-app
+ *   footers ("Sent from my iPhone" and its kin) is trimmed when it is the
+ *   very last line, since customers rarely delete those on a phone reply;
  * - if stripping would leave nothing, the original text is returned, because
  *   an empty thread bubble is worse than a quoted one.
  *
@@ -309,8 +353,9 @@ export function stripQuotedReply(text: string | null | undefined): string {
     }
   }
 
-  const kept = (cut === -1 ? lines : lines.slice(0, cut))
-    .join("\n")
+  const kept = stripTrailingSignature(
+    (cut === -1 ? lines : lines.slice(0, cut)).join("\n"),
+  )
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 

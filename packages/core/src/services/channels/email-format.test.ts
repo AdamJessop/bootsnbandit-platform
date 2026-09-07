@@ -160,6 +160,20 @@ describe("outbound identity", () => {
     expect(replySubject("RE: Sleeve idea")).toBe("RE: Sleeve idea");
     expect(replySubject(null)).toBe("Re: your enquiry");
   });
+
+  it("strips CR/LF so a header value can't smuggle an injected header", () => {
+    const payload = "Sarah\r\nBcc: attacker@evil.test";
+
+    const from = formatFromHeader(payload, "enquiries@mail.test");
+    expect(from).not.toMatch(/[\r\n]/);
+    expect(from).not.toContain("Bcc: attacker@evil.test\n");
+
+    const subject = replySubject(`Sleeve idea${payload}`);
+    expect(subject).not.toMatch(/[\r\n]/);
+    expect(subject).not.toContain("Bcc: attacker@evil.test\n");
+
+    expect(formatMessageId(`abc@x.test${payload}`)).toBeNull();
+  });
 });
 
 describe("headers", () => {
@@ -265,5 +279,22 @@ describe("stripQuotedReply", () => {
     expect(stripQuotedReply(quoted)).toBe(quoted);
     expect(stripQuotedReply("   ")).toBe("");
     expect(stripQuotedReply(null)).toBe("");
+  });
+
+  it("cuts a trailing mobile mail-app signature", () => {
+    expect(stripQuotedReply("Yes Tuesday works.\n\nSent from my iPhone")).toBe(
+      "Yes Tuesday works.",
+    );
+    expect(
+      stripQuotedReply("Yes Tuesday works.\n\nGet Outlook for iOS"),
+    ).toBe("Yes Tuesday works.");
+    expect(
+      stripQuotedReply("Yes Tuesday works.\n\nSent from Yahoo for iPhone"),
+    ).toBe("Yes Tuesday works.");
+  });
+
+  it("falls back to the original when the body is only a signature", () => {
+    const signature = "Sent from my iPhone";
+    expect(stripQuotedReply(signature)).toBe(signature);
   });
 });
