@@ -11,3 +11,5 @@ export * from "./flash";
 export * from "./loyalty";
 export * from "./match";
 export * from "./reception";
+export * from "./moodboard-assets";
+export * from "./moodboard-data";

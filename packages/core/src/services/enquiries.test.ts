@@ -93,4 +93,31 @@ describe("createEnquiry (DB + mocked email)", () => {
     if (enq.customerId) customers.push(enq.customerId);
     expect(enq.source).toBe("flash");
   });
+
+  it("stores moodboardData and attaches uploaded assets", async () => {
+    if (!(await dbReachable())) return;
+    const asset = await db().moodboardAsset.create({
+      data: { bytes: new Uint8Array([1, 2, 3]), mime: "image/png", size: 3 },
+    });
+    const e = await createEnquiry({
+      contactName: `Board ${uid()}`,
+      source: "inkling",
+      moodboard: ["https://x.test/a.jpg"],
+      moodboardData: {
+        version: 1,
+        styles: ["Fine-line"],
+        colour: null,
+        description: "peony",
+        query: null,
+        notes: null,
+        items: [],
+      },
+      assetIds: [asset.id],
+    });
+    enquiries.push(e.id);
+    if (e.customerId) customers.push(e.customerId);
+    const attached = await db().moodboardAsset.findUniqueOrThrow({ where: { id: asset.id } });
+    expect(attached.enquiryId).toBe(e.id);
+    expect((e.moodboardData as { styles: string[] }).styles).toEqual(["Fine-line"]);
+  });
 });

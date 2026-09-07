@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const runReminders = vi.fn();
 const runReviewRequests = vi.fn();
 const runLoyaltyRewards = vi.fn();
+const runMoodboardAssetPurge = vi.fn();
 
 vi.mock("./reminders", () => ({
   runReminders: (...a: unknown[]) => runReminders(...a),
@@ -17,6 +18,9 @@ vi.mock("./review-requests", () => ({
 }));
 vi.mock("./loyalty-rewards", () => ({
   runLoyaltyRewards: (...a: unknown[]) => runLoyaltyRewards(...a),
+}));
+vi.mock("./moodboard-assets", () => ({
+  runMoodboardAssetPurge: (...a: unknown[]) => runMoodboardAssetPurge(...a),
 }));
 
 const { runAllCron } = await import("./index");
@@ -31,6 +35,9 @@ beforeEach(() => {
   runLoyaltyRewards
     .mockReset()
     .mockResolvedValue({ job: "loyalty_rewards", sent: 0, skipped: 3 });
+  runMoodboardAssetPurge
+    .mockReset()
+    .mockResolvedValue({ job: "moodboard_asset_purge", sent: 4, skipped: 0 });
 });
 
 describe("runAllCron", () => {
@@ -39,8 +46,9 @@ describe("runAllCron", () => {
     expect(runReminders).toHaveBeenCalledOnce();
     expect(runReviewRequests).toHaveBeenCalledOnce();
     expect(runLoyaltyRewards).toHaveBeenCalledOnce();
-    expect(res.jobs).toHaveLength(3);
-    expect(res.totalSent).toBe(3);
+    expect(runMoodboardAssetPurge).toHaveBeenCalledOnce();
+    expect(res.jobs).toHaveLength(4);
+    expect(res.totalSent).toBe(7);
     expect(res.totalSkipped).toBe(4);
   });
 });
