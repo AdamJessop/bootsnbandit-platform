@@ -49,6 +49,7 @@ enum BookingStatus {
 enum EnquiryStatus {
   new
   replied
+  customer_replied
   converted
   closed
 }
@@ -57,6 +58,31 @@ enum EnquirySource {
   web
   flash
   inkling
+}
+
+// Originating channel of an enquiry (superset of EnquirySource, which stays
+// as the legacy web/flash/inkling form marker).
+enum EnquiryChannel {
+  web
+  flash
+  inkling
+  email
+  messenger
+  instagram
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+  internal
+}
+
+enum MessageChannelKind {
+  web
+  email
+  messenger
+  instagram
+  note
 }
 
 enum LeaveStatus {
@@ -118,6 +144,8 @@ model User {
 
   authenticators Authenticator[]
   artist         Artist?
+  enquiryMessages EnquiryMessage[]
+  enquiryReads    EnquiryRead[]
 
   @@index([role])
 }
@@ -242,6 +270,8 @@ model Customer {
   messages       MessageLog[]
   reviews        Review[]
   passwordTokens CustomerPasswordToken[]
+  identities      CustomerIdentity[]
+  enquiryMessages EnquiryMessage[]
 
   @@index([email])
   @@index([phone])
@@ -283,6 +313,12 @@ model Enquiry {
   moodboardData     Json?
   status            EnquiryStatus @default(new)
   source            EnquirySource @default(web)
+  channel           EnquiryChannel @default(web)
+  subject           String?
+  threadToken       String        @unique @default(cuid())
+  lastMessageAt     DateTime?
+  lastInboundAt     DateTime?
+  assignedAt        DateTime?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -290,11 +326,15 @@ model Enquiry {
   preferredArtist Artist?   @relation(fields: [preferredArtistId], references: [id], onDelete: SetNull)
   bookings        Booking[]
   moodboardAssets MoodboardAsset[]
+  messages        EnquiryMessage[]
+  reads           EnquiryRead[]
 
   @@index([status])
   @@index([source])
   @@index([customerId])
   @@index([preferredArtistId])
+  @@index([lastMessageAt])
+  @@index([channel])
 }
 
 model MoodboardAsset {
@@ -309,6 +349,88 @@ model MoodboardAsset {
 
   @@index([enquiryId])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Enquiry threads (omnichannel inbox)
+// ---------------------------------------------------------------------------
+
+// One message on an enquiry thread: inbound from the customer, outbound from
+// staff, or an internal note never sent anywhere. `externalId` is the
+// provider's id (Resend email id / Meta mid) and is unique so webhook retries
+// are idempotent.
+model EnquiryMessage {
+  id             String             @id @default(cuid())
+  enquiryId      String
+  customerId     String?
+  direction      MessageDirection
+  channel        MessageChannelKind
+  authorUserId   String?
+  fromName       String?
+  fromAddress    String?
+  subject        String?
+  bodyText       String
+  bodyHtml       String?
+  externalId     String?            @unique
+  deliveryStatus MessageStatus      @default(logged)
+  createdAt      DateTime           @default(now())
+
+  enquiry     Enquiry      @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorUser  User?        @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  attachments Attachment[]
+
+  @@index([enquiryId, createdAt])
+  @@index([customerId])
+}
+
+// Generalised asset store for message attachments. Images up to 8 MB are held
+// inline as bytes (same reasoning as MoodboardAsset: ephemeral container
+// disks); anything larger or non-image keeps a source `url` only.
+model Attachment {
+  id        String   @id @default(cuid())
+  messageId String?
+  mime      String
+  size      Int
+  filename  String?
+  bytes     Bytes?
+  url       String?
+  createdAt DateTime @default(now())
+
+  message EnquiryMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([createdAt])
+}
+
+// Per-staff-user read marker. An enquiry is unread for a user when its
+// lastInboundAt is later than that user's readAt (or there is no row).
+model EnquiryRead {
+  enquiryId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([enquiryId, userId])
+  @@index([userId])
+}
+
+// A customer's handle on a channel that carries no email/phone (Messenger
+// PSID, Instagram IGSID). One handle belongs to exactly one customer.
+model CustomerIdentity {
+  id          String             @id @default(cuid())
+  customerId  String
+  channel     MessageChannelKind
+  externalId  String
+  displayName String?
+  createdAt   DateTime           @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, externalId])
+  @@index([customerId])
 }
 
 // ---------------------------------------------------------------------------
