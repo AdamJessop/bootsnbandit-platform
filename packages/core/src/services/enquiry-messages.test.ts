@@ -299,6 +299,36 @@ describe("enquiry messages (DB)", () => {
     expect(await listThreadsFor([])).toEqual(new Map());
   });
 
+  it("trims the OLDEST history when the cap bites, never the newest replies", async () => {
+    if (!(await dbReachable())) return;
+    const { enquiry } = await seed();
+    await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "web",
+      bodyText: "oldest",
+      at: new Date("2026-09-01T10:00:00.000Z"),
+    });
+    const middle = await recordOutbound({
+      enquiryId: enquiry.id,
+      channel: "email",
+      bodyText: "middle",
+      at: new Date("2026-09-02T10:00:00.000Z"),
+    });
+    const newest = await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "email",
+      bodyText: "newest",
+      at: new Date("2026-09-03T10:00:00.000Z"),
+    });
+
+    const map = await listThreadsFor([enquiry.id], 2);
+    // Still oldest-first for rendering, but the dropped row is the oldest.
+    expect(map.get(enquiry.id)?.map((m) => m.id)).toEqual([
+      middle.id,
+      newest.id,
+    ]);
+  });
+
   it("counts unread until read, then again after a newer inbound", async () => {
     if (!(await dbReachable())) return;
     const user = await db().user.findFirstOrThrow();

@@ -81,6 +81,8 @@ describe("replyToEnquiry", () => {
       type: "staff_reply",
       customerId: "c1",
       enquiryId: "e1",
+      // The thread message must carry the staff member who replied.
+      authorUserId: "u1",
       data: { customerName: "Amy", body: "Hi Amy, yes we can!" },
     });
     // sendEmail writes the MessageLog itself — no double-logging here.

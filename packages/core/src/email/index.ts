@@ -28,6 +28,12 @@ export interface SendEmailInput {
    * customer timeline — the two logs serve different screens.
    */
   enquiryId?: string | null;
+  /**
+   * The staff user this send is attributable to, recorded on the outbound
+   * thread message so the inbox can name who replied. Automatic mail (acks,
+   * reminders) leaves it unset.
+   */
+  authorUserId?: string | null;
   data: Record<string, unknown>;
 }
 
@@ -140,6 +146,10 @@ export async function sendEmail(
         bodyText: (input.data?.body as string | undefined) ?? (subject || ""),
         bodyHtml: html || null,
         fromAddress: input.to,
+        authorUserId: input.authorUserId ?? null,
+        // The provider's message id, when we actually sent: Phase 2 matches
+        // inbound replies back onto this thread by it. Null on skipped/failed.
+        externalId: providerId,
         deliveryStatus: toDbStatus(status),
       });
     } catch (err) {

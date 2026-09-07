@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { prisma } from "@bnb/core/db";
 import {
   getAttachment,
   isInlineableAttachment,
@@ -108,10 +109,46 @@ describe("attachments (DB)", () => {
     });
     const a = await storeAttachment({ mime: "image/png", bytes: PNG, messageId: message.id });
     const b = await storeAttachment({ mime: "image/png", bytes: PNG, messageId: message.id });
-    ids.push(a.id, b.id);
+    // A link-only row alongside the inline ones: the listing must tell them
+    // apart without ever pulling the bytes onto the inbox render path.
+    const link = await storeAttachment({
+      mime: "application/pdf",
+      filename: "brief.pdf",
+      url: "https://files.test/brief.pdf",
+      messageId: message.id,
+    });
+    ids.push(a.id, b.id, link.id);
     const map = await listAttachmentsFor([message.id, "missing"]);
-    expect(map.get(message.id)?.map((x) => x.id).sort()).toEqual([a.id, b.id].sort());
+    const listed = map.get(message.id) ?? [];
+    expect(listed.map((x) => x.id).sort()).toEqual(
+      [a.id, b.id, link.id].sort(),
+    );
+    expect(listed.find((x) => x.id === a.id)).toMatchObject({
+      hasBytes: true,
+      mime: "image/png",
+      size: PNG.length,
+      url: null,
+    });
+    expect(listed.find((x) => x.id === link.id)).toMatchObject({
+      hasBytes: false,
+      filename: "brief.pdf",
+      url: "https://files.test/brief.pdf",
+    });
     expect(map.get("missing")).toBeUndefined();
     expect(await listAttachmentsFor([])).toEqual(new Map());
+  });
+
+  it("never reads the bytes column when listing (inbox render path)", async () => {
+    if (!(await dbReachable())) return;
+    // The findMany select is what used to drag megabytes of bytea through the
+    // inbox render; the listing now derives hasBytes in SQL instead.
+    const spy = vi.spyOn(prisma.attachment, "findMany");
+    try {
+      expect(await listAttachmentsFor(["no-such-message"])).toEqual(new Map());
+      // Asserted before mockRestore, which also wipes the call history.
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

@@ -1,5 +1,6 @@
 import { z, ZodError } from "zod";
 import { BookingConflictError } from "@bnb/core/services/bookings";
+import { DuplicateContactError } from "@bnb/core/services/contact-identity";
 import { FlashUnavailableError } from "@bnb/core/services/flash";
 import { SessionCompletionError } from "@bnb/core/services/sessions";
 
@@ -79,6 +80,10 @@ export function handleApiError(err: unknown): Response {
     return jsonError(409, err.message);
   }
   if (err instanceof SessionCompletionError) {
+    return jsonError(409, err.message);
+  }
+  // The unique email/phone index rejected the write — a conflict, not a 500.
+  if (err instanceof DuplicateContactError) {
     return jsonError(409, err.message);
   }
 

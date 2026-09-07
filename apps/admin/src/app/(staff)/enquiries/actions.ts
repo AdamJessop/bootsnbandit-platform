@@ -137,6 +137,8 @@ export async function replyToEnquiry(
     type: "staff_reply",
     customerId: enquiry.customerId,
     enquiryId,
+    // Attribute the thread message sendEmail records to the replying staffer.
+    authorUserId: user.id,
     data: {
       customerName: enquiry.contactName,
       body: valid.message,

@@ -67,10 +67,16 @@ export function filterEnquiries<
 /**
  * Artists see enquiries that prefer them PLUS every unassigned enquiry on any
  * channel — an emailed lead must not sit invisible because nobody claimed it.
- * Mirrors `visibleEnquiryWhere` in @bnb/core/services/enquiry-messages, which
- * drives the unread badge; change both together.
+ * An ARTIST user with no linked artist record sees nothing: the impossible
+ * `{ id: "__none__" }` predicate, not "everything unassigned".
+ * Must stay in lockstep with `visibleEnquiryWhere` in
+ * @bnb/core/services/enquiry-messages, which drives the unread badge, and with
+ * `canAccessEnquiry` below; change all three together.
  */
-export function artistInboxWhere(artistId: string): Prisma.EnquiryWhereInput {
+export function artistInboxWhere(
+  artistId: string | null,
+): Prisma.EnquiryWhereInput {
+  if (!artistId) return { id: "__none__" };
   return {
     OR: [{ preferredArtistId: artistId }, { preferredArtistId: null }],
   };
@@ -83,7 +89,9 @@ export function isUnassigned(e: { preferredArtistId: string | null }): boolean {
 
 /**
  * Can this staff user see/act on this enquiry? Owners see everything; artists
- * see enquiries that prefer them plus any unassigned one.
+ * see enquiries that prefer them plus any unassigned one. Must stay in lockstep
+ * with `artistInboxWhere` above and `visibleEnquiryWhere` in
+ * @bnb/core/services/enquiry-messages.
  */
 export function canAccessEnquiry(
   user: { role: "OWNER" | "ARTIST"; artistId?: string | null },

@@ -126,6 +126,10 @@ describe("visibility, close authorisation and attachments", () => {
     });
   });
 
+  it("an artist user with no artist record sees nothing (matches visibleEnquiryWhere)", () => {
+    expect(artistInboxWhere(null)).toEqual({ id: "__none__" });
+  });
+
   it("isUnassigned / canAccessEnquiry", () => {
     const artist = { role: "ARTIST" as const, artistId: "art1" };
     expect(isUnassigned({ preferredArtistId: null })).toBe(true);

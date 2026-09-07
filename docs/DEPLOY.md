@@ -38,6 +38,57 @@ comes from env vars.
    healthy and immediately fires its first `POST /api/cron/run`, then
    repeats every `CRON_INTERVAL_SECONDS` (default hourly).
 
+## Before deploying the enquiry-threads release (2026-09-07)
+
+This release makes `Customer.email` and `Customer.phone` **unique** (migration
+`20260907140000_customer_contact_unique`). Duplicates must be merged *before*
+the deploy, in this order.
+
+1. **Know what happens if you skip this.** `prisma migrate deploy` fails loudly
+   when the index cannot be built, the `migrate` service exits non-zero, and
+   the deploy aborts — the previous containers keep serving. Nothing is
+   silently dropped, but the release does not land until the data is clean.
+
+2. **Merge the duplicates from a local checkout**, not from the server: the
+   `scripts/` directory is not in the migrate image, so the merge cannot run
+   there at all. Use the same pattern as `npm run admin:link` — a checkout
+   whose `.env` points `DATABASE_URL` at the **production** database — and
+   then, in order:
+
+   ```bash
+   npm run customers:merge              # DRY RUN — reports, writes nothing
+   ```
+
+   - **Review every group it prints.** Pay particular attention to any group
+     matched on a `phone-raw:` key: those are phone numbers that could not be
+     parsed to E.164 and were matched on the raw string, so they are the ones
+     most likely to fuse two different people. If a group looks wrong, fix the
+     underlying rows by hand first and re-run the dry run.
+   - **Stop the `web`, `admin` and `reception` services.** Rows created while
+     the merge runs are not merged, and a lead that arrives mid-run would fail
+     the migration anyway.
+
+   ```bash
+   npm run customers:merge -- --apply   # irreversible: deletes duplicate rows
+   npm run customers:merge              # dry run again — confirm `groups=0`
+   ```
+
+   Only when the re-run reports `groups=0` is the database ready.
+
+3. **Deploy** as normal (the `migrate` service runs the new migrations, then
+   the apps start again).
+
+**Recovery — someone deployed first and the migration failed.** The migration
+is recorded as failed, so Prisma refuses to move on until it is resolved:
+
+```bash
+npx prisma migrate resolve --rolled-back 20260907140000_customer_contact_unique \
+  --schema=packages/core/prisma/schema.prisma
+```
+
+Run that from the same local checkout (pointed at production), then do step 2
+above and redeploy.
+
 ## One-off operations
 
 Run from the Coolify terminal on the server (or SSH), in the compose
@@ -51,6 +102,9 @@ from Coolify's generated project directory (where its env file lives) so
 - **Enrol the first admin passkey**: run `npm run admin:link` from a checkout
   with `.env` pointing `DATABASE_URL` at the production DB and `APP_ORIGIN`
   at the admin origin, then open the printed enrolment URL.
+- **Merge duplicate customers** (`npm run customers:merge`) — a one-off that
+  must run before the 2026-09-07 enquiry-threads release; see *Before deploying
+  the enquiry-threads release* above for the full order of operations.
 
 ## Local smoke test (before touching Coolify)
 

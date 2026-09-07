@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { DuplicateContactError } from "@bnb/core/services/contact-identity";
 import { handleApiError, jsonError, parseBody } from "./index";
 
 describe("api http helpers", () => {
@@ -41,6 +42,12 @@ describe("api http helpers", () => {
       const res = handleApiError(err);
       expect(res.status).toBe(400);
     }
+  });
+
+  it("handleApiError maps a duplicate email/phone to 409 with its message", async () => {
+    const res = handleApiError(new DuplicateContactError());
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/already exists/i);
   });
 
   it("handleApiError maps unknown errors to 500", async () => {

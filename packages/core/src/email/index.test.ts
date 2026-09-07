@@ -21,6 +21,15 @@ vi.mock("@bnb/core/db", () => ({
 const recordOutbound = vi.hoisted(() => vi.fn(async () => ({ id: "em_1" })));
 vi.mock("@bnb/core/services/enquiry-messages", () => ({ recordOutbound }));
 
+const resendSend = vi.hoisted(() =>
+  vi.fn(async () => ({ data: { id: "re_123" }, error: null })),
+);
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: resendSend };
+  },
+}));
+
 describe("sendEmail", () => {
   const originalKey = process.env.RESEND_API_KEY;
 
@@ -156,6 +165,7 @@ describe("sendEmail enquiry threading", () => {
       type: "staff_reply",
       customerId: "c1",
       enquiryId: "e1",
+      authorUserId: "u1",
       data: { customerName: "Amy", body: "Tuesday works!" },
     });
     expect(recordOutbound).toHaveBeenCalledTimes(1);
@@ -165,6 +175,47 @@ describe("sendEmail enquiry threading", () => {
       channel: "email",
       deliveryStatus: "logged",
       fromAddress: "amy@example.com",
+      // The staff member who sent it — otherwise the thread shows no author.
+      authorUserId: "u1",
+      // Nothing left the building, so there is no provider id to thread on.
+      externalId: null,
+    });
+  });
+
+  it("stores the provider message id as the outbound externalId when sent", async () => {
+    process.env.RESEND_API_KEY = "re_test_key";
+    recordOutbound.mockClear();
+    resendSend.mockClear();
+    try {
+      const { sendEmail } = await import("./index");
+      await sendEmail({
+        to: "amy@example.com",
+        type: "staff_reply",
+        enquiryId: "e1",
+        data: { customerName: "Amy", body: "Tuesday works!" },
+      });
+    } finally {
+      delete process.env.RESEND_API_KEY;
+    }
+    expect(resendSend).toHaveBeenCalledTimes(1);
+    expect(recordOutbound.mock.calls[0][0]).toMatchObject({
+      externalId: "re_123",
+      deliveryStatus: "sent",
+    });
+  });
+
+  it("records no author for an automatic (unattributed) email", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { sendEmail } = await import("./index");
+    recordOutbound.mockClear();
+    await sendEmail({
+      to: "amy@example.com",
+      type: "enquiry_ack",
+      enquiryId: "e1",
+      data: { customerName: "Amy", subjectIdea: "Snake" },
+    });
+    expect(recordOutbound.mock.calls[0][0]).toMatchObject({
+      authorUserId: null,
     });
   });
 

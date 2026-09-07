@@ -34,7 +34,7 @@ export default async function EnquiriesPage() {
 
   const [enquiries, artists, unread] = await Promise.all([
     prisma.enquiry.findMany({
-      where: owner ? {} : artistInboxWhere(user.artistId ?? "__none__"),
+      where: owner ? {} : artistInboxWhere(user.artistId ?? null),
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       take: 300,
     }),

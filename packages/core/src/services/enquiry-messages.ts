@@ -33,8 +33,9 @@ export interface InboxViewer {
 /**
  * The canonical visibility rule: owners see everything, artists see their own
  * enquiries plus every unassigned one (any channel) so nothing sits unclaimed.
- * The admin inbox's `artistInboxWhere` helper is being aligned to this rule in
- * Task 10 — change both together until then.
+ * Must stay in lockstep with `artistInboxWhere`/`canAccessEnquiry` in the admin
+ * inbox helpers (apps/admin/src/app/(staff)/enquiries/enquiry-helpers.ts) —
+ * change them together.
  */
 export function visibleEnquiryWhere(viewer: InboxViewer): Prisma.EnquiryWhereInput {
   if (viewer.role === "OWNER") return {};
@@ -289,20 +290,33 @@ export async function listThread(enquiryId: string): Promise<ThreadMessageRow[]>
   return (await listThreadsFor([enquiryId])).get(enquiryId) ?? [];
 }
 
-/** Threads for a batch of enquiries — one query per table, for the inbox list. */
+/** Safety cap on the rows one inbox render may pull across all its threads. */
+export const THREAD_ROW_CAP = 2000;
+
+/**
+ * Threads for a batch of enquiries — one query per table, for the inbox list.
+ *
+ * The fetch is deliberately NEWEST-first and then reversed per enquiry: when a
+ * busy inbox hits the cap, the rows that get trimmed must be the oldest
+ * history, never the latest replies (an `asc` fetch would drop exactly the
+ * messages staff need to see). Callers still get each thread oldest-first.
+ */
 export async function listThreadsFor(
   enquiryIds: string[],
+  cap: number = THREAD_ROW_CAP,
 ): Promise<Map<string, ThreadMessageRow[]>> {
   const map = new Map<string, ThreadMessageRow[]>();
   if (enquiryIds.length === 0) return map;
   const raws = await prisma.enquiryMessage.findMany({
     where: { enquiryId: { in: enquiryIds } },
-    orderBy: { createdAt: "asc" },
-    take: 2000,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: cap,
     select: MESSAGE_SELECT,
   });
   const attachments = await listAttachmentsFor(raws.map((r) => r.id));
-  for (const raw of raws) {
+  // Walk the newest-first result backwards so each thread comes out ascending.
+  for (let i = raws.length - 1; i >= 0; i -= 1) {
+    const raw = raws[i];
     const list = map.get(raw.enquiryId) ?? [];
     list.push(toRow(raw, attachments.get(raw.id) ?? []));
     map.set(raw.enquiryId, list);
