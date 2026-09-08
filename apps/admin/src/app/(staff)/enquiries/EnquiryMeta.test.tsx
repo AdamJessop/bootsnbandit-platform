@@ -1,0 +1,66 @@
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+vi.mock("./actions", () => ({
+  assignEnquiry: vi.fn(),
+  claimEnquiry: vi.fn(),
+  closeEnquiry: vi.fn(),
+  convertEnquiry: vi.fn(),
+}));
+
+import { EnquiryMeta } from "./EnquiryMeta";
+import type { EnquiryItem } from "./inbox-shared";
+
+const ITEM: EnquiryItem = {
+  id: "e1",
+  contactName: "Amy Rowe",
+  contactEmail: "amy@example.test",
+  subject: "Sleeve idea",
+  style: "fine line",
+  placement: "forearm",
+  size: "small",
+  budgetPence: 15000,
+  description: "A ladybird, please",
+  moodboard: [],
+  moodboardData: null,
+  status: "new",
+  source: "web",
+  channel: "web",
+  preferredArtistId: null,
+  preferredArtistName: null,
+  createdAtISO: "2026-09-01T10:00:00.000Z",
+  lastMessageAtISO: null,
+  unread: false,
+  thread: [],
+};
+
+describe("EnquiryMeta", () => {
+  it("shows the brief, the assign select by name, and the close control", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryMeta
+        item={{ ...ITEM, preferredArtistId: "cln4artist1aaaa" }}
+        artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
+        canConvert
+        viewerArtistId={null}
+        onDone={vi.fn()}
+      />,
+    );
+    expect(html).toContain("fine line");
+    expect(html).toContain("Sarah North");
+    expect(html).toContain("Close enquiry");
+    expect(html).toContain("Create consult");
+  });
+
+  it("offers an artist the take control on an unassigned enquiry", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryMeta
+        item={ITEM}
+        artists={[{ id: "a1", name: "Sarah North" }]}
+        canConvert
+        viewerArtistId="a1"
+        onDone={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Take this enquiry");
+  });
+});
