@@ -15,8 +15,24 @@ vi.mock("@/components/ui/dialog", () => {
   const Passthrough = ({ children }: { children?: React.ReactNode }) => (
     <div>{children}</div>
   );
+  // Dialog itself carries a `data-open` marker reflecting the `open` prop it
+  // was given — the only way an SSR string can distinguish "forced open by
+  // a deep link" from "closed", since DialogContent is a passthrough that
+  // always renders its children either way (other tests in this file rely
+  // on that to inspect composer content without clicking anything open).
+  const DialogRoot = ({
+    open,
+    children,
+  }: {
+    open?: boolean;
+    children?: React.ReactNode;
+  }) => (
+    <div data-testid="dialog-root" data-open={open ? "true" : "false"}>
+      {children}
+    </div>
+  );
   return {
-    Dialog: Passthrough,
+    Dialog: DialogRoot,
     DialogContent: Passthrough,
     DialogDescription: Passthrough,
     DialogHeader: Passthrough,
@@ -146,5 +162,62 @@ describe("EnquiryList", () => {
     );
     // Otherwise a tab reading "412" above three rows looks like a bug.
     expect(html).toContain("Showing the 300 most recent");
+  });
+
+  it("says so and credits the pinned extra when a deep link added one past the cap", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated
+        emptyLabel="new"
+        pinnedExtra
+      />,
+    );
+    expect(html).toContain(
+      "Showing the 300 most recent plus the linked enquiry",
+    );
+  });
+});
+
+describe("EnquiryList deep-link one-shot", () => {
+  it("opens the row while the deep link is pending", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated={false}
+        emptyLabel="new"
+        openEnquiryId={ITEM.id}
+      />,
+    );
+    expect(html).toContain('data-open="true"');
+  });
+
+  it("does not reopen the row once the caller has consumed the pending id", () => {
+    // Simulates what happens in EnquiryInbox after `onAutoOpened` fires and
+    // clears `pendingOpenId`: a later tab/filter change remounts the row
+    // with `openEnquiryId` already null, so the dialog must not be forced
+    // open (and its unread flag must not be re-marked) a second time.
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated={false}
+        emptyLabel="new"
+        openEnquiryId={null}
+      />,
+    );
+    expect(html).toContain('data-open="false"');
+    expect(html).not.toContain('data-open="true"');
   });
 });

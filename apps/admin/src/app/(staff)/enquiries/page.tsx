@@ -100,12 +100,16 @@ export default async function EnquiriesPage({
   // The link may point at an enquiry older than this page of rows. One extra
   // read, through the SAME visibility scope — an id the viewer may not see
   // simply does not come back, and pickOpenState turns that into the notice.
+  let pinnedExtra = false;
   if (requestedOpenId && !enquiries.some((e) => e.id === requestedOpenId)) {
     const extra = await prisma.enquiry.findFirst({
       where: { id: requestedOpenId, ...scope },
       select: INBOX_SELECT,
     });
-    if (extra) enquiries.unshift(extra);
+    if (extra) {
+      enquiries.unshift(extra);
+      pinnedExtra = true;
+    }
   }
 
   // A Meta reply needs a live Page behind the last inbound message. Reading
@@ -222,6 +226,7 @@ export default async function EnquiriesPage({
           openEnquiryId={open.openId}
           openTab={open.tab}
           notice={open.notice}
+          pinnedExtra={pinnedExtra}
         />
       </div>
     </main>

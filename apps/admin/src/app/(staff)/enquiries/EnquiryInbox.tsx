@@ -28,6 +28,7 @@ export function EnquiryInbox({
   openEnquiryId,
   openTab,
   notice,
+  pinnedExtra,
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
@@ -51,11 +52,22 @@ export function EnquiryInbox({
   openTab: EnquiryStatus | null;
   /** Quiet explanation when the link could not be honoured. */
   notice: string | null;
+  /**
+   * True when the deep-linked enquiry was fetched separately because it fell
+   * outside the 300-row page — the "most recent" count under the list would
+   * otherwise be off by one.
+   */
+  pinnedExtra?: boolean;
 }) {
   const [tab, setTab] = useState<EnquiryStatus>(openTab ?? "new");
   const [artistFilter, setArtistFilter] = useState(ALL);
   const [styleFilter, setStyleFilter] = useState(ALL);
   const [sourceFilter, setSourceFilter] = useState(ALL);
+  // A deep link auto-opens its row exactly once. Left as `openEnquiryId`
+  // forever, a later tab/filter change would unmount and remount that row
+  // and its `defaultOpen` would force the dialog open again (and re-mark it
+  // read). Consumed via `onAutoOpened` below, the moment the row has opened.
+  const [pendingOpenId, setPendingOpenId] = useState(openEnquiryId);
   const styles = useMemo(() => distinctStyles(items), [items]);
 
   const visible = filterEnquiries(
@@ -95,7 +107,9 @@ export function EnquiryInbox({
         showAssignedPill={showAssignedPill}
         truncated={truncated}
         emptyLabel={enquiryStatusLabel(tab).toLowerCase()}
-        openEnquiryId={openEnquiryId}
+        openEnquiryId={pendingOpenId}
+        onAutoOpened={() => setPendingOpenId(null)}
+        pinnedExtra={pinnedExtra}
       />
       <Toaster position="top-center" />
     </div>

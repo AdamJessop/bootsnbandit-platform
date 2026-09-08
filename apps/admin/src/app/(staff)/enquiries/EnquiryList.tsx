@@ -42,8 +42,21 @@ export interface EnquiryListProps {
   truncated: boolean;
   /** Lower-cased status label for the empty state ("new", "closed", …). */
   emptyLabel: string;
-  /** A `?open=` deep link resolved to a visible enquiry, or null/absent. */
+  /**
+   * A `?open=` deep link resolved to a visible enquiry, or null/absent. This
+   * is the caller's one-shot "pending" flag — it is expected to go back to
+   * null (via `onAutoOpened`) the instant the row has opened, so a later
+   * remount (tab/filter change) never reopens it.
+   */
   openEnquiryId?: string | null;
+  /** Called once, by the row that auto-opened, so the caller can clear its pending id. */
+  onAutoOpened?: (id: string) => void;
+  /**
+   * The deep-linked enquiry fell outside the page and was fetched
+   * separately — the "most recent" count below would otherwise read one
+   * short of what is actually showing.
+   */
+  pinnedExtra?: boolean;
 }
 
 export function EnquiryList({
@@ -55,6 +68,8 @@ export function EnquiryList({
   truncated,
   emptyLabel,
   openEnquiryId,
+  onAutoOpened,
+  pinnedExtra,
 }: EnquiryListProps) {
   if (items.length === 0) {
     return (
@@ -75,14 +90,16 @@ export function EnquiryList({
               viewerArtistId={viewerArtistId}
               showAssignedPill={showAssignedPill}
               defaultOpen={item.id === openEnquiryId}
+              onAutoOpened={onAutoOpened}
             />
           </li>
         ))}
       </ul>
       {truncated && (
         <p className="pt-1 text-center text-xs text-text-muted">
-          Showing the 300 most recent — narrow the filters to reach older
-          enquiries.
+          {pinnedExtra
+            ? "Showing the 300 most recent plus the linked enquiry — narrow the filters to reach older enquiries."
+            : "Showing the 300 most recent — narrow the filters to reach older enquiries."}
         </p>
       )}
     </div>
@@ -96,6 +113,7 @@ function EnquiryRow({
   viewerArtistId,
   showAssignedPill,
   defaultOpen,
+  onAutoOpened,
 }: {
   item: EnquiryItem;
   artists: ArtistOption[];
@@ -103,15 +121,21 @@ function EnquiryRow({
   viewerArtistId: string | null;
   showAssignedPill: boolean;
   defaultOpen: boolean;
+  onAutoOpened?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const { pending, run } = useAction();
 
   // A deep link opens the thread without a click, so nothing would otherwise
   // clear its unread flag. Mount-only on purpose: every later open goes
-  // through onOpenChange below.
+  // through onOpenChange below. `onAutoOpened` tells the caller the pending
+  // id has been consumed, so a later remount (tab/filter change) starts
+  // from `defaultOpen: false` instead of forcing the dialog open again.
   useEffect(() => {
-    if (defaultOpen && item.unread) void markEnquiryRead(item.id);
+    if (defaultOpen) {
+      if (item.unread) void markEnquiryRead(item.id);
+      onAutoOpened?.(item.id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
