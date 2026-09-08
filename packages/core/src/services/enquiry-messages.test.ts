@@ -602,4 +602,68 @@ describe("enquiry messages (DB)", () => {
       closed: 0,
     });
   });
+
+  /**
+   * The `?open=` deep link fetches one enquiry BY ID when it falls outside the
+   * inbox page. That read is only safe because the visibility scope is spread
+   * into the same `where` — asserted here against a real database, so a
+   * refactor that drops the scope fails rather than quietly turning a
+   * guessable id into another artist's lead.
+   */
+  it("an id-scoped findFirst never returns another artist's enquiry", async () => {
+    if (!(await dbReachable())) return;
+    const tag = uid();
+    const [mine, theirs] = await Promise.all(
+      ["mine", "theirs"].map((which) =>
+        db().artist.create({
+          data: {
+            slug: `open-${which}-${tag}`,
+            name: `Open ${which} ${tag}`,
+            user: {
+              create: {
+                email: `open-${which}-${tag}@example.test`,
+                displayName: `Open ${which} ${tag}`,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    try {
+      const theirEnquiry = await db().enquiry.create({
+        data: { contactName: `Deep ${tag}`, preferredArtistId: theirs.id },
+      });
+      enquiries.push(theirEnquiry.id);
+      const myEnquiry = await db().enquiry.create({
+        data: { contactName: `Deep mine ${tag}`, preferredArtistId: mine.id },
+      });
+      enquiries.push(myEnquiry.id);
+
+      const scope = visibleEnquiryWhere({
+        userId: mine.userId,
+        role: "ARTIST",
+        artistId: mine.id,
+      });
+      expect(
+        await db().enquiry.findFirst({
+          where: { id: theirEnquiry.id, ...scope },
+          select: { id: true },
+        }),
+      ).toBeNull();
+      // …and the scope is not simply refusing everything.
+      expect(
+        await db().enquiry.findFirst({
+          where: { id: myEnquiry.id, ...scope },
+          select: { id: true },
+        }),
+      ).toEqual({ id: myEnquiry.id });
+    } finally {
+      // Same reason as the tally fixture above: a leaked Artist/User row
+      // fails src/db/seed-counts.test.ts.
+      await db().artist.deleteMany({ where: { id: { in: [mine.id, theirs.id] } } });
+      await db().user.deleteMany({
+        where: { id: { in: [mine.userId, theirs.userId] } },
+      });
+    }
+  });
 });

@@ -189,9 +189,25 @@ function inherit<T>(
  * the notes rather than dropped, so a merge never destroys a way of reaching
  * someone.
  */
+export interface MergedFieldsOptions {
+  /**
+   * Whether the caller actually writes `email`/`phone` back onto the survivor.
+   *
+   * Default true — the duplicate merge does, so a value that cannot live in
+   * the (unique) columns is moved into the notes instead and nothing is lost.
+   * `false` for a caller that leaves the survivor's contact columns alone
+   * (the identity link): there, a placeholder phone is still exactly where it
+   * always was, and an `[unmatched contact]` line about it would be a lie
+   * stamped on the customer record forever. The `[merged …]` audit lines are
+   * unaffected either way.
+   */
+  rewritesContactColumns?: boolean;
+}
+
 export function mergedFields(
   keep: MergeCandidate,
   dupes: MergeCandidate[],
+  options: MergedFieldsOptions = {},
 ): MergedFields {
   const own = contactKeys(keep).normalised;
   const dupeContacts = dupes.map((d) => contactKeys(d).normalised);
@@ -211,7 +227,8 @@ export function mergedFields(
     [n.email ?? row.email?.trim(), n.phone ?? row.phone?.trim()].filter(
       (v): v is string => Boolean(v) && v !== kept.email && v !== kept.phone,
     );
-  const ownExtras = unusable(keep, own);
+  const ownExtras =
+    options.rewritesContactColumns === false ? [] : unusable(keep, own);
   if (ownExtras.length)
     noteParts.push(`[unmatched contact] ${ownExtras.join(", ")}`);
 

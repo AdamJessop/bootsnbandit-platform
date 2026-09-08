@@ -358,11 +358,18 @@ describe("applyIdentityMove (transaction body)", () => {
   };
 
   function fakeTx(
-    over: { stub?: object | null; target?: object | null; deleted?: number } = {},
+    over: {
+      stub?: object | null;
+      target?: object | null;
+      deleted?: number;
+      /** Filled with every call in the order it was made, when supplied. */
+      order?: string[];
+    } = {},
   ) {
     const calls: Record<string, unknown[]> = {};
     const record = (key: string, result: unknown) => (args: unknown) => {
       (calls[key] ??= []).push(args);
+      over.order?.push(key);
       return Promise.resolve(result);
     };
     const row = (extra: object) => ({
@@ -432,6 +439,55 @@ describe("applyIdentityMove (transaction body)", () => {
     expect(calls["customer.deleteMany"][0]).toEqual({
       where: { id: "stub1", ...STUB_WHERE },
     });
+  });
+
+  it("never parks an [unmatched contact] note for contacts it does not rewrite", async () => {
+    // The target's phone is a placeholder the merge planner cannot normalise.
+    // In a full customer merge that value would be moving OUT of the column
+    // and into the notes; here the column is not written at all, so the same
+    // line would be a lie printed on the customer record forever.
+    const { tx, calls } = fakeTx({
+      target: {
+        id: "target1",
+        createdAt: new Date(),
+        name: "Amy",
+        email: "amy@example.test",
+        phone: "n/a",
+        notes: "Allergic to red ink",
+        tags: [],
+        marketingConsent: false,
+        loyaltyStamps: 0,
+        loyaltyTier: 0,
+        passwordHash: null,
+        dob: null,
+      },
+    });
+
+    await applyIdentityMove(tx, { stubOwnerId: "stub1", targetId: "target1" });
+
+    const update = calls["customer.update"][0] as {
+      data: { notes: string | null };
+    };
+    expect(update.data.notes).not.toContain("[unmatched contact]");
+    // The audit line still has to be there — it is the only trace the deleted
+    // stub ever existed.
+    expect(update.data.notes).toContain("[merged ");
+    expect(update.data.notes).toContain("Allergic to red ink");
+  });
+
+  it("reads the target immediately before rewriting its notes", async () => {
+    // Read up front, the copy could be minutes old by the time it is written
+    // back — silently undoing a `saveCustomerNotes` that landed in between.
+    const order: string[] = [];
+    const { tx, calls } = fakeTx({ order });
+    await applyIdentityMove(tx, { stubOwnerId: "stub1", targetId: "target1" });
+    expect(calls["customer.findUnique"]).toHaveLength(2);
+    // …the existence check, then the moves, then the read the notes come from.
+    expect(order.slice(-3)).toEqual([
+      "customer.findUnique",
+      "customer.update",
+      "customer.deleteMany",
+    ]);
   });
 
   it("aborts when the guarded delete matches nothing", async () => {

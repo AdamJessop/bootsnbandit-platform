@@ -111,7 +111,11 @@ export async function upsertChannelConnection(
   const row = await prisma.channelConnection.upsert({
     where: { externalId: input.externalId },
     create: { externalId: input.externalId, ...shared },
-    update: shared,
+    // Re-connecting restarts the health clock. It is the repair the panel
+    // asks for, so leaving `connectedAt` at the original connection would
+    // keep "nothing received for N days" on screen immediately after the
+    // owner has done exactly what it told them to do.
+    update: { ...shared, connectedAt: new Date() },
     select: ROW_SELECT,
   });
   // Just encrypted with the running key, so it reads back by construction.
@@ -271,14 +275,19 @@ export function connectionHealth(
       message: "Reconnect required — the stored token can't be read.",
     };
   }
-  // A brand-new connection has not had time to be quiet in, so silence is
-  // measured from whichever is later: the last event, or the connection.
-  const since = row.lastEventAt ?? row.connectedAt;
+  // Silence is measured from whichever is LATER: the last event, or the
+  // connection. A brand-new connection has not had time to be quiet in — and
+  // neither has a repaired one, whose `connectedAt` moves forward on every
+  // reconnect. Taking only `lastEventAt` when it exists would leave the nag
+  // on screen straight after the owner had acted on it.
+  const fromEvent =
+    row.lastEventAt !== null && row.lastEventAt >= row.connectedAt;
+  const since = fromEvent ? row.lastEventAt! : row.connectedAt;
   const days = Math.floor((now.getTime() - since.getTime()) / DAY_MS);
   if (days < RECONNECT_AFTER_DAYS) return { level: "ok", message: null };
   return {
     level: "quiet",
-    message: row.lastEventAt
+    message: fromEvent
       ? `Reconnect recommended — nothing received for ${days} days.`
       : `Reconnect recommended — nothing received since it was connected ${days} days ago.`,
   };

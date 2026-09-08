@@ -236,13 +236,20 @@ async function createMessage(
  * of that runs — the message already carries its original side effects.
  */
 /**
+ * Limits for every interactive `$transaction` in the services layer — exported
+ * so there is one definition rather than a different guess per caller.
+ *
  * These transactions write attachment bytea rows, so Prisma's 5 s default is
  * not enough headroom: a mail with several inline images can spend longer
- * than that on the inserts alone and roll back a perfectly good message.
+ * than that on the inserts alone and roll back a perfectly good message (and
+ * the identity move rewrites six FK sets before it deletes anything).
  * `maxWait` stays short — waiting for a connection is a queue problem, not a
  * slow-write one, and failing fast there is the right answer.
  */
-const TRANSACTION_OPTIONS = { timeout: 30_000, maxWait: 5_000 } as const;
+export const TRANSACTION_OPTIONS = {
+  timeout: 30_000,
+  maxWait: 5_000,
+} as const;
 
 export async function recordInbound(
   input: RecordMessageInput,

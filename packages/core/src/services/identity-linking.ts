@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import type { IdentityChannel } from "./contact-identity";
 import { mergedFields } from "./customer-merge-plan";
+import { TRANSACTION_OPTIONS } from "./enquiry-messages";
 
 /**
  * Attach a Messenger/Instagram handle to an existing customer, folding away
@@ -148,6 +149,12 @@ function auditLabel(stub: { id: string; name: string }): string {
  * the predicate before the transaction cannot prevent that; checking it as
  * part of the delete can, because a delete that matches nothing throws here
  * and rolls back every move above it.
+ *
+ * MUST only ever be called with a real transaction client. Handed the plain
+ * `prisma` client it would still run, and a failure partway through would
+ * leave a half-moved handle behind with no way back: rows re-pointed at a
+ * customer, notes rewritten, and the stub either still there or gone. `tx` is
+ * not a convenience parameter — it is the entire safety of this function.
  */
 export async function applyIdentityMove(
   tx: Prisma.TransactionClient,
@@ -159,18 +166,17 @@ export async function applyIdentityMove(
   });
   if (!stub) return { kind: "not_a_stub" };
 
-  // The target is read HERE, not before the transaction: its notes and tags
-  // are about to be rewritten from this copy, and a copy fetched earlier
-  // could silently undo a `saveCustomerNotes` that landed in between.
-  const target = await tx.customer.findUnique({
+  // Existence only — enough to answer "target_missing" before anything is
+  // written, and deliberately NOT the copy the notes are rewritten from.
+  const targetExists = await tx.customer.findUnique({
     where: { id: input.targetId },
-    select: MERGE_SELECT,
+    select: { id: true },
   });
-  if (!target) return { kind: "target_missing" };
+  if (!targetExists) return { kind: "target_missing" };
 
   const move = {
     where: { customerId: stub.id },
-    data: { customerId: target.id },
+    data: { customerId: input.targetId },
   };
   // The same FK set as customer-merge's applyMergeGroup, less `booking` —
   // the stub predicate guarantees there are none. (`EnquiryRead` is keyed by
@@ -182,12 +188,26 @@ export async function applyIdentityMove(
   await tx.customerPasswordToken.updateMany(move);
   await tx.customerIdentity.updateMany(move);
 
+  // Read HERE, immediately before it is written back: its notes and tags are
+  // about to be rewritten from this copy, and a copy fetched earlier could
+  // silently undo a `saveCustomerNotes` that landed in between.
+  const target = await tx.customer.findUnique({
+    where: { id: input.targetId },
+    select: MERGE_SELECT,
+  });
+  if (!target) return { kind: "target_missing" };
+
   // Consent (OR), tags (union), stamps (sum), tier (max), dob (coalesce) and
   // the notes — including the `[merged …]` audit line — all come from the
   // shared planner. Name, email and phone are deliberately NOT written back:
   // a stub has neither by definition, so there is nothing to merge into them,
   // and re-writing the target's own contact columns here could only do harm.
-  const fields = mergedFields(target, [{ ...stub, name: auditLabel(stub) }]);
+  // Which is exactly why `rewritesContactColumns` is false: a customer-merge
+  // moves an unnormalisable phone OUT of the column and records it in the
+  // notes, but here the column keeps it, so that line would be a lie.
+  const fields = mergedFields(target, [{ ...stub, name: auditLabel(stub) }], {
+    rewritesContactColumns: false,
+  });
   await tx.customer.update({
     where: { id: target.id },
     data: {
@@ -259,11 +279,16 @@ export async function linkIdentityToCustomer(input: {
   }
 
   try {
-    const outcome = await prisma.$transaction((tx) =>
-      applyIdentityMove(tx, {
-        stubOwnerId: identity.customerId,
-        targetId: input.customerId,
-      }),
+    const outcome = await prisma.$transaction(
+      (tx) =>
+        applyIdentityMove(tx, {
+          stubOwnerId: identity.customerId,
+          targetId: input.customerId,
+        }),
+      // Six FK sets, a field merge and a guarded delete: a long-running
+      // customer can push that past Prisma's 5 s default, and timing out
+      // rolls back a move that was going to succeed.
+      TRANSACTION_OPTIONS,
     );
     if (outcome.kind === "target_missing") {
       return { ok: false, reason: "customer_missing", message: CUSTOMER_GONE };

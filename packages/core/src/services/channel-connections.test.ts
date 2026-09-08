@@ -102,6 +102,34 @@ describe("channel connections", () => {
     );
   });
 
+  it("restarts the connected-at clock when a page is re-connected", async () => {
+    if (!(await dbReachable())) return;
+    // Re-connecting IS the repair the panel asks for. Leaving `connectedAt`
+    // at the original connection would keep the "nothing received for N days"
+    // nag on screen straight after the owner has done what it asked.
+    const before = await findConnectionByExternalId(PAGE_ID);
+    await testDb().channelConnection.update({
+      where: { id: before!.id },
+      data: { connectedAt: new Date("2026-01-01T12:00:00.000Z") },
+    });
+
+    await upsertChannelConnection({
+      channel: "messenger",
+      externalId: PAGE_ID,
+      pageId: PAGE_ID,
+      // The same token the test above left behind: these DB cases run in
+      // order against one row, and the next one reads it back.
+      name: "Boots 'n' Bandit (renamed)",
+      accessToken: "EAAG_second_token",
+      webhookSubscribedAt: new Date("2026-09-08T09:00:00Z"),
+    });
+
+    const after = await findConnectionByExternalId(PAGE_ID);
+    expect(after!.connectedAt.getTime()).toBeGreaterThan(
+      new Date("2026-01-01T12:00:00.000Z").getTime(),
+    );
+  });
+
   it("records the last event seen", async () => {
     if (!(await dbReachable())) return;
     const row = await findConnectionByExternalId(PAGE_ID);
@@ -240,6 +268,48 @@ describe("connectionHealth", () => {
   it("measures a connection that has never received anything from when it was connected", () => {
     const health = connectionHealth(
       { tokenReadable: true, lastEventAt: null, connectedAt: CONNECTED },
+      NOW,
+    );
+    expect(health.level).toBe("quiet");
+    expect(health.message).toContain("nothing received since it was connected");
+  });
+
+  it("measures silence from the repair, not from an older last event", () => {
+    // The owner reconnected today; the last message is from months ago. The
+    // panel must stop nagging, or "Reconnect" is advice that never clears.
+    expect(
+      connectionHealth(
+        {
+          tokenReadable: true,
+          lastEventAt: new Date("2026-01-02T12:00:00.000Z"),
+          connectedAt: new Date("2026-09-07T12:00:00.000Z"),
+        },
+        NOW,
+      ),
+    ).toEqual({ level: "ok", message: null });
+  });
+
+  it("still counts from the last event when it is newer than the connection", () => {
+    const health = connectionHealth(
+      {
+        tokenReadable: true,
+        lastEventAt: new Date("2026-08-01T12:00:00.000Z"),
+        connectedAt: CONNECTED,
+      },
+      NOW,
+    );
+    expect(health.message).toBe(
+      "Reconnect recommended — nothing received for 38 days.",
+    );
+  });
+
+  it("says 'since it was connected' when the repair is the newer of the two", () => {
+    const health = connectionHealth(
+      {
+        tokenReadable: true,
+        lastEventAt: new Date("2026-01-02T12:00:00.000Z"),
+        connectedAt: new Date("2026-02-01T12:00:00.000Z"),
+      },
       NOW,
     );
     expect(health.level).toBe("quiet");
