@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { visibleEnquiryWhere } from "@bnb/core/services/enquiry-messages";
+import { listLinkableIdentities } from "@bnb/core/services/identity-linking";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { CustomerTimeline } from "@/components/admin/CustomerTimeline";
@@ -11,6 +12,10 @@ import { loyaltyTierLabel } from "../../_shared/labels";
 import { buildTimeline } from "./timeline-builder";
 import { CustomerActions } from "./CustomerActions";
 import { buildIdentityChips, IdentityChips } from "./IdentityChips";
+import {
+  LinkIdentityCard,
+  type LinkableIdentityOption,
+} from "./LinkIdentityCard";
 
 /**
  * Customer detail (BACKOFHOUSE-IA F2): unified timeline (enquiries + bookings +
@@ -71,6 +76,17 @@ export default async function CustomerDetailPage({
   });
 
   if (!customer) notFound();
+
+  // Owner-only, and only fetched for owners: an artist never sees the list.
+  const linkable: LinkableIdentityOption[] = owner
+    ? (await listLinkableIdentities()).map((i) => ({
+        id: i.id,
+        channel: i.channel,
+        label: `${i.displayName ?? "Unnamed"} · ${
+          i.channel === "instagram" ? "Instagram" : "Messenger"
+        } (from ${i.customerName})`,
+      }))
+    : [];
 
   const sessions = customer.bookings
     .filter((b) => b.session)
@@ -166,6 +182,9 @@ export default async function CustomerDetailPage({
             initialConsent={customer.marketingConsent}
             hasEmail={Boolean(customer.email)}
           />
+          {owner && (
+            <LinkIdentityCard customerId={customer.id} identities={linkable} />
+          )}
         </aside>
       </div>
       <Toaster position="top-center" />

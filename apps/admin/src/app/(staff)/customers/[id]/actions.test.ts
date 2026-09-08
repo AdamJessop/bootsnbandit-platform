@@ -20,11 +20,17 @@ vi.mock("@bnb/core/db", () => ({
   },
 }));
 vi.mock("@bnb/core/email", () => ({ sendEmail: vi.fn() }));
+vi.mock("@bnb/core/services/identity-linking", () => ({
+  linkIdentityToCustomer: vi.fn(),
+}));
 
 const { requireRole } = await import("@bnb/core/auth");
 const { prisma } = await import("@bnb/core/db");
 const { sendEmail } = await import("@bnb/core/email");
-const { sendManualEmail } = await import("./actions");
+const { linkIdentityToCustomer } = await import(
+  "@bnb/core/services/identity-linking"
+);
+const { linkIdentityAction, sendManualEmail } = await import("./actions");
 
 const OWNER = {
   id: "u1",
@@ -112,6 +118,46 @@ describe("sendManualEmail", () => {
         bookings: { some: { artistId: "art1" } },
       },
       select: { email: true, name: true },
+    });
+  });
+});
+
+describe("linkIdentityAction", () => {
+  it("is owner-only", async () => {
+    vi.mocked(requireRole).mockRejectedValue(new Error("Forbidden"));
+    await expect(linkIdentityAction("c1", "i1")).rejects.toThrow(/forbidden/i);
+    expect(linkIdentityToCustomer).not.toHaveBeenCalled();
+    // requireRole("OWNER") is the guard — an artist must not be able to fold
+    // one customer record into another.
+    expect(requireRole).toHaveBeenCalledWith("OWNER");
+  });
+
+  it("reports what the merge moved", async () => {
+    vi.mocked(requireRole).mockResolvedValue(OWNER as never);
+    vi.mocked(linkIdentityToCustomer).mockResolvedValue({
+      ok: true,
+      merged: true,
+      movedEnquiries: 2,
+      movedMessages: 7,
+    });
+    const res = await linkIdentityAction("c1", "i1");
+    expect(res.ok).toBe(true);
+    expect(res.message).toBe(
+      "Handle linked — 2 enquiries and 7 messages moved onto this customer.",
+    );
+  });
+
+  it("passes a refusal straight through", async () => {
+    vi.mocked(requireRole).mockResolvedValue(OWNER as never);
+    vi.mocked(linkIdentityToCustomer).mockResolvedValue({
+      ok: false,
+      reason: "in_use",
+      message: "That handle already belongs to a customer…",
+    });
+    const res = await linkIdentityAction("c1", "i1");
+    expect(res).toEqual({
+      ok: false,
+      message: "That handle already belongs to a customer…",
     });
   });
 });

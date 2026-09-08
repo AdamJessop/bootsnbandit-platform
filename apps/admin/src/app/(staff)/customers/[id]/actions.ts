@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
+import { linkIdentityToCustomer } from "@bnb/core/services/identity-linking";
 import { validateManualEmail, validateNotes } from "./action-helpers";
 
 async function assertCanAccessCustomer(
@@ -91,5 +92,28 @@ export async function sendManualEmail(
       result.status === "sent"
         ? "Email sent and logged to the timeline."
         : "Email logged to the timeline (delivery not configured).",
+  };
+}
+
+/**
+ * Link a Messenger/Instagram handle to this customer, folding away the stub
+ * record it currently sits on. OWNER only: this deletes a customer row, and
+ * the judgement "these are the same person" is not one to spread around.
+ */
+export async function linkIdentityAction(
+  customerId: string,
+  identityId: string,
+): Promise<ActionState> {
+  await requireRole("OWNER");
+  const res = await linkIdentityToCustomer({ identityId, customerId });
+  if (!res.ok) return { ok: false, message: res.message };
+  revalidatePath(`/customers/${customerId}`);
+  revalidatePath("/enquiries");
+  if (!res.merged) {
+    return { ok: true, message: "That handle is already on this customer." };
+  }
+  return {
+    ok: true,
+    message: `Handle linked — ${res.movedEnquiries} enquiries and ${res.movedMessages} messages moved onto this customer.`,
   };
 }
