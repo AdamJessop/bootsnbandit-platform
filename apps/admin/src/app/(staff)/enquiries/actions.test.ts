@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildConvertInput, validateReply } from "./enquiry-helpers";
 
 /**
@@ -508,6 +508,16 @@ function metaEnquiry(over: Record<string, unknown> = {}) {
 }
 
 describe("replyToEnquiry on a Meta thread", () => {
+  // The window is now decided before the send, so these cases need a fixed
+  // "now" — otherwise they pass today and fail the day after tomorrow.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T12:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("sends through the Meta channel and marks the enquiry replied", async () => {
     metaEnquiry();
     vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
@@ -640,5 +650,111 @@ describe("replyToEnquiry on a Meta thread", () => {
     expect(updateEnquiryStatus).not.toHaveBeenCalled();
     expect(recordNote).not.toHaveBeenCalled();
     expect(sendEnquiryEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe("replyToEnquiry channel override", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-08T12:00:00.000Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("emails a live Messenger thread when staff explicitly choose email", async () => {
+    metaEnquiry({
+      contactEmail: "amy@example.test",
+      customer: { email: "amy@example.test" },
+    });
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+
+    const res = await replyToEnquiry("e1", {
+      message: "Sending this by email instead.",
+      channel: "email",
+    });
+
+    expect(res.ok).toBe(true);
+    expect(sendEnquiryEmail).toHaveBeenCalled();
+    expect(sendEnquiryMetaMessage).not.toHaveBeenCalled();
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+  });
+
+  it("refuses a Messenger override once the 24-hour window has shut, naming the time", async () => {
+    metaEnquiry({ lastInboundAt: new Date("2026-09-06T09:00:00.000Z") });
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+
+    const res = await replyToEnquiry("e1", {
+      message: "Still there?",
+      channel: "messenger",
+    });
+
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/24-hour reply window closed at 07 Sep/);
+    expect(sendEnquiryMetaMessage).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
+  });
+
+  it("refuses a channel this thread never used", async () => {
+    metaEnquiry();
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+
+    const res = await replyToEnquiry("e1", {
+      message: "Hello",
+      channel: "instagram",
+    });
+
+    expect(res).toEqual({
+      ok: false,
+      message: "No Instagram conversation on this thread.",
+    });
+  });
+
+  it("refuses a channel that is not a channel", async () => {
+    const res = await replyToEnquiry("e1", {
+      message: "Hello",
+      channel: "carrier-pigeon" as never,
+    });
+    expect(res).toEqual({ ok: false, message: "Choose a channel to reply on." });
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+  });
+
+  it("checks access before it looks at the override", async () => {
+    // Forcing a channel must not be a way around canAccessEnquiry: the scoped
+    // read runs first, so this throws before any reachability is computed.
+    vi.mocked(requireRole).mockResolvedValue({
+      id: "u9",
+      email: "a@x",
+      role: "ARTIST",
+      displayName: "Art",
+      artistId: "art9",
+    } as never);
+
+    await expect(
+      replyToEnquiry("e1", { message: "hi", channel: "email" }),
+    ).rejects.toThrow(/Forbidden/);
+    expect(loadMetaReplyTarget).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+    expect(recordNote).not.toHaveBeenCalled();
+  });
+
+  it("writes a plain internal note for an explicit note, without the not-sent suffix", async () => {
+    const res = await replyToEnquiry("e1", {
+      message: "Chased on the phone.",
+      channel: "note",
+    });
+
+    expect(res).toEqual({
+      ok: true,
+      message: "Note added to the thread — nothing was sent.",
+    });
+    expect(recordNote).toHaveBeenCalledWith({
+      enquiryId: "e1",
+      authorUserId: "u1",
+      bodyText: "Chased on the phone.",
+    });
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
   });
 });

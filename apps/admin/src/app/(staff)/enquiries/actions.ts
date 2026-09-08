@@ -17,8 +17,12 @@ import {
   ENQUIRY_EMAIL_CONTEXT_SELECT,
   sendEnquiryEmail,
   toEnquiryEmailContext,
+  type EnquiryEmailContext,
 } from "@bnb/core/services/channels/email";
-import { MetaWindowClosedError } from "@bnb/core/services/channels/meta";
+import {
+  META_SEND_WINDOW_MS,
+  MetaWindowClosedError,
+} from "@bnb/core/services/channels/meta";
 import {
   loadMetaReplyTarget,
   partsSentFrom,
@@ -30,10 +34,12 @@ import {
   buildConvertInput,
   canAccessEnquiry,
   canCloseEnquiry,
-  chooseReplyChannel,
   isUnassigned,
   REPLY_CHANNEL_LABEL,
+  resolveComposerChannel,
   validateReply,
+  type ComposerChannel,
+  type ReplyReachability,
 } from "./enquiry-helpers";
 import type { BookingType } from "@prisma/client";
 import type { SessionUser } from "@bnb/core/auth";
@@ -94,9 +100,29 @@ function withClaimNote(
     : message;
 }
 
+/**
+ * The one place reachability is computed from a loaded context. The page
+ * builds the identical object for the selector; this is the copy that decides.
+ */
+function reachabilityOf(
+  context: EnquiryEmailContext,
+  metaTarget: { channel: "messenger" | "instagram" } | null,
+): ReplyReachability {
+  return {
+    contactEmail: context.contactEmail,
+    metaChannel: metaTarget?.channel ?? null,
+    metaTargetReady: metaTarget != null,
+    metaWindowClosesAtISO: context.lastInboundAt
+      ? new Date(
+          context.lastInboundAt.getTime() + META_SEND_WINDOW_MS,
+        ).toISOString()
+      : null,
+  };
+}
+
 export async function replyToEnquiry(
   enquiryId: string,
-  input: { message: string },
+  input: { message: string; channel?: ComposerChannel },
 ): Promise<ActionState> {
   const { user, enquiry } = await loadEnquiryScoped(enquiryId);
   const valid = validateReply(input);
@@ -109,13 +135,28 @@ export async function replyToEnquiry(
   // Resolved first, because "can we reply on Meta?" is the question that
   // decides the channel — not a consequence of having picked it.
   const metaTarget = await loadMetaReplyTarget(context);
-  const channel = chooseReplyChannel({
-    lastInboundChannel: context.lastInboundChannel,
-    hasEmail: Boolean(context.contactEmail),
-    metaTargetReady: metaTarget != null,
-  });
+  const reach = reachabilityOf(context, metaTarget);
+  // SECURITY: whatever the browser selected is re-decided here against rows
+  // it cannot see. A stale composer (the window shut while it sat open) is
+  // refused with the same sentence it would have shown.
+  const choice = resolveComposerChannel(input.channel ?? null, reach);
+  if (!choice.ok) return { ok: false, message: choice.error };
+  const channel = choice.channel;
 
-  if (channel === "none") {
+  if (channel === "note" && input.channel === "note") {
+    // Staff chose the note deliberately: exactly `addInternalNote` semantics —
+    // no claim, no status change, no "not sent" apology for something nobody
+    // tried to send.
+    await recordNote({
+      enquiryId,
+      authorUserId: user.id,
+      bodyText: valid.message,
+    });
+    revalidatePath("/enquiries");
+    return { ok: true, message: "Note added to the thread — nothing was sent." };
+  }
+
+  if (channel === "note") {
     // Nothing to send on: keep the words on the thread as a staff note rather
     // than logging a "reply" the customer will never receive, and leave the
     // status alone — the enquiry has not actually been replied to.
