@@ -81,7 +81,7 @@ export default async function ChannelsPage({
   searchParams = Promise.resolve({}),
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
-} = {}) {
+}) {
   await requireRole("OWNER");
   const flash = await searchParams;
   const one = (key: string): string | null => {

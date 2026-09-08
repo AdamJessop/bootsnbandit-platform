@@ -51,7 +51,7 @@ afterEach(() => {
 describe("ChannelsPage", () => {
   it("shows the inbound address pattern, the webhook URL and a healthy config", async () => {
     const { default: Page } = await import("./page");
-    const html = renderToStaticMarkup(await Page());
+    const html = renderToStaticMarkup(await Page({}));
     expect(html).toContain("Channels");
     expect(html).toContain("enq-&lt;token&gt;@mail.bootsnbandit.test");
     expect(html).toContain("enquiries@mail.bootsnbandit.test");
@@ -66,7 +66,7 @@ describe("ChannelsPage", () => {
     delete process.env.INBOUND_EMAIL_DOMAIN;
     delete process.env.RESEND_WEBHOOK_SECRET;
     const { default: Page } = await import("./page");
-    const html = renderToStaticMarkup(await Page());
+    const html = renderToStaticMarkup(await Page({}));
     expect(html).toContain("INBOUND_EMAIL_DOMAIN");
     expect(html).toContain("RESEND_WEBHOOK_SECRET");
     expect(html).toContain("Not set");
@@ -95,7 +95,7 @@ describe("ChannelsPage", () => {
       },
     ]);
     const { default: Page } = await import("./page");
-    const html = renderToStaticMarkup(await Page());
+    const html = renderToStaticMarkup(await Page({}));
     expect(listRecentWebhookFailures).toHaveBeenCalledWith(
       expect.objectContaining({ openOnly: true }),
     );
@@ -110,7 +110,7 @@ describe("ChannelsPage", () => {
   it("says so when no inbound email has ever arrived", async () => {
     findFirst.mockResolvedValue(null);
     const { default: Page } = await import("./page");
-    const html = renderToStaticMarkup(await Page());
+    const html = renderToStaticMarkup(await Page({}));
     expect(html).toContain("Nothing received yet");
   });
 });
