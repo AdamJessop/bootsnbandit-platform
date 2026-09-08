@@ -73,7 +73,19 @@ export function InboxFilters({
           {STATUS_ORDER.map((s) => (
             <TabsTrigger key={s} value={s}>
               {enquiryStatusLabel(s)}
-              <span className="ml-1.5 tabular-nums text-text-muted">
+              {/*
+                The count is the server-side total for this status across
+                everything the viewer can see; the dropdowns beside it filter
+                the rows below client-side and never touch it. Said out loud
+                here — a Closed tab reading 7 above two rows otherwise reads
+                as a bug — rather than by recomputing the number, which would
+                trade an explainable surprise for an under-report.
+              */}
+              <span
+                className="ml-1.5 tabular-nums text-text-muted"
+                title={`${counts[s]} in total — filters narrow the list only`}
+                aria-label={`${counts[s]} in total — filters narrow the list only`}
+              >
                 {counts[s]}
               </span>
             </TabsTrigger>

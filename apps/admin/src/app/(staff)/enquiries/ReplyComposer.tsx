@@ -40,6 +40,15 @@ export interface ReplyComposerProps {
   onSent: () => void;
 }
 
+/**
+ * How one channel is named in the selector. The closed trigger and the open
+ * list have to agree exactly — two copies of this string is how they stop
+ * agreeing.
+ */
+function optionLabel(o: ReplyChannelOption): string {
+  return o.available ? o.label : `${o.label} — unavailable`;
+}
+
 export function ReplyComposer({
   enquiryId,
   source,
@@ -49,6 +58,12 @@ export function ReplyComposer({
   onSent,
 }: ReplyComposerProps) {
   const { pending, run } = useAction();
+  // `channel` and `body` are seeded from props once and then belong to the
+  // composer. The staff shell calls router.refresh() every 60 s, and re-syncing
+  // either from the new props would retype someone's half-written reply or
+  // move the channel under their cursor mid-sentence.
+  // `selected` is derived on every render instead, so a Meta window that shuts
+  // while the dialog is open still greys out the send button.
   const [channel, setChannel] = useState<ComposerChannel>(defaultChannel);
   const [body, setBody] = useState("");
   const selected = options.find((o) => o.channel === channel) ?? null;
@@ -56,7 +71,7 @@ export function ReplyComposer({
   // The closed trigger renders a label, never the raw channel value.
   const selectItems = options.map((o) => ({
     value: o.channel,
-    label: o.available ? o.label : `${o.label} — unavailable`,
+    label: optionLabel(o),
   }));
 
   const label = isNote
@@ -85,7 +100,7 @@ export function ReplyComposer({
               value={o.channel}
               disabled={!o.available}
             >
-              {o.available ? o.label : `${o.label} — unavailable`}
+              {optionLabel(o)}
             </SelectItem>
           ))}
         </SelectContent>

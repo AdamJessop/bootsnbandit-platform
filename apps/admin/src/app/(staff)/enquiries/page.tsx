@@ -16,6 +16,7 @@ import { listChannelConnections } from "@bnb/core/services/channel-connections";
 import {
   artistInboxWhere,
   defaultComposerChannel,
+  openWhere,
   pickOpenState,
   reachabilityFrom,
   replyChannelOptions,
@@ -97,13 +98,18 @@ export default async function EnquiriesPage({
     statusCountsFor(viewer),
   ]);
 
+  // Captured BEFORE the deep-link row below is unshifted onto the list: a
+  // 299-row page plus one pinned extra is not a truncated page, and saying it
+  // is would print "there are older enquiries" over a complete inbox.
+  const truncated = enquiries.length >= INBOX_PAGE_SIZE;
+
   // The link may point at an enquiry older than this page of rows. One extra
   // read, through the SAME visibility scope — an id the viewer may not see
   // simply does not come back, and pickOpenState turns that into the notice.
   let pinnedExtra = false;
   if (requestedOpenId && !enquiries.some((e) => e.id === requestedOpenId)) {
     const extra = await prisma.enquiry.findFirst({
-      where: { id: requestedOpenId, ...scope },
+      where: openWhere(requestedOpenId, scope),
       select: INBOX_SELECT,
     });
     if (extra) {
@@ -172,6 +178,7 @@ export default async function EnquiriesPage({
     const reach = reachabilityFor(toEnquiryEmailContext(e));
     return {
       id: e.id,
+      customerId: e.customerId,
       contactName: e.contactName,
       contactEmail: e.contactEmail,
       subject: e.subject,
@@ -219,7 +226,8 @@ export default async function EnquiriesPage({
           items={items}
           artists={artistOptions}
           counts={counts}
-          truncated={enquiries.length >= INBOX_PAGE_SIZE}
+          truncated={truncated}
+          pageSize={INBOX_PAGE_SIZE}
           canConvert={owner || Boolean(user.artistId)}
           viewerArtistId={owner ? null : (user.artistId ?? null)}
           showAssignedPill={owner}

@@ -46,6 +46,7 @@ import type { EnquiryItem } from "./inbox-shared";
 
 const ITEM: EnquiryItem = {
   id: "e1",
+  customerId: "cus1",
   contactName: "Amy Rowe",
   contactEmail: "amy@example.test",
   subject: "Sleeve idea",
@@ -104,6 +105,7 @@ describe("EnquiryList", () => {
         viewerArtistId={null}
         showAssignedPill
         truncated={false}
+        pageSize={300}
         emptyLabel="new"
       />,
     );
@@ -122,6 +124,7 @@ describe("EnquiryList", () => {
         viewerArtistId={null}
         showAssignedPill={false}
         truncated={false}
+        pageSize={300}
         emptyLabel="closed"
       />,
     );
@@ -137,6 +140,7 @@ describe("EnquiryList", () => {
         viewerArtistId="a1"
         showAssignedPill={false}
         truncated={false}
+        pageSize={300}
         emptyLabel="new"
       />,
     );
@@ -157,11 +161,67 @@ describe("EnquiryList", () => {
         viewerArtistId={null}
         showAssignedPill
         truncated
+        pageSize={300}
         emptyLabel="new"
       />,
     );
     // Otherwise a tab reading "412" above three rows looks like a bug.
     expect(html).toContain("Showing the 300 most recent");
+  });
+
+  it("keeps the truncation note on a tab that filtered down to nothing", () => {
+    // The empty branch used to swallow it, so the one view where "there is
+    // more than you can see" matters most was the one view that never said so.
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[]}
+        artists={[]}
+        canConvert={false}
+        viewerArtistId={null}
+        showAssignedPill={false}
+        truncated
+        pageSize={300}
+        emptyLabel="closed"
+      />,
+    );
+    expect(html).toContain("No closed enquiries.");
+    expect(html).toContain("Showing the 300 most recent enquiries");
+  });
+
+  it("never advises narrowing the filters, which cannot reach an older row", () => {
+    // Filtering is client-side over the rows already fetched — narrowing it
+    // can only ever show FEWER of them.
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated
+        pageSize={300}
+        emptyLabel="new"
+      />,
+    );
+    expect(html).not.toContain("narrow the filters");
+    expect(html).toContain("older ones are not loaded here");
+    expect(html).toContain("Open an older enquiry from the customer");
+  });
+
+  it("takes the cap from the page size it was handed, not a literal", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated
+        pageSize={50}
+        emptyLabel="new"
+      />,
+    );
+    expect(html).toContain("Showing the 50 most recent enquiries");
   });
 
   it("says so and credits the pinned extra when a deep link added one past the cap", () => {
@@ -173,6 +233,7 @@ describe("EnquiryList", () => {
         viewerArtistId={null}
         showAssignedPill
         truncated
+        pageSize={300}
         emptyLabel="new"
         pinnedExtra
       />,
@@ -193,6 +254,7 @@ describe("EnquiryList deep-link one-shot", () => {
         viewerArtistId={null}
         showAssignedPill
         truncated={false}
+        pageSize={300}
         emptyLabel="new"
         openEnquiryId={ITEM.id}
       />,
@@ -213,6 +275,7 @@ describe("EnquiryList deep-link one-shot", () => {
         viewerArtistId={null}
         showAssignedPill
         truncated={false}
+        pageSize={300}
         emptyLabel="new"
         openEnquiryId={null}
       />,

@@ -6,6 +6,8 @@
  * own transition so a slow assign cannot block the composer next to it.
  */
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,6 +72,20 @@ export function EnquiryMeta({
 
   return (
     <>
+      {/*
+        The way out of the inbox and into everything it deliberately does not
+        carry: this person's older enquiries, their bookings, their notes.
+        Absent when the lead has no customer record yet — an unreconciled web
+        form — rather than rendered as a dead link.
+      */}
+      {item.customerId && (
+        <Link
+          href={`/customers/${item.customerId}`}
+          className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-primary"
+        >
+          View customer <ExternalLink className="size-3.5" aria-hidden />
+        </Link>
+      )}
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <Field label="Style" value={item.style} />
         <Field label="Placement" value={item.placement} />

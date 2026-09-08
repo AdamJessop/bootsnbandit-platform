@@ -242,6 +242,25 @@ export function resolveOpenParam(
   return /^[A-Za-z0-9_-]{6,40}$/.test(id) ? id : null;
 }
 
+/**
+ * The `where` for the one extra read a `?open=` link may need: the id AND the
+ * viewer's visibility scope, never the id alone.
+ *
+ * A one-line builder because the line is the whole security property. The
+ * deep-linked enquiry can be older than the inbox page, so it is fetched by
+ * id — and an id is guessable. Spreading the scope in means an enquiry the
+ * viewer may not see simply does not come back, and `pickOpenState` turns
+ * that into the same notice as "no such enquiry" rather than confirming it
+ * exists. Dropping the spread here would be indistinguishable in every
+ * render test and would hand any artist any lead in the studio.
+ */
+export function openWhere(
+  id: string,
+  scope: Prisma.EnquiryWhereInput,
+): Prisma.EnquiryWhereInput {
+  return { id, ...scope };
+}
+
 export interface OpenState {
   /** The enquiry to open, once we know the viewer may actually see it. */
   openId: string | null;

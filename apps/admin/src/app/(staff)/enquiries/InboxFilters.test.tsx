@@ -33,4 +33,36 @@ describe("InboxFilters", () => {
     expect(triggers).toContain("All artists");
     expect(triggers).not.toContain("__all__");
   });
+
+  it("explains that a tab count is the total, not the filtered list", () => {
+    // A Closed tab reading 7 above two rows looks like a bug until you know
+    // the dropdowns narrow the rows and never the count.
+    const html = renderToStaticMarkup(
+      <InboxFilters
+        tab="new"
+        onTabChange={vi.fn()}
+        counts={{
+          new: 3,
+          customer_replied: 2,
+          replied: 1,
+          converted: 0,
+          closed: 7,
+        }}
+        artists={[]}
+        styles={[]}
+        artistFilter="__all__"
+        styleFilter="__all__"
+        sourceFilter="__all__"
+        onArtistFilter={vi.fn()}
+        onStyleFilter={vi.fn()}
+        onSourceFilter={vi.fn()}
+      />,
+    );
+    expect(html).toContain(
+      'title="7 in total — filters narrow the list only"',
+    );
+    expect(html).toContain(
+      'aria-label="7 in total — filters narrow the list only"',
+    );
+  });
 });

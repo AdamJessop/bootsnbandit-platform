@@ -13,6 +13,7 @@ import type { EnquiryItem } from "./inbox-shared";
 
 const ITEM: EnquiryItem = {
   id: "e1",
+  customerId: "cus1",
   contactName: "Amy Rowe",
   contactEmail: "amy@example.test",
   subject: "Sleeve idea",
@@ -89,5 +90,35 @@ describe("EnquiryMeta", () => {
       />,
     );
     expect(html).toContain("Take this enquiry");
+  });
+
+  it("links to the customer record when the lead is attached to one", () => {
+    // The route to everything the inbox deliberately does not carry: older
+    // enquiries, bookings, notes, the rest of the history.
+    const html = renderToStaticMarkup(
+      <EnquiryMeta
+        item={ITEM}
+        artists={[]}
+        canConvert={false}
+        viewerArtistId={null}
+        onDone={vi.fn()}
+      />,
+    );
+    expect(html).toContain('href="/customers/cus1"');
+    expect(html).toContain("View customer");
+  });
+
+  it("offers no link at all when the lead has no customer record yet", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryMeta
+        item={{ ...ITEM, customerId: null }}
+        artists={[]}
+        canConvert={false}
+        viewerArtistId={null}
+        onDone={vi.fn()}
+      />,
+    );
+    expect(html).not.toContain("View customer");
+    expect(html).not.toContain("/customers/");
   });
 });

@@ -13,6 +13,7 @@ import {
   isUnassigned,
   looksLikeImageUrl,
   OPEN_NOT_FOUND_NOTICE,
+  openWhere,
   pickOpenState,
   replyChannelOptions,
   resolveComposerChannel,
@@ -501,5 +502,29 @@ describe("pickOpenState", () => {
       tab: null,
       notice: OPEN_NOT_FOUND_NOTICE,
     });
+  });
+});
+
+describe("openWhere", () => {
+  it("spreads the artist scope into the by-id read", () => {
+    // The deep-link fetch is BY ID, and an id is guessable. Without the scope
+    // keys in the same `where`, that read hands any artist any lead in the
+    // studio — and no render test would notice.
+    expect(openWhere("e9", artistInboxWhere("art1"))).toEqual({
+      id: "e9",
+      OR: [{ preferredArtistId: "art1" }, { preferredArtistId: null }],
+    });
+  });
+
+  it("keeps the impossible predicate of an artist with no artist record", () => {
+    // The scope wins over the requested id, which is exactly right: that
+    // viewer may open nothing at all.
+    expect(openWhere("e9", artistInboxWhere(null))).toEqual({
+      id: "__none__",
+    });
+  });
+
+  it("is just the id for an owner, whose scope is empty", () => {
+    expect(openWhere("e9", {})).toEqual({ id: "e9" });
   });
 });

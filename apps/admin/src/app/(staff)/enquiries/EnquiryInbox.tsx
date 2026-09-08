@@ -22,6 +22,7 @@ export function EnquiryInbox({
   artists,
   counts,
   truncated,
+  pageSize,
   canConvert,
   viewerArtistId,
   showAssignedPill,
@@ -42,6 +43,8 @@ export function EnquiryInbox({
   counts: Record<EnquiryStatus, number>;
   /** The page hit its cap — the list says so under the rows. */
   truncated: boolean;
+  /** That cap, so the note names the real number. */
+  pageSize: number;
   canConvert: boolean;
   viewerArtistId: string | null;
   /** Owners see who owns each lead; artists see only an Unassigned flag. */
@@ -106,6 +109,7 @@ export function EnquiryInbox({
         viewerArtistId={viewerArtistId}
         showAssignedPill={showAssignedPill}
         truncated={truncated}
+        pageSize={pageSize}
         emptyLabel={enquiryStatusLabel(tab).toLowerCase()}
         openEnquiryId={pendingOpenId}
         onAutoOpened={() => setPendingOpenId(null)}

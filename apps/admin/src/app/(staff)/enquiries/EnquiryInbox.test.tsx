@@ -34,6 +34,7 @@ import { countByStatus } from "./enquiry-helpers";
 const items: EnquiryItem[] = [
   {
     id: "1",
+    customerId: "cus1",
     contactName: "Amy",
     contactEmail: "amy@x.com",
     subject: "ladybird",
@@ -97,6 +98,7 @@ const items: EnquiryItem[] = [
   },
   {
     id: "2",
+    customerId: null,
     contactName: "Bob",
     contactEmail: null,
     subject: null,
@@ -171,6 +173,7 @@ describe("EnquiryInbox closed select labels", () => {
           closed: 0,
         }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
@@ -207,6 +210,7 @@ describe("EnquiryInbox row chrome", () => {
           closed: 0,
         }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
@@ -233,6 +237,7 @@ describe("EnquiryInbox row chrome", () => {
           closed: 0,
         }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill
@@ -265,6 +270,7 @@ describe("EnquiryInbox row chrome", () => {
           closed: 0,
         }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill
@@ -289,6 +295,7 @@ describe("EnquiryInbox row chrome", () => {
           closed: 0,
         }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId="a1"
         showAssignedPill={false}
@@ -316,6 +323,7 @@ describe("EnquiryInbox deep link", () => {
         artists={[]}
         counts={{ new: 1, customer_replied: 0, replied: 0, converted: 1, closed: 0 }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
@@ -337,6 +345,7 @@ describe("EnquiryInbox deep link", () => {
         artists={[]}
         counts={{ new: 1, customer_replied: 0, replied: 0, converted: 1, closed: 0 }}
         truncated={false}
+        pageSize={300}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}

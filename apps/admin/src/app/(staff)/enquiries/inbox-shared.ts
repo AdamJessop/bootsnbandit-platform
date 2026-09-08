@@ -19,6 +19,12 @@ import type { ThreadItem } from "./EnquiryThread";
 
 export interface EnquiryItem {
   id: string;
+  /**
+   * The customer record this lead is attached to, or null when it never was
+   * (a web form from someone we have never heard of before the row is
+   * reconciled). Drives the "View customer" link in the detail dialog.
+   */
+  customerId: string | null;
   contactName: string;
   contactEmail: string | null;
   subject: string | null;

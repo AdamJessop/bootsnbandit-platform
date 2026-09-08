@@ -40,6 +40,12 @@ export interface EnquiryListProps {
   showAssignedPill: boolean;
   /** True when the page loaded its cap and older enquiries exist. */
   truncated: boolean;
+  /**
+   * The server's row cap, so the note below can say what it actually is
+   * rather than repeat a number that would quietly go stale the day
+   * `INBOX_PAGE_SIZE` changes.
+   */
+  pageSize: number;
   /** Lower-cased status label for the empty state ("new", "closed", …). */
   emptyLabel: string;
   /**
@@ -66,40 +72,47 @@ export function EnquiryList({
   viewerArtistId,
   showAssignedPill,
   truncated,
+  pageSize,
   emptyLabel,
   openEnquiryId,
   onAutoOpened,
   pinnedExtra,
 }: EnquiryListProps) {
-  if (items.length === 0) {
-    return (
-      <div className="rounded-lg border border-border-default bg-bg-card p-8 text-center text-sm text-text-muted">
-        No {emptyLabel} enquiries.
-      </div>
-    );
-  }
+  // One wrapper around both states on purpose. The note belongs MOST on an
+  // empty tab — "no closed enquiries" is a flat lie when the studio has
+  // hundreds older than the page — and the early return used to eat it.
+  //
+  // The advice has to be advice the code can honour: the dropdowns filter the
+  // rows already fetched, client-side, so narrowing them can only ever show
+  // fewer. The customer record is the route to an older thread.
   return (
     <div className="space-y-3">
-      <ul className="space-y-3">
-        {items.map((item) => (
-          <li key={item.id}>
-            <EnquiryRow
-              item={item}
-              artists={artists}
-              canConvert={canConvert}
-              viewerArtistId={viewerArtistId}
-              showAssignedPill={showAssignedPill}
-              defaultOpen={item.id === openEnquiryId}
-              onAutoOpened={onAutoOpened}
-            />
-          </li>
-        ))}
-      </ul>
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-border-default bg-bg-card p-8 text-center text-sm text-text-muted">
+          No {emptyLabel} enquiries.
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((item) => (
+            <li key={item.id}>
+              <EnquiryRow
+                item={item}
+                artists={artists}
+                canConvert={canConvert}
+                viewerArtistId={viewerArtistId}
+                showAssignedPill={showAssignedPill}
+                defaultOpen={item.id === openEnquiryId}
+                onAutoOpened={onAutoOpened}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
       {truncated && (
         <p className="pt-1 text-center text-xs text-text-muted">
           {pinnedExtra
-            ? "Showing the 300 most recent plus the linked enquiry — narrow the filters to reach older enquiries."
-            : "Showing the 300 most recent — narrow the filters to reach older enquiries."}
+            ? `Showing the ${pageSize} most recent plus the linked enquiry — older ones are not loaded here. Open an older enquiry from the customer's record.`
+            : `Showing the ${pageSize} most recent enquiries — older ones are not loaded here. Open an older enquiry from the customer's record.`}
         </p>
       )}
     </div>
@@ -131,9 +144,14 @@ function EnquiryRow({
   // through onOpenChange below. `onAutoOpened` tells the caller the pending
   // id has been consumed, so a later remount (tab/filter change) starts
   // from `defaultOpen: false` instead of forcing the dialog open again.
+  //
+  // Swallowed on purpose: marking read is a side effect nobody is waiting on,
+  // and it CAN legitimately fail — an enquiry reassigned to another artist
+  // between the render and the click throws `Forbidden`. An unhandled
+  // rejection over a dot that did not clear helps no one.
   useEffect(() => {
     if (defaultOpen) {
-      if (item.unread) void markEnquiryRead(item.id);
+      if (item.unread) markEnquiryRead(item.id).catch(() => {});
       onAutoOpened?.(item.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,8 +162,9 @@ function EnquiryRow({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        // Opening the thread is what counts as reading it.
-        if (next && item.unread) void markEnquiryRead(item.id);
+        // Opening the thread is what counts as reading it. See the note on
+        // the mount effect above for why the rejection is swallowed.
+        if (next && item.unread) markEnquiryRead(item.id).catch(() => {});
       }}
     >
       <DialogTrigger className="w-full rounded-lg border border-border-default bg-bg-card px-5 py-4 text-left transition-colors hover:border-border-strong">
