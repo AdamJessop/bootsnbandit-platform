@@ -17,6 +17,7 @@ import {
   moreNavItems,
   type AdminRole,
 } from "@/lib/admin-nav";
+import { shouldRefreshNow, UNREAD_POLL_MS } from "@/lib/refresh-poll";
 import { signOut } from "@/lib/sign-out";
 import { InstallPrompt } from "@/components/admin/InstallPrompt";
 import {
@@ -68,10 +69,23 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   // Keep the unread badge honest without a socket: the same 60 s refresh the
-  // kiosk board uses. force-dynamic pages re-render server-side on refresh.
+  // kiosk board uses, asleep while the tab is hidden. force-dynamic pages
+  // re-render server-side on refresh.
   useEffect(() => {
-    const t = setInterval(() => router.refresh(), 60_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => {
+      if (!shouldRefreshNow(document.visibilityState)) return;
+      router.refresh();
+    }, UNREAD_POLL_MS);
+    // Coming back to the tab should not mean staring at a stale badge for the
+    // rest of the interval.
+    const onVisibility = () => {
+      if (shouldRefreshNow(document.visibilityState)) router.refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [router]);
   const items = visibleNavItems(role);
   const bottom = bottomNavItems(role);

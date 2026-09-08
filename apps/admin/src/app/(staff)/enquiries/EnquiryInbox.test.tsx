@@ -163,6 +163,14 @@ describe("EnquiryInbox closed select labels", () => {
       <EnquiryInbox
         items={[{ ...items[0], preferredArtistId: "cln4artist1aaaa" }]}
         artists={[{ id: "cln4artist1aaaa", name: "Sarah North" }]}
+        counts={{
+          new: 1,
+          customer_replied: 0,
+          replied: 0,
+          converted: 1,
+          closed: 0,
+        }}
+        truncated={false}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
@@ -188,6 +196,14 @@ describe("EnquiryInbox row chrome", () => {
       <EnquiryInbox
         items={items}
         artists={[]}
+        counts={{
+          new: 1,
+          customer_replied: 0,
+          replied: 0,
+          converted: 1,
+          closed: 0,
+        }}
+        truncated={false}
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
@@ -203,6 +219,14 @@ describe("EnquiryInbox row chrome", () => {
           { ...items[0], unread: true, preferredArtistName: "Sarah North" },
         ]}
         artists={[{ id: "a1", name: "Sarah North" }]}
+        counts={{
+          new: 1,
+          customer_replied: 0,
+          replied: 0,
+          converted: 1,
+          closed: 0,
+        }}
+        truncated={false}
         canConvert
         viewerArtistId={null}
         showAssignedPill
@@ -224,6 +248,14 @@ describe("EnquiryInbox row chrome", () => {
           },
         ]}
         artists={[]}
+        counts={{
+          new: 1,
+          customer_replied: 0,
+          replied: 0,
+          converted: 1,
+          closed: 0,
+        }}
+        truncated={false}
         canConvert
         viewerArtistId={null}
         showAssignedPill
@@ -237,6 +269,14 @@ describe("EnquiryInbox row chrome", () => {
       <EnquiryInbox
         items={[{ ...items[0], preferredArtistId: null }]}
         artists={[{ id: "a1", name: "Sarah North" }]}
+        counts={{
+          new: 1,
+          customer_replied: 0,
+          replied: 0,
+          converted: 1,
+          closed: 0,
+        }}
+        truncated={false}
         canConvert
         viewerArtistId="a1"
         showAssignedPill={false}

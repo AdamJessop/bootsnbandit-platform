@@ -1,4 +1,5 @@
 import type {
+  EnquiryStatus,
   MessageChannelKind,
   MessageDirection,
   MessageStatus,
@@ -426,4 +427,36 @@ export async function unreadCountsFor(viewer: InboxViewer): Promise<UnreadCounts
     .map((row) => row.id);
 
   return { total: enquiryIds.length, enquiryIds };
+}
+
+export type EnquiryStatusCounts = Record<EnquiryStatus, number>;
+
+const ZERO_COUNTS: EnquiryStatusCounts = {
+  new: 0,
+  replied: 0,
+  customer_replied: 0,
+  converted: 0,
+  closed: 0,
+};
+
+/**
+ * How many enquiries this viewer can see, per status — the numbers on the
+ * inbox tabs.
+ *
+ * A `groupBy` rather than a tally of the rows the page loaded: the inbox
+ * fetches the 300 most recent, and counting those would quietly under-report
+ * a busy studio's Closed tab. Scoped by the same `visibleEnquiryWhere` as the
+ * unread badge, so a tab can never promise an enquiry the viewer may not open.
+ */
+export async function statusCountsFor(
+  viewer: InboxViewer,
+): Promise<EnquiryStatusCounts> {
+  const rows = await prisma.enquiry.groupBy({
+    by: ["status"],
+    where: visibleEnquiryWhere(viewer),
+    _count: { _all: true },
+  });
+  const counts: EnquiryStatusCounts = { ...ZERO_COUNTS };
+  for (const row of rows) counts[row.status] = row._count._all;
+  return counts;
 }

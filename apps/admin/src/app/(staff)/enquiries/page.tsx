@@ -2,6 +2,7 @@ import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import {
   listThreadsFor,
+  statusCountsFor,
   unreadCountsFor,
 } from "@bnb/core/services/enquiry-messages";
 import { parseMoodboardData } from "@bnb/core/services/moodboard-data";
@@ -35,6 +36,9 @@ import {
  */
 export const dynamic = "force-dynamic";
 
+/** How many enquiries one inbox render pulls. Counts are NOT capped by it. */
+const INBOX_PAGE_SIZE = 300;
+
 export default async function EnquiriesPage() {
   const user = await requireRole();
   const owner = user.role === "OWNER";
@@ -44,11 +48,11 @@ export default async function EnquiriesPage() {
     artistId: user.artistId ?? null,
   };
 
-  const [enquiries, artists, unread, connections] = await Promise.all([
+  const [enquiries, artists, unread, connections, counts] = await Promise.all([
     prisma.enquiry.findMany({
       where: owner ? {} : artistInboxWhere(user.artistId ?? null),
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-      take: 300,
+      take: INBOX_PAGE_SIZE,
       select: {
         // The reply context (contact email fallbacks, last inbound channel,
         // connection and timestamp) plus everything a row renders.
@@ -75,6 +79,7 @@ export default async function EnquiriesPage() {
     }),
     unreadCountsFor(viewer),
     listChannelConnections(),
+    statusCountsFor(viewer),
   ]);
 
   // A Meta reply needs a live Page behind the last inbound message. Reading
@@ -181,6 +186,8 @@ export default async function EnquiriesPage() {
         <EnquiryInbox
           items={items}
           artists={artistOptions}
+          counts={counts}
+          truncated={enquiries.length >= INBOX_PAGE_SIZE}
           canConvert={owner || Boolean(user.artistId)}
           viewerArtistId={owner ? null : (user.artistId ?? null)}
           showAssignedPill={owner}

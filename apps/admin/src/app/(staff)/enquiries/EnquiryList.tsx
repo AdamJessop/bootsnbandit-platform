@@ -8,6 +8,7 @@
  */
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -24,10 +25,11 @@ import { EnquiryMeta } from "./EnquiryMeta";
 import { ReplyComposer } from "./ReplyComposer";
 import {
   CHANNEL_BADGE,
+  useAction,
   type ArtistOption,
   type EnquiryItem,
 } from "./inbox-shared";
-import { markEnquiryRead } from "./actions";
+import { claimEnquiry, markEnquiryRead } from "./actions";
 
 export interface EnquiryListProps {
   items: EnquiryItem[];
@@ -36,6 +38,8 @@ export interface EnquiryListProps {
   viewerArtistId: string | null;
   /** Owners see who owns each lead; artists see only an Unassigned flag. */
   showAssignedPill: boolean;
+  /** True when the page loaded its cap and older enquiries exist. */
+  truncated: boolean;
   /** Lower-cased status label for the empty state ("new", "closed", …). */
   emptyLabel: string;
 }
@@ -46,6 +50,7 @@ export function EnquiryList({
   canConvert,
   viewerArtistId,
   showAssignedPill,
+  truncated,
   emptyLabel,
 }: EnquiryListProps) {
   if (items.length === 0) {
@@ -56,19 +61,27 @@ export function EnquiryList({
     );
   }
   return (
-    <ul className="space-y-3">
-      {items.map((item) => (
-        <li key={item.id}>
-          <EnquiryRow
-            item={item}
-            artists={artists}
-            canConvert={canConvert}
-            viewerArtistId={viewerArtistId}
-            showAssignedPill={showAssignedPill}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-3">
+      <ul className="space-y-3">
+        {items.map((item) => (
+          <li key={item.id}>
+            <EnquiryRow
+              item={item}
+              artists={artists}
+              canConvert={canConvert}
+              viewerArtistId={viewerArtistId}
+              showAssignedPill={showAssignedPill}
+            />
+          </li>
+        ))}
+      </ul>
+      {truncated && (
+        <p className="pt-1 text-center text-xs text-text-muted">
+          Showing the 300 most recent — narrow the filters to reach older
+          enquiries.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -86,6 +99,7 @@ function EnquiryRow({
   showAssignedPill: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const { pending, run } = useAction();
 
   return (
     <Dialog
@@ -136,6 +150,23 @@ function EnquiryRow({
             : ""}
         </p>
       </DialogTrigger>
+      {/*
+        A sibling of the trigger, never inside it: the trigger is a <button>,
+        and nesting a button inside a button is invalid HTML that browsers
+        silently un-nest, breaking both controls.
+      */}
+      {viewerArtistId && isUnassigned(item) && (
+        <div className="mt-1 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => run(() => claimEnquiry(item.id))}
+          >
+            Take this
+          </Button>
+        </div>
+      )}
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-text-primary">

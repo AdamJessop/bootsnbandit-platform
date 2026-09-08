@@ -87,6 +87,7 @@ describe("EnquiryList", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
+        truncated={false}
         emptyLabel="new"
       />,
     );
@@ -104,9 +105,46 @@ describe("EnquiryList", () => {
         canConvert={false}
         viewerArtistId={null}
         showAssignedPill={false}
+        truncated={false}
         emptyLabel="closed"
       />,
     );
     expect(html).toContain("No closed enquiries.");
+  });
+
+  it("offers an artist Take this on an unassigned row", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId="a1"
+        showAssignedPill={false}
+        truncated={false}
+        emptyLabel="new"
+      />,
+    );
+    expect(html).toContain("Unassigned");
+    expect(html).toContain("Take this");
+    // Specifically the row's own button. The dialog mock is a passthrough, so
+    // EnquiryMeta's "Take this enquiry" is in this markup too — without the
+    // negative lookahead the assertion above would pass with no row button.
+    expect(html.match(/Take this(?! enquiry)/g)).toHaveLength(1);
+  });
+
+  it("says so when the list is only the most recent page", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryList
+        items={[ITEM]}
+        artists={[]}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill
+        truncated
+        emptyLabel="new"
+      />,
+    );
+    // Otherwise a tab reading "412" above three rows looks like a bug.
+    expect(html).toContain("Showing the 300 most recent");
   });
 });

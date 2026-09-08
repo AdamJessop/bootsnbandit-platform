@@ -10,11 +10,7 @@ import { useMemo, useState } from "react";
 import type { EnquirySource, EnquiryStatus } from "@prisma/client";
 import { Toaster } from "@/components/ui/sonner";
 import { enquiryStatusLabel } from "../_shared/labels";
-import {
-  countByStatus,
-  distinctStyles,
-  filterEnquiries,
-} from "./enquiry-helpers";
+import { distinctStyles, filterEnquiries } from "./enquiry-helpers";
 import { InboxFilters } from "./InboxFilters";
 import { EnquiryList } from "./EnquiryList";
 import { ALL, type ArtistOption, type EnquiryItem } from "./inbox-shared";
@@ -24,12 +20,24 @@ export type { ArtistOption, EnquiryItem } from "./inbox-shared";
 export function EnquiryInbox({
   items,
   artists,
+  counts,
+  truncated,
   canConvert,
   viewerArtistId,
   showAssignedPill,
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
+  /**
+   * Every enquiry this viewer can see, per status — computed server-side over
+   * the whole visible set, not just the page of rows below. Typed structurally
+   * rather than as core's `EnquiryStatusCounts`: that module imports the Prisma
+   * client, which a client component must not reference even in a type
+   * position.
+   */
+  counts: Record<EnquiryStatus, number>;
+  /** The page hit its cap — the list says so under the rows. */
+  truncated: boolean;
   canConvert: boolean;
   viewerArtistId: string | null;
   /** Owners see who owns each lead; artists see only an Unassigned flag. */
@@ -39,7 +47,6 @@ export function EnquiryInbox({
   const [artistFilter, setArtistFilter] = useState(ALL);
   const [styleFilter, setStyleFilter] = useState(ALL);
   const [sourceFilter, setSourceFilter] = useState(ALL);
-  const counts = useMemo(() => countByStatus(items), [items]);
   const styles = useMemo(() => distinctStyles(items), [items]);
 
   const visible = filterEnquiries(
@@ -72,6 +79,7 @@ export function EnquiryInbox({
         canConvert={canConvert}
         viewerArtistId={viewerArtistId}
         showAssignedPill={showAssignedPill}
+        truncated={truncated}
         emptyLabel={enquiryStatusLabel(tab).toLowerCase()}
       />
       <Toaster position="top-center" />

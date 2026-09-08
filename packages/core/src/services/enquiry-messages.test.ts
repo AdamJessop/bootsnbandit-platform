@@ -7,6 +7,7 @@ import {
   recordInbound,
   recordNote,
   recordOutbound,
+  statusCountsFor,
   unreadCountsFor,
   visibleEnquiryWhere,
 } from "./enquiry-messages";
@@ -530,6 +531,75 @@ describe("enquiry messages (DB)", () => {
         where: { enquiryId: enquiry.id },
       });
       await db().channelConnection.delete({ where: { id: connection.id } });
+    });
+  });
+
+  it("tallies visible enquiries per status", async () => {
+    if (!(await dbReachable())) return;
+    // Artist.userId is required and unique, so the fixture creates its user
+    // inline — the same shape reports.test.ts uses.
+    const tag = uid();
+    const artist = await db().artist.create({
+      data: {
+        slug: `tally-${tag}`,
+        name: `Tally ${tag}`,
+        user: {
+          create: {
+            email: `tally-${tag}@example.test`,
+            displayName: `Tally ${tag}`,
+          },
+        },
+      },
+    });
+    const viewer = {
+      userId: artist.userId,
+      role: "ARTIST" as const,
+      artistId: artist.id,
+    };
+    try {
+      // Deltas, not absolutes: an artist also sees every UNASSIGNED enquiry in
+      // the shared dev database, so only the change this test causes is stable.
+      const before = await statusCountsFor(viewer);
+      for (const status of ["new", "new", "closed"] as const) {
+        const e = await db().enquiry.create({
+          data: {
+            contactName: `Tally ${uid()}`,
+            preferredArtistId: artist.id,
+            status,
+          },
+        });
+        enquiries.push(e.id);
+      }
+      const after = await statusCountsFor(viewer);
+      expect(after.new - before.new).toBe(2);
+      expect(after.closed - before.closed).toBe(1);
+      expect(after.converted - before.converted).toBe(0);
+    } finally {
+      // Enquiries are cleaned up by the suite's afterAll; the artist and its
+      // user are this test's own and go here whatever happened (enquiry
+      // .preferredArtistId is SetNull, so deleting the artist does not take
+      // the rows with it). `finally`, not a trailing statement: a leaked
+      // Artist/User row fails src/db/seed-counts.test.ts, which asserts the
+      // exact seed totals on this shared database.
+      await db().artist.delete({ where: { id: artist.id } });
+      await db().user.delete({ where: { id: artist.userId } });
+    }
+  });
+
+  it("counts nothing for an artist user with no artist record", async () => {
+    if (!(await dbReachable())) return;
+    expect(
+      await statusCountsFor({
+        userId: uid("u"),
+        role: "ARTIST",
+        artistId: null,
+      }),
+    ).toEqual({
+      new: 0,
+      replied: 0,
+      customer_replied: 0,
+      converted: 0,
+      closed: 0,
     });
   });
 });
