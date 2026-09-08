@@ -298,6 +298,9 @@ outright. Redeploy before continuing: the next step calls back into the app.
 1. Open **Studio › Channels** in the admin app as the owner.
 2. Press **Connect a Facebook Page** and complete the Facebook dialog,
    granting access to the studio Page (and its Instagram account).
+   **Select only the studio Page.** Every Page you tick becomes a connection
+   here, subscribed to our webhook — tick a personal or client Page and this
+   inbox starts receiving its messages too.
 3. You land back on the panel with each Page and Instagram account listed,
    marked **Subscribed**.
 
@@ -344,8 +347,38 @@ Studio › Channels lists every connection with its channel, when it was
 connected, whether the webhook subscription succeeded, and **Last event
 received** — the liveness signal. (There is deliberately no "send yourself a
 test message" button: sending needs a PSID, which does not exist until someone
-messages the Page.) **Disconnect** removes a connection; the thread history
-stays, and replies on those threads fall back to email.
+messages the Page.)
+
+A connection whose stored token no longer decrypts (`SESSION_SECRET` was
+rotated) is listed with **Reconnect required — stored token can't be read**.
+Until it is reconnected, every inbound message on it becomes a failed event
+reading *"Connection … has an unreadable access token"*, and replies fall back
+to email. Press **Connect a Facebook Page** again to re-store the token, then
+**Retry** the failed events.
+
+### Disconnecting
+
+**Disconnect** first asks Facebook to unsubscribe the app from that Page, then
+removes the connection. Thread history stays, and replies on those threads fall
+back to email. The unsubscribe is skipped when another active connection still
+uses the same Page — an Instagram connection rides on its Page's token, so
+unsubscribing would take that one down too; disconnect both to unsubscribe.
+
+If Facebook refuses the unsubscribe the panel says **"Removed here, but Facebook
+may still deliver — remove the app from the Page in Business Settings"**
+(`meta_warning=unsubscribe_failed`). Finish it by hand, or Meta keeps POSTing
+events this studio no longer has a connection for:
+
+1. **Business Settings → Accounts → Pages →** the Page → **Connected assets /
+   Business Apps**.
+2. Remove this app from the Page.
+
+Alternatively, from a shell with that Page's token:
+
+```bash
+curl -i -X DELETE "https://graph.facebook.com/v21.0/<page id>/subscribed_apps" \
+  -d "access_token=<page token>"
+```
 
 ### Failed events
 
@@ -358,8 +391,26 @@ written **per event**, so **Retry** replays exactly what broke.
 | --- | --- |
 | `Meta refused the message: Invalid OAuth access token` | the Page token was revoked — press Connect again |
 | `Meta refused the message: … outside of allowed window` | the 24-hour window shut mid-send |
-| `connection … has an unreadable access token` (in the log) | `SESSION_SECRET` changed — press Connect again |
+| `Connection … has an unreadable access token` | `SESSION_SECRET` changed — press Connect again, then Retry |
+| `Deferred: the delivery exceeded its processing budget` | the delivery ran past 10 s; nothing is lost — press Retry |
 | `Stored payload is not a replayable Meta event` | a signed body that was not JSON; check the delivery in the app dashboard |
+| `No active Facebook Page or Instagram connection matches this event` | the Page was disconnected — reconnect it, then Retry |
+
+### Panel messages
+
+The connect and disconnect flows come back with a slug in the URL, which the
+panel turns into a sentence. The slugs, for reading logs and support requests:
+
+| Slug | Means |
+| --- | --- |
+| `meta_error=not_configured` | `META_APP_ID`, `META_APP_SECRET` or `APP_ORIGIN` is unset |
+| `meta_error=session_secret` | `SESSION_SECRET` is under 32 characters, so a page token cannot be stored |
+| `meta_error=bad_state` / `no_code` | the connect attempt did not carry our single-use nonce — start again |
+| `meta_error=access_denied` | cancelled at Facebook |
+| `meta_error=no_pages` | that account manages no Page this app can use |
+| `meta_error=exchange_failed` | Facebook rejected the code exchange — check the redirect URI |
+| `meta_warning=subscribe_failed` | connected, but the webhook subscription failed — press Connect again |
+| `meta_warning=unsubscribe_failed` | disconnected here, but Facebook may still deliver — see [Disconnecting](#disconnecting) |
 
 ### What is deliberately dropped
 
@@ -377,8 +428,10 @@ Images are fetched **only** from Meta's own CDN hosts (`*.fbcdn.net`,
 `*.cdninstagram.com`, `lookaside.fbsbx.com`) over https, capped at 8 MB each
 and 16 MB per message, and stored under their **sniffed** mime. Everything else
 — video, audio, files, and any image from an unexpected host — is kept as a
-link. **Meta's attachment URLs expire**; anything worth keeping should be saved
-at the time.
+link. One message also gets a total of 8 seconds to fetch its images; past that
+the remaining ones are kept as links rather than holding the delivery open.
+**Meta's attachment URLs expire**; anything worth keeping should be saved at
+the time.
 
 ### Testing the endpoint by hand
 
@@ -390,14 +443,26 @@ curl -i -X POST https://<admin-origin>/api/webhooks/meta \
   -H 'content-type: application/json' -H "x-hub-signature-256: $SIG" -d "$BODY"
 ```
 
-Expected: `200` with `{"ok":true,"outcomes":[…]}`. `401` means the signature or
-`META_APP_SECRET` is wrong. `503` means `META_APP_SECRET` is unset. The
-handshake can be checked the same way:
+The handshake can be checked the same way:
 
 ```bash
 curl -i "https://<admin-origin>/api/webhooks/meta?hub.mode=subscribe&hub.verify_token=<token>&hub.challenge=12345"
 # → 200 with the body 12345
 ```
+
+| Verb | Response | Meaning |
+| --- | --- | --- |
+| POST | `200` `{"ok":true,"outcomes":[…]}` | processed; `ok:false` means at least one event became a failed event |
+| POST | `401` | the signature or `META_APP_SECRET` is wrong |
+| POST | `413` | the body is over 1 MiB |
+| POST | `503` | `META_APP_SECRET` is unset |
+| GET | `200` with the challenge echoed | the handshake succeeded |
+| GET | `403` | wrong `hub.mode`/`hub.verify_token`, a missing `hub.challenge`, or a `hub.challenge` over 512 characters |
+| GET | `503` | `META_VERIFY_TOKEN` is unset |
+
+A delivery that runs past its 10-second processing budget answers `200` with
+the remaining events stored as failed events reading *"Deferred: the delivery
+exceeded its processing budget — press Retry."* — press **Retry** on each.
 
 ## Local development
 

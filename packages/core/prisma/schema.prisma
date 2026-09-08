@@ -142,8 +142,8 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  authenticators Authenticator[]
-  artist         Artist?
+  authenticators  Authenticator[]
+  artist          Artist?
   enquiryMessages EnquiryMessage[]
   enquiryReads    EnquiryRead[]
 
@@ -189,15 +189,15 @@ model StaffInvite {
 
 // WebAuthn credential (one user may have many passkeys)
 model Authenticator {
-  id                   String   @id @default(cuid())
-  userId               String
-  credentialID         String   @unique
-  credentialPublicKey  Bytes
-  counter              BigInt   @default(0)
-  transports           String[] @default([])
-  deviceName           String?
-  createdAt            DateTime @default(now())
-  lastUsedAt           DateTime?
+  id                  String    @id @default(cuid())
+  userId              String
+  credentialID        String    @unique
+  credentialPublicKey Bytes
+  counter             BigInt    @default(0)
+  transports          String[]  @default([])
+  deviceName          String?
+  createdAt           DateTime  @default(now())
+  lastUsedAt          DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -209,38 +209,38 @@ model Authenticator {
 // ---------------------------------------------------------------------------
 
 model Artist {
-  id          String       @id @default(cuid())
-  slug        String       @unique
-  userId      String       @unique
-  name        String
-  status      ArtistStatus @default(RESIDENT)
-  tag         String?
-  bio         String?
-  styles      TattooStyle[]
-  specials    String[]     @default([])
-  hue         String?
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  userId          String        @unique
+  name            String
+  status          ArtistStatus  @default(RESIDENT)
+  tag             String?
+  bio             String?
+  styles          TattooStyle[]
+  specials        String[]      @default([])
+  hue             String?
   hourlyRatePence Int?
-  dayRatePence Int?
-  insta       String?
-  headshot    String?
-  experience  String?
-  rating      Float?
-  pieces      Int?
-  booksStatus BooksStatus  @default(open)
-  sortOrder   Int          @default(0)
-  active      Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  dayRatePence    Int?
+  insta           String?
+  headshot        String?
+  experience      String?
+  rating          Float?
+  pieces          Int?
+  booksStatus     BooksStatus   @default(open)
+  sortOrder       Int           @default(0)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  galleryItems     GalleryItem[]
-  flashes          Flash[]
-  enquiries        Enquiry[]
-  bookings         Booking[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  galleryItems      GalleryItem[]
+  flashes           Flash[]
+  enquiries         Enquiry[]
+  bookings          Booking[]
   availabilityRules AvailabilityRule[]
-  leave            Leave[]
-  calendarFeed     CalendarFeed?
-  staffCheckins    StaffCheckin[]
+  leave             Leave[]
+  calendarFeed      CalendarFeed?
+  staffCheckins     StaffCheckin[]
 
   @@index([booksStatus])
   @@index([sortOrder])
@@ -251,25 +251,25 @@ model Artist {
 // ---------------------------------------------------------------------------
 
 model Customer {
-  id                String   @id @default(cuid())
-  name              String
-  email             String?  @unique
-  phone             String?  @unique
-  dob               DateTime?
-  passwordHash      String?
-  notes             String?
-  marketingConsent  Boolean  @default(false)
-  loyaltyStamps     Int      @default(0)
-  loyaltyTier       Int      @default(0)
-  tags              String[] @default([])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id               String    @id @default(cuid())
+  name             String
+  email            String?   @unique
+  phone            String?   @unique
+  dob              DateTime?
+  passwordHash     String?
+  notes            String?
+  marketingConsent Boolean   @default(false)
+  loyaltyStamps    Int       @default(0)
+  loyaltyTier      Int       @default(0)
+  tags             String[]  @default([])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  enquiries      Enquiry[]
-  bookings       Booking[]
-  messages       MessageLog[]
-  reviews        Review[]
-  passwordTokens CustomerPasswordToken[]
+  enquiries       Enquiry[]
+  bookings        Booking[]
+  messages        MessageLog[]
+  reviews         Review[]
+  passwordTokens  CustomerPasswordToken[]
   identities      CustomerIdentity[]
   enquiryMessages EnquiryMessage[]
 }
@@ -294,7 +294,7 @@ model CustomerPasswordToken {
 // ---------------------------------------------------------------------------
 
 model Enquiry {
-  id                String        @id @default(cuid())
+  id                String         @id @default(cuid())
   customerId        String?
   contactName       String
   contactEmail      String?
@@ -305,22 +305,22 @@ model Enquiry {
   size              String?
   budgetPence       Int?
   description       String?
-  moodboard         String[]      @default([])
+  moodboard         String[]       @default([])
   matchData         Json?
   moodboardData     Json?
-  status            EnquiryStatus @default(new)
-  source            EnquirySource @default(web)
+  status            EnquiryStatus  @default(new)
+  source            EnquirySource  @default(web)
   channel           EnquiryChannel @default(web)
   subject           String?
-  threadToken       String        @unique @default(cuid())
+  threadToken       String         @unique @default(cuid())
   lastMessageAt     DateTime?
   lastInboundAt     DateTime?
   assignedAt        DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  customer        Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  preferredArtist Artist?   @relation(fields: [preferredArtistId], references: [id], onDelete: SetNull)
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  preferredArtist Artist?          @relation(fields: [preferredArtistId], references: [id], onDelete: SetNull)
   bookings        Booking[]
   moodboardAssets MoodboardAsset[]
   messages        EnquiryMessage[]
@@ -357,18 +357,18 @@ model MoodboardAsset {
 // provider's id (Resend email id / Meta mid) and is unique so webhook retries
 // are idempotent.
 model EnquiryMessage {
-  id             String             @id @default(cuid())
-  enquiryId      String
-  customerId     String?
-  direction      MessageDirection
-  channel        MessageChannelKind
-  authorUserId   String?
-  fromName       String?
-  fromAddress    String?
-  subject        String?
-  bodyText       String
-  bodyHtml       String?
-  externalId     String?            @unique
+  id              String             @id @default(cuid())
+  enquiryId       String
+  customerId      String?
+  direction       MessageDirection
+  channel         MessageChannelKind
+  authorUserId    String?
+  fromName        String?
+  fromAddress     String?
+  subject         String?
+  bodyText        String
+  bodyHtml        String?
+  externalId      String?            @unique
   // RFC 5322 Message-ID of an inbound email, kept so an outbound reply can
   // set In-Reply-To/References and land in the customer's own mail thread.
   // `externalId` holds the provider's id (a Resend email id) — a different
@@ -377,14 +377,14 @@ model EnquiryMessage {
   // Did the receiving MTA authenticate the sender (DMARC, or SPF+DKIM)?
   // null = unknown, which is what every web and Meta message records: those
   // channels authenticate the account, not a header. Never used to drop mail.
-  senderVerified Boolean?
+  senderVerified  Boolean?
   // The Meta Page/IG connection this message arrived on (or went out on).
   // A reply has to reach the SAME page the customer wrote to, and a customer
   // can move channels inside one thread — so the routing fact belongs to the
   // message, not the enquiry.
-  connectionId   String?
-  deliveryStatus MessageStatus      @default(logged)
-  createdAt      DateTime           @default(now())
+  connectionId    String?
+  deliveryStatus  MessageStatus      @default(logged)
+  createdAt       DateTime           @default(now())
 
   enquiry     Enquiry            @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
   customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -535,17 +535,17 @@ model ConsentForm {
 }
 
 model Session {
-  id                String    @id @default(cuid())
-  bookingId         String    @unique
-  completedAt       DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  bookingId          String    @unique
+  completedAt        DateTime  @default(now())
   amountChargedPence Int
-  tipPence          Int?
-  bankRef           String?
-  receiptSentAt     DateTime?
-  aftercareSentAt   DateTime?
-  reviewRequestAt   DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  tipPence           Int?
+  bankRef            String?
+  receiptSentAt      DateTime?
+  aftercareSentAt    DateTime?
+  reviewRequestAt    DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }
@@ -626,20 +626,20 @@ model GalleryItem {
 }
 
 model Flash {
-  id          String      @id @default(cuid())
-  artistId    String?
-  title       String      @unique
-  image       String?
-  hue         String?
-  sizeCm      String?
-  pricePence  Int?
-  total       Int         @default(1)
-  claimed     Int         @default(0)
-  deadline    String?
-  status      FlashStatus @default(available)
-  sortOrder   Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String      @id @default(cuid())
+  artistId   String?
+  title      String      @unique
+  image      String?
+  hue        String?
+  sizeCm     String?
+  pricePence Int?
+  total      Int         @default(1)
+  claimed    Int         @default(0)
+  deadline   String?
+  status     FlashStatus @default(available)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   artist Artist? @relation(fields: [artistId], references: [id], onDelete: SetNull)
 
@@ -727,16 +727,16 @@ model SiteSettings {
 // ---------------------------------------------------------------------------
 
 model MessageLog {
-  id              String         @id @default(cuid())
-  customerId      String?
+  id               String         @id @default(cuid())
+  customerId       String?
   relatedBookingId String?
-  type            MessageType
-  channel         MessageChannel @default(email)
-  subject         String?
-  body            String?
-  status          MessageStatus  @default(logged)
-  sentAt          DateTime?
-  createdAt       DateTime       @default(now())
+  type             MessageType
+  channel          MessageChannel @default(email)
+  subject          String?
+  body             String?
+  status           MessageStatus  @default(logged)
+  sentAt           DateTime?
+  createdAt        DateTime       @default(now())
 
   customer       Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   relatedBooking Booking?  @relation(fields: [relatedBookingId], references: [id], onDelete: SetNull)
