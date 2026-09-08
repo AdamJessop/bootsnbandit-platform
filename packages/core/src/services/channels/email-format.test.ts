@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  __resetInboundDomainWarnings,
   firstName,
   formatFromHeader,
   formatMessageId,
@@ -12,6 +13,7 @@ import {
   outboundAddressFor,
   parseAddress,
   parseAddressList,
+  parseAuthenticationResults,
   replyAddressFor,
   replySubject,
   stripQuotedReply,
@@ -131,6 +133,60 @@ describe("inboundEmailDomain", () => {
   });
 });
 
+/**
+ * A misconfigured value must degrade EXACTLY like an absent one (null), and
+ * say so once — a URL or a bare mailbox pasted into the var would otherwise
+ * end up in a Reply-To header and produce silently unreachable mail.
+ */
+describe("inboundEmailDomain validation", () => {
+  beforeEach(() => {
+    // The warn-once ledger is module-level, so each case starts from a clean
+    // one rather than inheriting whatever an earlier suite already said.
+    __resetInboundDomainWarnings();
+  });
+
+  it("accepts a plain hostname, stripping a leading @ and casing", () => {
+    expect(
+      inboundEmailDomain({
+        INBOUND_EMAIL_DOMAIN: "@Mail.Example.TEST",
+      } as NodeJS.ProcessEnv),
+    ).toBe("mail.example.test");
+  });
+
+  it("treats a value that is not a hostname as unset, and warns once", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const env = {
+      INBOUND_EMAIL_DOMAIN: "https://mail.example.test/inbox",
+    } as NodeJS.ProcessEnv;
+    expect(inboundEmailDomain(env)).toBeNull();
+    expect(inboundEmailDomain(env)).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain("INBOUND_EMAIL_DOMAIN");
+    warn.mockRestore();
+  });
+
+  it("warns once for an unset value too", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(inboundEmailDomain({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(
+      inboundEmailDomain({ INBOUND_EMAIL_DOMAIN: "" } as NodeJS.ProcessEnv),
+    ).toBeNull();
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("rejects a header-injection payload and never logs the raw CRLF", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(
+      inboundEmailDomain({
+        INBOUND_EMAIL_DOMAIN: "mail.example.test\r\nBcc: x",
+      } as NodeJS.ProcessEnv),
+    ).toBeNull();
+    expect(String(warn.mock.calls[0][0])).not.toMatch(/[\r\n]/);
+    warn.mockRestore();
+  });
+});
+
 describe("emailFromDomain", () => {
   it("reads the host out of EMAIL_FROM, defaulting to the studio address", () => {
     expect(
@@ -218,6 +274,53 @@ describe("headers", () => {
   });
 });
 
+describe("parseAuthenticationResults", () => {
+  it("is null when the header is absent — unknown, not unverified", () => {
+    expect(parseAuthenticationResults(null)).toBeNull();
+    expect(parseAuthenticationResults({})).toBeNull();
+    expect(parseAuthenticationResults({ Subject: "hi" })).toBeNull();
+  });
+
+  it("is true on a DMARC pass", () => {
+    expect(
+      parseAuthenticationResults({
+        "Authentication-Results":
+          "mx.resend.com; spf=pass smtp.mailfrom=example.test; dkim=pass header.d=example.test; dmarc=pass header.from=example.test",
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when SPF and DKIM both pass without DMARC", () => {
+    expect(
+      parseAuthenticationResults({
+        "authentication-results": "mx.resend.com; spf=pass; dkim=pass",
+      }),
+    ).toBe(true);
+  });
+
+  it("is false when the header exists but the checks do not pass", () => {
+    expect(
+      parseAuthenticationResults({
+        "Authentication-Results":
+          "mx.resend.com; spf=fail; dkim=none; dmarc=fail",
+      }),
+    ).toBe(false);
+    expect(
+      parseAuthenticationResults({
+        "Authentication-Results": "mx.resend.com; spf=pass; dkim=none",
+      }),
+    ).toBe(false);
+  });
+
+  it("does not let a lookalike token forge a pass", () => {
+    expect(
+      parseAuthenticationResults({
+        "Authentication-Results": "mx.resend.com; xspf=pass; dkim=pass",
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("htmlToText", () => {
   it("drops the quoted blockquote, scripts and styles, and keeps the prose", () => {
     const text = htmlToText(
@@ -235,6 +338,20 @@ describe("htmlToText", () => {
       "Boots & Bandit\n\nok",
     );
     expect(htmlToText(null)).toBe("");
+  });
+});
+
+describe("htmlToText numeric entities", () => {
+  it("decodes decimal and hex character references", () => {
+    expect(htmlToText("<p>It&#8217;s here</p>")).toBe("It’s here");
+    expect(htmlToText("<p>It&#x2019;s here</p>")).toBe("It’s here");
+    expect(htmlToText("<p>caf&#233;</p>")).toBe("café");
+  });
+
+  it("leaves an unresolvable reference alone rather than mangling it", () => {
+    expect(htmlToText("<p>&#xZZ; &notanentity;</p>")).toBe(
+      "&#xZZ; &notanentity;",
+    );
   });
 });
 

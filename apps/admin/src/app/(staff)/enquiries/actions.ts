@@ -14,8 +14,9 @@ import {
   createBooking,
 } from "@bnb/core/services/bookings";
 import {
-  loadEnquiryEmailContext,
+  ENQUIRY_EMAIL_CONTEXT_SELECT,
   sendEnquiryEmail,
+  toEnquiryEmailContext,
 } from "@bnb/core/services/channels/email";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import { markRead, recordNote } from "@bnb/core/services/enquiry-messages";
@@ -40,10 +41,9 @@ async function loadEnquiryScoped(enquiryId: string) {
   const enquiry = await prisma.enquiry.findUniqueOrThrow({
     where: { id: enquiryId },
     select: {
-      id: true,
-      customerId: true,
-      contactEmail: true,
-      contactName: true,
+      // The reply context and the triage fields in ONE read: replying used to
+      // load the same row twice (once scoped, once for the email context).
+      ...ENQUIRY_EMAIL_CONTEXT_SELECT,
       preferredArtistId: true,
       style: true,
       placement: true,
@@ -95,8 +95,9 @@ export async function replyToEnquiry(
   const valid = validateReply(input);
   if (!valid.ok) return { ok: false, message: valid.error };
 
-  const context = await loadEnquiryEmailContext(enquiryId);
-  if (!context) return { ok: false, message: "That enquiry no longer exists." };
+  // The scoped read above already carries ENQUIRY_EMAIL_CONTEXT_SELECT, and
+  // `findUniqueOrThrow` has already covered the "no longer exists" case.
+  const context = toEnquiryEmailContext(enquiry);
 
   const channel = chooseReplyChannel({
     lastInboundChannel: context.lastInboundChannel,

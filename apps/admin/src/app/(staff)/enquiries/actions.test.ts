@@ -20,10 +20,18 @@ vi.mock("@bnb/core/db", () => ({
   },
 }));
 vi.mock("@bnb/core/email", () => ({ sendEmail: vi.fn() }));
-vi.mock("@bnb/core/services/channels/email", () => ({
-  loadEnquiryEmailContext: vi.fn(),
-  sendEnquiryEmail: vi.fn(),
-}));
+// The row → context mapper stays REAL: the action now maps the row it already
+// read instead of issuing a second query, so mocking the mapper would mock the
+// very thing under test.
+vi.mock("@bnb/core/services/channels/email", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@bnb/core/services/channels/email")>();
+  return {
+    ...actual,
+    loadEnquiryEmailContext: vi.fn(),
+    sendEnquiryEmail: vi.fn(),
+  };
+});
 vi.mock("@bnb/core/services/enquiries", () => ({
   updateEnquiryStatus: vi.fn(),
 }));
@@ -69,16 +77,41 @@ const OWNER = {
   displayName: "Owner",
 };
 
+/**
+ * One read now serves both the RBAC scope check and the email context, so the
+ * stub carries ENQUIRY_EMAIL_CONTEXT_SELECT's fields too — mapping this row
+ * through `toEnquiryEmailContext` produces exactly CONTEXT.
+ */
 const ENQUIRY = {
   id: "e1",
   customerId: "c1",
   contactEmail: "amy@example.com",
   contactName: "Amy",
+  threadToken: "tok123456",
+  subject: "Sleeve idea",
+  preferredArtist: { name: "Sarah North" },
+  customer: { email: "amy@example.com" },
+  messages: [
+    {
+      channel: "email" as const,
+      subject: "Re: Sleeve idea",
+      messageIdHeader: "<abc@x.test>",
+      fromAddress: "amy@example.com",
+    },
+  ],
   preferredArtistId: "art1",
   style: "fine line",
   placement: "arm",
   source: "web" as const,
   status: "new" as const,
+};
+
+/** The same enquiry with nothing to reach the customer on. */
+const UNREACHABLE = {
+  ...ENQUIRY,
+  contactEmail: null,
+  customer: null,
+  messages: [],
 };
 
 beforeEach(() => {
@@ -89,7 +122,6 @@ beforeEach(() => {
   );
   vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({ count: 1 } as never);
   vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "sent" });
-  vi.mocked(loadEnquiryEmailContext).mockResolvedValue(CONTEXT);
   vi.mocked(sendEnquiryEmail).mockResolvedValue({ id: "m1", status: "sent" });
 });
 
@@ -120,10 +152,9 @@ describe("replyToEnquiry", () => {
   });
 
   it("saves an internal note when the customer has no reachable channel", async () => {
-    vi.mocked(loadEnquiryEmailContext).mockResolvedValue({
-      ...CONTEXT,
-      contactEmail: null,
-    });
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue(
+      UNREACHABLE as never,
+    );
     const res = await replyToEnquiry("e1", { message: "Hello" });
     expect(res.ok).toBe(true);
     expect(res.message).toMatch(/no reachable channel/i);
@@ -158,6 +189,19 @@ describe("replyToEnquiry", () => {
     const res = await replyToEnquiry("e1", { message: "   " });
     expect(res.ok).toBe(false);
     expect(sendEnquiryEmail).not.toHaveBeenCalled();
+  });
+
+  it("reads the enquiry exactly once when replying", async () => {
+    const res = await replyToEnquiry("e1", { message: "Hello" });
+
+    expect(res.ok).toBe(true);
+    expect(prisma.enquiry.findUniqueOrThrow).toHaveBeenCalledTimes(1);
+    expect(loadEnquiryEmailContext).not.toHaveBeenCalled();
+    expect(vi.mocked(sendEnquiryEmail).mock.calls[0][0].context).toMatchObject({
+      enquiryId: "e1",
+      threadToken: "tok123456",
+      contactEmail: "amy@example.com",
+    });
   });
 
   it("still forbids artists from replying to another artist's enquiry (RBAC)", async () => {
@@ -343,10 +387,9 @@ describe("reply threading, notes, read markers and close authorisation", () => {
   });
 
   it("records an internal note when there is no email to send to", async () => {
-    vi.mocked(loadEnquiryEmailContext).mockResolvedValue({
-      ...CONTEXT,
-      contactEmail: null,
-    });
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue(
+      UNREACHABLE as never,
+    );
     const res = await replyToEnquiry("e1", { message: "Hello" });
     expect(res.ok).toBe(true);
     expect(recordOutbound).not.toHaveBeenCalled();

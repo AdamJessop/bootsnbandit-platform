@@ -4,6 +4,7 @@ import {
   getWebhookFailure,
   listRecentWebhookFailures,
   markWebhookFailureRetried,
+  purgeOldWebhookFailures,
   recordWebhookFailure,
   setWebhookFailureError,
 } from "./webhook-failures";
@@ -158,5 +159,53 @@ describe("webhook failures (DB)", () => {
     const payload = row?.payload as { escaped: string; real: string };
     expect(payload.escaped).toBe(escaped);
     expect(payload.real).toBe("xy");
+  });
+});
+
+/**
+ * Retention: the panel only ever looks back WEBHOOK_FAILURE_WINDOW_DAYS, so
+ * anything past the retention window is an unbounded jsonb table nobody reads.
+ * The hourly cron sweeps it.
+ */
+describe("purgeOldWebhookFailures", () => {
+  afterAll(async () => {
+    await closeTestDb();
+  });
+
+  it("deletes rows older than the cutoff and leaves newer ones", async () => {
+    if (!(await dbReachable())) return;
+    const db = testDb();
+    const provider = uid("prov");
+    const old = await db.webhookFailure.create({
+      data: {
+        provider,
+        payload: { n: 1 },
+        error: "old",
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+      },
+      select: { id: true },
+    });
+    const fresh = await db.webhookFailure.create({
+      data: {
+        provider,
+        payload: { n: 2 },
+        error: "fresh",
+        createdAt: new Date("2026-09-01T00:00:00Z"),
+      },
+      select: { id: true },
+    });
+
+    const deleted = await purgeOldWebhookFailures(
+      new Date("2026-06-01T00:00:00Z"),
+    );
+    expect(deleted).toBeGreaterThanOrEqual(1);
+    expect(
+      await db.webhookFailure.findUnique({ where: { id: old.id } }),
+    ).toBeNull();
+    expect(
+      await db.webhookFailure.findUnique({ where: { id: fresh.id } }),
+    ).not.toBeNull();
+
+    await db.webhookFailure.deleteMany({ where: { provider } });
   });
 });

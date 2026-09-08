@@ -3,6 +3,7 @@
 import type { MessageType } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import { recordOutbound } from "@bnb/core/services/enquiry-messages";
+import { configuredEmailFrom } from "./constants";
 import { renderEmail } from "./render";
 
 export type EmailType =
@@ -53,9 +54,6 @@ export interface SendEmailResult {
   status: "sent" | "skipped" | "failed";
 }
 
-const FROM_ADDRESS =
-  process.env.EMAIL_FROM ?? "Boots 'n' Bandit <hello@bootsnbandit.co.uk>";
-
 /** Public send status -> MessageStatus enum value in the DB schema. */
 function toDbStatus(
   status: SendEmailResult["status"],
@@ -101,7 +99,7 @@ export async function sendEmail(
       const { Resend } = await import("resend");
       const resend = new Resend(apiKey);
       const { data, error } = await resend.emails.send({
-        from: input.from?.trim() || FROM_ADDRESS,
+        from: input.from?.trim() || configuredEmailFrom(),
         to: input.to,
         subject,
         html,

@@ -22,6 +22,13 @@ vi.mock("./loyalty-rewards", () => ({
 vi.mock("./moodboard-assets", () => ({
   runMoodboardAssetPurge: (...a: unknown[]) => runMoodboardAssetPurge(...a),
 }));
+vi.mock("./webhook-failures", () => ({
+  runWebhookFailurePurge: async () => ({
+    job: "webhook_failure_purge",
+    sent: 0,
+    skipped: 0,
+  }),
+}));
 
 const { runAllCron } = await import("./index");
 
@@ -47,8 +54,13 @@ describe("runAllCron", () => {
     expect(runReviewRequests).toHaveBeenCalledOnce();
     expect(runLoyaltyRewards).toHaveBeenCalledOnce();
     expect(runMoodboardAssetPurge).toHaveBeenCalledOnce();
-    expect(res.jobs).toHaveLength(4);
+    expect(res.jobs).toHaveLength(5);
     expect(res.totalSent).toBe(7);
     expect(res.totalSkipped).toBe(4);
+  });
+
+  it("includes the webhook-failure purge in the sweep", async () => {
+    const summary = await runAllCron();
+    expect(summary.jobs.map((j) => j.job)).toContain("webhook_failure_purge");
   });
 });

@@ -2,12 +2,14 @@ import { runReminders, type CronJobResult } from "./reminders";
 import { runReviewRequests } from "./review-requests";
 import { runLoyaltyRewards } from "./loyalty-rewards";
 import { runMoodboardAssetPurge } from "./moodboard-assets";
+import { runWebhookFailurePurge } from "./webhook-failures";
 
 export type { CronJobResult } from "./reminders";
 export { runReminders } from "./reminders";
 export { runReviewRequests } from "./review-requests";
 export { runLoyaltyRewards } from "./loyalty-rewards";
 export { runMoodboardAssetPurge } from "./moodboard-assets";
+export { runWebhookFailurePurge } from "./webhook-failures";
 
 export interface CronRunSummary {
   ranAt: string;
@@ -27,6 +29,7 @@ export async function runAllCron(): Promise<CronRunSummary> {
   jobs.push(await runReviewRequests());
   jobs.push(await runLoyaltyRewards());
   jobs.push(await runMoodboardAssetPurge());
+  jobs.push(await runWebhookFailurePurge());
 
   const totalSent = jobs.reduce((n, j) => n + j.sent, 0);
   const totalSkipped = jobs.reduce((n, j) => n + j.skipped, 0);

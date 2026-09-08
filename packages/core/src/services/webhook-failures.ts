@@ -155,6 +155,23 @@ export async function markWebhookFailureRetried(
   });
 }
 
+/**
+ * How long a failure row is worth keeping. The panel only ever looks back
+ * WEBHOOK_FAILURE_WINDOW_DAYS (7); everything past this is an audit trail
+ * nobody reads, and each row holds a whole webhook body — an unbounded jsonb
+ * table growing at provider-retry rates. Mirrors the mood-board orphan purge:
+ * a cheap `deleteMany` run by the hourly cron sweep.
+ */
+export const WEBHOOK_FAILURE_RETENTION_DAYS = 90;
+
+/** Delete failure rows created before `olderThan`. Returns how many went. */
+export async function purgeOldWebhookFailures(olderThan: Date): Promise<number> {
+  const res = await prisma.webhookFailure.deleteMany({
+    where: { createdAt: { lt: olderThan } },
+  });
+  return res.count;
+}
+
 /** The replay failed again — record why, and leave the row open. */
 export async function setWebhookFailureError(
   id: string,

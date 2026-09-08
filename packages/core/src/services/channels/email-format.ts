@@ -7,6 +7,7 @@
  * hits reply the inbound webhook can read the enquiry straight off the
  * recipient address instead of guessing from the sender.
  */
+import { configuredEmailFrom } from "@bnb/core/email/constants";
 
 export const STUDIO_NAME = "Boots 'n' Bandit";
 /** Local-part prefix of the per-enquiry reply address. */
@@ -15,15 +16,60 @@ export const INBOUND_LOCAL_PREFIX = "enq-";
 export const OUTBOUND_LOCAL_PART = "enquiries";
 
 /**
+ * A DNS hostname: labels of letters/digits/hyphens (not leading or trailing),
+ * at least two of them, ending in an alphabetic TLD. Deliberately strict — a
+ * value like `https://mail.example.test/` or `enq@mail.example.test` would
+ * otherwise be pasted straight into a Reply-To header and silently produce
+ * unreachable mail.
+ */
+const HOSTNAME =
+  /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/**
+ * One warning per distinct bad/absent value per process. A module-level Set
+ * (rather than a boolean) means a misconfiguration and a later correction each
+ * get said once, instead of a line per outbound reply.
+ */
+const warnedDomains = new Set<string>();
+
+function warnOnce(key: string, message: string): void {
+  if (warnedDomains.has(key)) return;
+  warnedDomains.add(key);
+  console.warn(message);
+}
+
+/** Test-only: forget what has already been warned about, so suite order can't leak. */
+export function __resetInboundDomainWarnings(): void {
+  warnedDomains.clear();
+}
+
+/**
  * The subdomain whose MX points at Resend — both the inbound mailbox domain
- * and the outbound From domain. Null when unconfigured, which the callers
- * treat as "email replies fall back to the plain studio address".
+ * and the outbound From domain. Null when unconfigured OR misconfigured,
+ * which the callers treat as "email replies fall back to the plain studio
+ * address"; a bad value must degrade exactly like an absent one, loudly.
  */
 export function inboundEmailDomain(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
   const raw = env.INBOUND_EMAIL_DOMAIN?.trim().toLowerCase().replace(/^@/, "");
-  return raw ? raw : null;
+  if (!raw) {
+    warnOnce(
+      "",
+      "[email] INBOUND_EMAIL_DOMAIN is not set — enquiry replies carry no reply token and inbound email is off. See docs/CHANNELS.md.",
+    );
+    return null;
+  }
+  if (!HOSTNAME.test(raw)) {
+    warnOnce(
+      raw,
+      // JSON-quoted: the value is operator input and may itself carry CR/LF,
+      // which would otherwise forge a second line in the log.
+      `[email] INBOUND_EMAIL_DOMAIN is not a hostname (${JSON.stringify(raw)}) — treating it as unset. Use the bare subdomain, e.g. mail.example.com. See docs/CHANNELS.md.`,
+    );
+    return null;
+  }
+  return raw;
 }
 
 /**
@@ -36,9 +82,7 @@ export function inboundEmailDomain(
 export function emailFromDomain(
   env: NodeJS.ProcessEnv = process.env,
 ): string | null {
-  const parsed = parseAddress(
-    env.EMAIL_FROM?.trim() || "Boots 'n' Bandit <hello@bootsnbandit.co.uk>",
-  );
+  const parsed = parseAddress(configuredEmailFrom(env));
   if (!parsed) return null;
   return parsed.address.slice(parsed.address.lastIndexOf("@") + 1) || null;
 }
@@ -264,6 +308,38 @@ export function isAutoSubmitted(
   return Boolean(headerValue(headers, "x-autoreply"));
 }
 
+/** `spf=pass`, `dkim=pass`, `dmarc=pass` — anchored so `xspf=pass` cannot match. */
+function methodResult(header: string, method: string): string | null {
+  const re = new RegExp(`(?:^|[;\\s])${method}\\s*=\\s*([a-z]+)`, "i");
+  const match = re.exec(header);
+  return match ? match[1].toLowerCase() : null;
+}
+
+/**
+ * Did the receiving MTA authenticate this sender?
+ *
+ *   true   DMARC passed, or SPF and DKIM both passed
+ *   false  the header is there and it did not
+ *   null   no header at all — unknown (also what web and Meta messages get)
+ *
+ * This NEVER drops mail. A tattoo enquiry from a badly configured personal
+ * domain is still a customer; the inbox just labels the bubble so staff can
+ * weigh "this is your artist" against a forged From line before they act on
+ * it. Only `Authentication-Results` is read — `ARC-` headers describe some
+ * other hop's opinion and are not ours to trust.
+ */
+export function parseAuthenticationResults(
+  headers: Record<string, string> | null | undefined,
+): boolean | null {
+  const header = headerValue(headers, "authentication-results");
+  if (!header) return null;
+  if (methodResult(header, "dmarc") === "pass") return true;
+  return (
+    methodResult(header, "spf") === "pass" &&
+    methodResult(header, "dkim") === "pass"
+  );
+}
+
 const ENTITIES: Record<string, string> = {
   "&amp;": "&",
   "&lt;": "<",
@@ -273,6 +349,28 @@ const ENTITIES: Record<string, string> = {
   "&apos;": "'",
   "&nbsp;": " ",
 };
+
+/**
+ * Numeric character references — `&#8217;` and `&#x2019;` are what real mail
+ * clients emit for a curly apostrophe, and leaving them raw puts literal
+ * `&#8217;` in the inbox bubble. Out-of-range and surrogate code points are
+ * left untouched rather than turned into a replacement character, so nothing
+ * is silently corrupted.
+ */
+function decodeNumericEntity(
+  match: string,
+  hex: string | undefined,
+  dec: string | undefined,
+): string {
+  const code = hex ? Number.parseInt(hex, 16) : Number.parseInt(dec ?? "", 10);
+  if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return match;
+  if (code >= 0xd800 && code <= 0xdfff) return match;
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return match;
+  }
+}
 
 /**
  * Last-resort plain text when Resend gives us HTML only. `<blockquote>` is
@@ -286,7 +384,10 @@ export function htmlToText(html: string | null | undefined): string {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&[a-z#0-9]+;/gi, (m) => ENTITIES[m.toLowerCase()] ?? m)
+    .replace(/&#x([0-9a-f]+);|&#(\d+);/gi, (m, hex, dec) =>
+      decodeNumericEntity(m, hex, dec),
+    )
+    .replace(/&[a-z]+;/gi, (m) => ENTITIES[m.toLowerCase()] ?? m)
     // Every horizontal run (spaces, tabs, the NBSP that &nbsp; decoded to)
     // collapses to one space; newlines are handled separately below.
     .replace(/[^\S\n]+/g, " ")
