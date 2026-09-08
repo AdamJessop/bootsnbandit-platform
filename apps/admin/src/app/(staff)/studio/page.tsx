@@ -27,7 +27,7 @@ const SECTIONS = [
   {
     href: "/studio/channels",
     label: "Channels",
-    desc: "Inbound email address, webhook status and failed events.",
+    desc: "Email, Messenger and Instagram — connections, webhook status and failed events.",
     icon: Inbox,
   },
 ];

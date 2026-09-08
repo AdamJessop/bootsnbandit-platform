@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { ingestResendEvent } from "@bnb/core/services/channels/email-inbound";
+import { parseMetaWebhook } from "@bnb/core/services/channels/meta";
+import { ingestMetaEvent } from "@bnb/core/services/channels/meta-inbound";
 import {
   getWebhookFailure,
   markWebhookFailureRetried,
@@ -31,21 +33,38 @@ export async function retryWebhookFailureAction(fd: FormData): Promise<void> {
   if (!id) return;
 
   const row = await getWebhookFailure(id);
-  // Phase 3 adds a "meta" branch here; today only Resend events are replayable.
-  if (!row || row.provider !== "resend") return;
+  if (!row) return;
 
   try {
-    const outcome = await ingestResendEvent(row.payload);
-    if (outcome.status === "ignored" && outcome.reason === "unsupported_event") {
-      // The route stored this because the original body could not even be
-      // parsed as an event (e.g. malformed JSON) — there is nothing to
-      // replay, so treat it as a fresh failure rather than declaring victory.
-      await setWebhookFailureError(
-        id,
-        "Stored payload is not a replayable Resend event (original body could not be parsed) — check the delivery in the Resend dashboard.",
-      );
+    if (row.provider === "resend") {
+      const outcome = await ingestResendEvent(row.payload);
+      if (outcome.status === "ignored" && outcome.reason === "unsupported_event") {
+        // The route stored this because the original body could not even be
+        // parsed as an event (e.g. malformed JSON) — there is nothing to
+        // replay, so treat it as a fresh failure rather than declaring victory.
+        await setWebhookFailureError(
+          id,
+          "Stored payload is not a replayable Resend event (original body could not be parsed) — check the delivery in the Resend dashboard.",
+        );
+      } else {
+        await markWebhookFailureRetried(id);
+      }
+    } else if (row.provider === "meta") {
+      // The webhook stores ONE event per failure (`singleEventBody`), so this
+      // parses back to exactly the event that broke.
+      const events = parseMetaWebhook(row.payload);
+      if (events.length === 0) {
+        await setWebhookFailureError(
+          id,
+          "Stored payload is not a replayable Meta event (original body could not be parsed) — check the delivery in the Meta app dashboard.",
+        );
+      } else {
+        for (const event of events) await ingestMetaEvent(event);
+        await markWebhookFailureRetried(id);
+      }
     } else {
-      await markWebhookFailureRetried(id);
+      // An unknown provider has no replay path; leave the row open.
+      return;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

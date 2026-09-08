@@ -13,6 +13,7 @@ const base: ThreadItem = {
   deliveryStatus: "logged",
   createdAtISO: "2026-09-01T10:00:00Z",
   attachments: [],
+  senderVerified: null,
 };
 
 describe("EnquiryThread", () => {
@@ -100,5 +101,64 @@ describe("EnquiryThread", () => {
     expect(html).toContain("brief.pdf");
     // Unreachable attachment is named but not linked.
     expect(html).not.toContain("/api/attachments/a3");
+  });
+});
+
+describe("channel and verification badges", () => {
+  it("names Messenger and Instagram bubbles with their own icon", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryThread
+        items={[
+          { ...base, id: "m1", channel: "messenger", bodyText: "hiya" },
+          { ...base, id: "m2", channel: "instagram", bodyText: "the moth?" },
+        ]}
+      />,
+    );
+    expect(html).toContain("Messenger");
+    expect(html).toContain("Instagram");
+    // Two distinct lucide icons, one per bubble. lucide-react dropped brand
+    // icons (no Facebook/Instagram glyph in this dependency's icon set), so
+    // Messenger and Instagram use generic chat/photo icons instead.
+    expect(html).toContain("lucide-message-circle");
+    expect(html).toContain("lucide-camera");
+  });
+
+  it("badges an inbound email whose sender did not authenticate", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryThread
+        items={[
+          { ...base, id: "m1", channel: "email", senderVerified: false },
+        ]}
+      />,
+    );
+    expect(html).toContain("Unverified sender");
+  });
+
+  it("says nothing when the sender authenticated, or when nobody checked", () => {
+    for (const senderVerified of [true, null]) {
+      const html = renderToStaticMarkup(
+        <EnquiryThread
+          items={[{ ...base, id: "m1", channel: "email", senderVerified }]}
+        />,
+      );
+      expect(html).not.toContain("Unverified sender");
+    }
+  });
+
+  it("never badges an outbound message, whatever the column says", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryThread
+        items={[
+          {
+            ...base,
+            id: "m1",
+            direction: "outbound",
+            channel: "email",
+            senderVerified: false,
+          },
+        ]}
+      />,
+    );
+    expect(html).not.toContain("Unverified sender");
   });
 });

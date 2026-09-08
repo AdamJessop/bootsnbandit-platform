@@ -61,6 +61,7 @@ export default async function EnquiriesPage() {
       subject: m.subject,
       bodyText: m.bodyText,
       deliveryStatus: m.deliveryStatus,
+      senderVerified: m.senderVerified,
       createdAtISO: m.createdAt.toISOString(),
       attachments: m.attachments.map((a) => ({
         id: a.id,

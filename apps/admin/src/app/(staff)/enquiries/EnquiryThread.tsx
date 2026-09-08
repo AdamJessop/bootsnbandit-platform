@@ -6,6 +6,15 @@
  * carries its channel + timestamp so a mixed email/Messenger/web history reads
  * unambiguously. Replaces the old flat MessageLog "Message history" list.
  */
+import {
+  Camera,
+  Globe,
+  Mail,
+  MessageCircle,
+  ShieldAlert,
+  StickyNote,
+  type LucideIcon,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { cn } from "@bnb/core/utils";
@@ -32,6 +41,11 @@ export interface ThreadItem {
   deliveryStatus: string;
   createdAtISO: string;
   attachments: ThreadAttachmentItem[];
+  /**
+   * Did the sending MTA authenticate the sender? null = unknown, which is
+   * every web and Meta message — those channels authenticate the account.
+   */
+  senderVerified: boolean | null;
 }
 
 export const CHANNEL_LABEL: Record<ThreadItem["channel"], string> = {
@@ -40,6 +54,17 @@ export const CHANNEL_LABEL: Record<ThreadItem["channel"], string> = {
   messenger: "Messenger",
   instagram: "Instagram",
   note: "Internal note",
+};
+
+// lucide-react dropped brand/social-logo icons a while back — there is no
+// Facebook or Instagram glyph in this dependency's icon set — so Messenger
+// and Instagram are represented with generic chat/photo icons instead.
+export const CHANNEL_ICON: Record<ThreadItem["channel"], LucideIcon> = {
+  web: Globe,
+  email: Mail,
+  messenger: MessageCircle,
+  instagram: Camera,
+  note: StickyNote,
 };
 
 function isImage(mime: string): boolean {
@@ -116,7 +141,29 @@ export function EnquiryThread({ items }: { items: ThreadItem[] }) {
                 )}
               >
                 <div className="mb-1 flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
-                  <Badge variant="outline">{CHANNEL_LABEL[m.channel]}</Badge>
+                  <Badge variant="outline" className="gap-1">
+                    {(() => {
+                      const Icon = CHANNEL_ICON[m.channel];
+                      return <Icon className="h-3 w-3" aria-hidden />;
+                    })()}
+                    {CHANNEL_LABEL[m.channel]}
+                  </Badge>
+                  {/*
+                    Only ever on INBOUND mail, and only when the MTA actually
+                    said "no" — an unknown verdict (web, Meta, an MTA that
+                    added no header) must not look like a warning. Nothing is
+                    ever dropped on this: it is a label, not a filter.
+                  */}
+                  {!outbound && !internal && m.senderVerified === false && (
+                    <Badge
+                      variant="outline"
+                      className="gap-1 border-bb-gold/50 text-bb-gold"
+                      title="This message failed SPF/DKIM/DMARC checks — the From address may be forged."
+                    >
+                      <ShieldAlert className="h-3 w-3" aria-hidden />
+                      Unverified sender
+                    </Badge>
+                  )}
                   {who && <span className="text-text-primary">{who}</span>}
                   {outbound && m.deliveryStatus !== "sent" && (
                     <Badge variant="outline" className="capitalize">

@@ -5,6 +5,14 @@ vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({ id: "o1", role: "OWNER" })),
 }));
 vi.mock("./actions", () => ({ retryWebhookFailureAction: vi.fn() }));
+vi.mock("./meta-actions", () => ({
+  connectMetaAction: vi.fn(),
+  disconnectMetaAction: vi.fn(),
+}));
+const listChannelConnections = vi.fn();
+vi.mock("@bnb/core/services/channel-connections", () => ({
+  listChannelConnections: (...a: unknown[]) => listChannelConnections(...a),
+}));
 
 const findFirst = vi.fn();
 vi.mock("@bnb/core/db", () => ({
@@ -33,6 +41,7 @@ beforeEach(() => {
   });
   listRecentWebhookFailures.mockResolvedValue([]);
   countOpenWebhookFailures.mockResolvedValue(0);
+  listChannelConnections.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -103,5 +112,127 @@ describe("ChannelsPage", () => {
     const { default: Page } = await import("./page");
     const html = renderToStaticMarkup(await Page());
     expect(html).toContain("Nothing received yet");
+  });
+});
+
+describe("ChannelsPage — Meta", () => {
+  const CONNECTIONS = [
+    {
+      id: "c1",
+      channel: "messenger" as const,
+      externalId: "102938475610293",
+      pageId: "102938475610293",
+      igAccountId: "17841400000000000",
+      name: "Boots 'n' Bandit",
+      active: true,
+      webhookSubscribedAt: new Date("2026-09-05T10:00:00Z"),
+      lastEventAt: new Date("2026-09-08T11:22:33Z"),
+      connectedAt: new Date("2026-09-05T10:00:00Z"),
+    },
+    {
+      id: "c2",
+      channel: "instagram" as const,
+      externalId: "17841400000000000",
+      pageId: "102938475610293",
+      igAccountId: "17841400000000000",
+      name: "Boots 'n' Bandit (@bootsnbandit)",
+      active: true,
+      webhookSubscribedAt: null,
+      lastEventAt: null,
+      connectedAt: new Date("2026-09-05T10:00:00Z"),
+    },
+  ];
+
+  it("says Meta is not configured, and does not offer Connect", async () => {
+    delete process.env.META_APP_ID;
+    delete process.env.META_APP_SECRET;
+    delete process.env.META_VERIFY_TOKEN;
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("META_APP_ID");
+    expect(html).toContain("META_VERIFY_TOKEN");
+    expect(html).toContain("docs/CHANNELS.md");
+    expect(html).not.toContain("Connect a Facebook Page");
+  });
+
+  it("shows the webhook URL and a Connect button once configured", async () => {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("https://admin.bootsnbandit.test/api/webhooks/meta");
+    expect(html).toContain("Connect a Facebook Page");
+    expect(html).toContain("No Pages connected yet");
+    // Never the values themselves.
+    expect(html).not.toContain("1234567890");
+  });
+
+  it("lists each connection with its last event and subscription state", async () => {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+    listChannelConnections.mockResolvedValue(CONNECTIONS);
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("Boots &#x27;n&#x27; Bandit");
+    expect(html).toContain("Messenger");
+    expect(html).toContain("Instagram");
+    expect(html).toContain("8 September 2026");
+    expect(html).toContain("Nothing received yet");
+    expect(html).toContain("Not subscribed");
+    expect(html).toContain("Disconnect");
+  });
+
+  it("shows the flash from a finished connect", async () => {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+    const { default: Page } = await import("./page");
+    const ok = renderToStaticMarkup(
+      await Page({ searchParams: Promise.resolve({ meta_connected: "3" }) }),
+    );
+    expect(ok).toContain("Connected 3");
+    const bad = renderToStaticMarkup(
+      await Page({ searchParams: Promise.resolve({ meta_error: "bad_state" }) }),
+    );
+    expect(bad).toContain("could not be completed");
+  });
+
+  it("maps an unrecognised meta_error slug to a generic message, never the raw slug", async () => {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(
+      await Page({
+        searchParams: Promise.resolve({ meta_error: "some_unknown_slug" }),
+      }),
+    );
+    expect(html).toContain(
+      "Facebook returned an error while connecting — try again or check the app settings.",
+    );
+    expect(html).not.toContain("some_unknown_slug");
+  });
+
+  it("lists failed events from both providers, naming which is which", async () => {
+    countOpenWebhookFailures.mockResolvedValue(1);
+    listRecentWebhookFailures.mockResolvedValue([
+      {
+        id: "wf1",
+        provider: "meta",
+        externalId: "m_AbC0dEf1GhI2jKl3MnO4pQ",
+        error: "Graph is down",
+        createdAt: new Date("2026-09-08T09:00:00Z"),
+        retriedAt: null,
+      },
+    ]);
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(await Page({ searchParams: Promise.resolve({}) }));
+    expect(html).toContain("Graph is down");
+    expect(html).toContain("meta");
+    // No provider filter any more — the panel owns both channels.
+    expect(listRecentWebhookFailures).toHaveBeenCalledWith({ openOnly: true });
+    expect(countOpenWebhookFailures).toHaveBeenCalledWith();
   });
 });

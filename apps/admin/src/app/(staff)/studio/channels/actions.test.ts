@@ -16,6 +16,9 @@ vi.mock("@bnb/core/services/webhook-failures", () => ({
 vi.mock("@bnb/core/services/channels/email-inbound", () => ({
   ingestResendEvent: vi.fn(),
 }));
+vi.mock("@bnb/core/services/channels/meta-inbound", () => ({
+  ingestMetaEvent: vi.fn(),
+}));
 
 const { requireRole } = await import("@bnb/core/auth");
 const {
@@ -25,6 +28,9 @@ const {
 } = await import("@bnb/core/services/webhook-failures");
 const { ingestResendEvent } = await import(
   "@bnb/core/services/channels/email-inbound"
+);
+const { ingestMetaEvent } = await import(
+  "@bnb/core/services/channels/meta-inbound"
 );
 const { retryWebhookFailureAction } = await import("./actions");
 
@@ -107,5 +113,95 @@ describe("retryWebhookFailureAction", () => {
       "wf3",
       expect.stringContaining("not a replayable"),
     );
+  });
+});
+
+describe("retryWebhookFailureAction on a meta failure", () => {
+  const STORED = {
+    object: "page",
+    entry: [
+      {
+        id: "102938475610293",
+        time: 1788000000000,
+        messaging: [
+          {
+            sender: { id: "7213456789012345" },
+            recipient: { id: "102938475610293" },
+            timestamp: 1788000000000,
+            message: { mid: "m_AbC0dEf1GhI2jKl3MnO4pQ", text: "hiya" },
+          },
+        ],
+      },
+    ],
+  };
+
+  it("replays the stored event through the SAME ingest the webhook uses", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf1",
+      provider: "meta",
+      payload: STORED,
+    });
+    vi.mocked(ingestMetaEvent).mockResolvedValue({
+      status: "recorded",
+      direction: "inbound",
+      enquiryId: "e1",
+      messageId: "m1",
+      createdEnquiry: false,
+    } as never);
+
+    const fd = new FormData();
+    fd.set("id", "wf1");
+    await retryWebhookFailureAction(fd);
+
+    expect(ingestMetaEvent).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(ingestMetaEvent).mock.calls[0][0]).toMatchObject({
+      mid: "m_AbC0dEf1GhI2jKl3MnO4pQ",
+      channel: "messenger",
+    });
+    expect(markWebhookFailureRetried).toHaveBeenCalledWith("wf1");
+  });
+
+  it("does not declare victory on a payload that holds no event", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf2",
+      provider: "meta",
+      payload: { raw: "not json at all" },
+    });
+    const fd = new FormData();
+    fd.set("id", "wf2");
+    await retryWebhookFailureAction(fd);
+
+    expect(ingestMetaEvent).not.toHaveBeenCalled();
+    expect(markWebhookFailureRetried).not.toHaveBeenCalled();
+    expect(setWebhookFailureError).toHaveBeenCalledWith(
+      "wf2",
+      expect.stringContaining("not a replayable Meta event"),
+    );
+  });
+
+  it("writes the new error back when the replay fails again", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf3",
+      provider: "meta",
+      payload: STORED,
+    });
+    vi.mocked(ingestMetaEvent).mockRejectedValue(new Error("Graph is down"));
+    const fd = new FormData();
+    fd.set("id", "wf3");
+    await retryWebhookFailureAction(fd);
+    expect(setWebhookFailureError).toHaveBeenCalledWith("wf3", "Graph is down");
+  });
+
+  it("ignores a provider it does not know how to replay", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf4",
+      provider: "stripe",
+      payload: {},
+    });
+    const fd = new FormData();
+    fd.set("id", "wf4");
+    await retryWebhookFailureAction(fd);
+    expect(ingestMetaEvent).not.toHaveBeenCalled();
+    expect(markWebhookFailureRetried).not.toHaveBeenCalled();
   });
 });

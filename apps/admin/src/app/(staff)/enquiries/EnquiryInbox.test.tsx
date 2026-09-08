@@ -62,6 +62,7 @@ const items: EnquiryItem[] = [
         subject: "Thanks for your enquiry",
         bodyText: "A ladybird on the forearm please",
         deliveryStatus: "logged",
+        senderVerified: null,
         createdAtISO: "2026-06-01T10:01:00Z",
         attachments: [],
       },
