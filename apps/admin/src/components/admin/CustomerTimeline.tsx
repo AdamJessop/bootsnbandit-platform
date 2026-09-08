@@ -6,8 +6,11 @@
  */
 import {
   CalendarCheck,
+  Camera,
+  Globe,
   Inbox,
   Mail,
+  MessageCircle,
   ReceiptText,
   StarIcon,
   StickyNote,
@@ -16,13 +19,24 @@ import {
 
 export interface TimelineEntry {
   id: string;
-  kind: "enquiry" | "booking" | "session" | "email" | "note" | "loyalty";
+  kind:
+    | "enquiry"
+    | "booking"
+    | "session"
+    | "email"
+    | "note"
+    | "loyalty"
+    | "message";
   /** ISO timestamp. */
   at: string;
   title: string;
   detail?: string;
   /** e.g. email delivery status. */
   status?: string;
+  /** Where this entry lives — usually /enquiries?open=<id>. */
+  href?: string;
+  /** Message entries: which channel drew the icon. */
+  channel?: "web" | "email" | "messenger" | "instagram";
 }
 
 export interface CustomerTimelineProps {
@@ -47,6 +61,19 @@ const KIND_META: Record<
   email: { icon: Mail, label: "Email", color: "text-text-muted" },
   note: { icon: StickyNote, label: "Note", color: "text-text-muted" },
   loyalty: { icon: StarIcon, label: "Loyalty", color: "text-bb-gold" },
+  message: { icon: MessageCircle, label: "Message", color: "text-bb-teal" },
+};
+
+// Same convention as the enquiry thread: lucide-react carries no Facebook or
+// Instagram glyph, so Messenger is a chat bubble and Instagram a camera.
+const CHANNEL_ICON: Record<
+  NonNullable<TimelineEntry["channel"]>,
+  LucideIcon
+> = {
+  web: Globe,
+  email: Mail,
+  messenger: MessageCircle,
+  instagram: Camera,
 };
 
 function formatWhen(iso: string): string {
@@ -76,7 +103,7 @@ export function CustomerTimeline({ entries }: CustomerTimelineProps) {
     <ol className="relative space-y-4 border-l border-border-default pl-6">
       {sorted.map((entry) => {
         const meta = KIND_META[entry.kind];
-        const Icon = meta.icon;
+        const Icon = entry.channel ? CHANNEL_ICON[entry.channel] : meta.icon;
         return (
           <li key={entry.id} className="relative">
             <span
@@ -89,7 +116,13 @@ export function CustomerTimeline({ entries }: CustomerTimelineProps) {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-medium text-text-primary">
                   <span className="sr-only">{meta.label}: </span>
-                  {entry.title}
+                  {entry.href ? (
+                    <a href={entry.href} className="hover:text-bb-teal">
+                      {entry.title}
+                    </a>
+                  ) : (
+                    entry.title
+                  )}
                 </p>
                 <time
                   className="text-xs tabular-nums text-text-muted"

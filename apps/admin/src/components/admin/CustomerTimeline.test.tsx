@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   CustomerTimeline,
   sortTimeline,
@@ -42,5 +43,27 @@ describe("CustomerTimeline contract", () => {
     const copy = [...entries];
     sortTimeline(entries);
     expect(entries).toEqual(copy);
+  });
+
+  it("renders a message entry as a link with its channel", () => {
+    const html = renderToStaticMarkup(
+      <CustomerTimeline
+        customerId="c1"
+        entries={[
+          {
+            id: "message-m1",
+            kind: "message",
+            channel: "messenger",
+            at: "2026-09-05T09:00:00.000Z",
+            title: "Messenger · Received",
+            detail: "Is Tuesday free?",
+            href: "/enquiries?open=e1",
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain('href="/enquiries?open=e1"');
+    expect(html).toContain("Messenger · Received");
+    expect(html).toContain("Is Tuesday free?");
   });
 });

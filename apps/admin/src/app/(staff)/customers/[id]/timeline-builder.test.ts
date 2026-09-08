@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildTimeline, type TimelineSources } from "./timeline-builder";
+import {
+  buildTimeline,
+  messagePreview,
+  type TimelineSources,
+} from "./timeline-builder";
 
 const sources: TimelineSources = {
   enquiries: [
@@ -76,5 +80,93 @@ describe("buildTimeline", () => {
     });
     const email = entries.find((e) => e.kind === "email");
     expect(email?.at).toBe("2026-03-01T00:00:00Z");
+  });
+});
+
+const EMPTY = {
+  enquiries: [],
+  bookings: [],
+  sessions: [],
+  messages: [],
+  threadMessages: [],
+  loyalty: { stamps: 0, tier: 0 },
+};
+
+describe("messagePreview", () => {
+  it("collapses whitespace and truncates long bodies", () => {
+    expect(messagePreview("  hello\n\n  there  ")).toBe("hello there");
+    expect(messagePreview("x".repeat(200))).toHaveLength(121); // 120 + ellipsis
+    expect(messagePreview("x".repeat(200)).endsWith("…")).toBe(true);
+  });
+
+  it("survives an empty body", () => {
+    expect(messagePreview("")).toBe("");
+  });
+});
+
+describe("buildTimeline thread messages", () => {
+  it("adds inbound and outbound messages with channel, direction and a deep link", () => {
+    const entries = buildTimeline({
+      ...EMPTY,
+      threadMessages: [
+        {
+          id: "m1",
+          enquiryId: "e1",
+          createdAt: "2026-09-05T09:00:00.000Z",
+          direction: "inbound",
+          channel: "instagram",
+          bodyText: "Is Tuesday free?",
+        },
+        {
+          id: "m2",
+          enquiryId: "e1",
+          createdAt: "2026-09-05T10:00:00.000Z",
+          direction: "outbound",
+          channel: "email",
+          bodyText: "Tuesday works!",
+        },
+      ],
+    });
+    expect(entries.map((e) => e.id)).toEqual(["message-m2", "message-m1"]);
+    expect(entries[1]).toMatchObject({
+      kind: "message",
+      channel: "instagram",
+      title: "Instagram · Received",
+      detail: "Is Tuesday free?",
+      href: "/enquiries?open=e1",
+    });
+    expect(entries[0].title).toBe("Email · Sent");
+  });
+
+  it("never puts internal staff notes on the customer's own record", () => {
+    const entries = buildTimeline({
+      ...EMPTY,
+      threadMessages: [
+        {
+          id: "m3",
+          enquiryId: "e1",
+          createdAt: "2026-09-05T09:00:00.000Z",
+          direction: "internal",
+          channel: "note",
+          bodyText: "Difficult on the phone",
+        },
+      ],
+    });
+    expect(entries).toEqual([]);
+  });
+
+  it("links enquiry entries into the inbox", () => {
+    const entries = buildTimeline({
+      ...EMPTY,
+      enquiries: [
+        {
+          id: "e9",
+          createdAt: "2026-09-01T09:00:00.000Z",
+          style: "fine line",
+          status: "new",
+        },
+      ],
+    });
+    expect(entries[0].href).toBe("/enquiries?open=e9");
   });
 });
