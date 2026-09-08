@@ -286,3 +286,12 @@ export function pickOpenState(
   if (!found) return { openId: null, tab: null, notice: OPEN_NOT_FOUND_NOTICE };
   return { openId: found.id, tab: found.status, notice: null };
 }
+
+/**
+ * Where an enquiry row goes. One definition, shared by the inbox rows, the
+ * `?open=` redirect and the customer timeline, so a deep link and a click
+ * can never disagree about the route.
+ */
+export function enquiryHref(id: string): string {
+  return `/enquiries/${encodeURIComponent(id)}`;
+}

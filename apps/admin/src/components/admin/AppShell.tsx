@@ -207,7 +207,7 @@ export function AppShell({
 
       {/* Bottom nav (mobile): 4 pinned items + a "More" sheet so every
           role-visible section stays reachable on small screens. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-flow-col border-t border-border-default bg-bg-base/95 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid h-16 grid-flow-col border-t border-border-default bg-bg-base/95 backdrop-blur lg:hidden">
         {bottom.map((item) => {
           const Icon = item.icon;
           return (

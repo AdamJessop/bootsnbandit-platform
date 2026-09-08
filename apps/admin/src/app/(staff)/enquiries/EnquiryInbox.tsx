@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Enquiry inbox (BACKOFHOUSE-IA E1/E2). Owns the filter state and composes the
- * pieces: InboxFilters (tabs + dropdowns), EnquiryList (rows + detail dialog),
- * and the toaster every action reports through. Every authorisation decision
- * belongs to the server actions, not to this island.
+ * Enquiry inbox (BACKOFHOUSE-IA E1). Owns the filter state and composes the
+ * pieces: InboxFilters (tabs + dropdowns), EnquiryList (rows linking to the
+ * enquiry page), and the toaster the row actions report through. Every
+ * authorisation decision belongs to the server actions, not to this island.
  */
 import { useMemo, useState } from "react";
 import type { EnquirySource, EnquiryStatus } from "@prisma/client";
@@ -26,10 +26,7 @@ export function EnquiryInbox({
   canConvert,
   viewerArtistId,
   showAssignedPill,
-  openEnquiryId,
-  openTab,
-  notice,
-  pinnedExtra,
+  initialTab = "new",
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
@@ -49,28 +46,13 @@ export function EnquiryInbox({
   viewerArtistId: string | null;
   /** Owners see who owns each lead; artists see only an Unassigned flag. */
   showAssignedPill: boolean;
-  /** A `?open=` deep link resolved to a visible enquiry, or null. */
-  openEnquiryId: string | null;
-  /** The tab that enquiry lives on, so the link lands where it can be seen. */
-  openTab: EnquiryStatus | null;
-  /** Quiet explanation when the link could not be honoured. */
-  notice: string | null;
-  /**
-   * True when the deep-linked enquiry was fetched separately because it fell
-   * outside the 300-row page — the "most recent" count under the list would
-   * otherwise be off by one.
-   */
-  pinnedExtra?: boolean;
+  /** Which status tab opens first. */
+  initialTab?: EnquiryStatus;
 }) {
-  const [tab, setTab] = useState<EnquiryStatus>(openTab ?? "new");
+  const [tab, setTab] = useState<EnquiryStatus>(initialTab);
   const [artistFilter, setArtistFilter] = useState(ALL);
   const [styleFilter, setStyleFilter] = useState(ALL);
   const [sourceFilter, setSourceFilter] = useState(ALL);
-  // A deep link auto-opens its row exactly once. Left as `openEnquiryId`
-  // forever, a later tab/filter change would unmount and remount that row
-  // and its `defaultOpen` would force the dialog open again (and re-mark it
-  // read). Consumed via `onAutoOpened` below, the moment the row has opened.
-  const [pendingOpenId, setPendingOpenId] = useState(openEnquiryId);
   const styles = useMemo(() => distinctStyles(items), [items]);
 
   const visible = filterEnquiries(
@@ -84,11 +66,6 @@ export function EnquiryInbox({
 
   return (
     <div className="space-y-5">
-      {notice && (
-        <p className="rounded-md border border-border-default bg-bg-base px-4 py-3 text-sm text-text-muted">
-          {notice}
-        </p>
-      )}
       <InboxFilters
         tab={tab}
         onTabChange={setTab}
@@ -111,9 +88,6 @@ export function EnquiryInbox({
         truncated={truncated}
         pageSize={pageSize}
         emptyLabel={enquiryStatusLabel(tab).toLowerCase()}
-        openEnquiryId={pendingOpenId}
-        onAutoOpened={() => setPendingOpenId(null)}
-        pinnedExtra={pinnedExtra}
       />
       <Toaster position="top-center" />
     </div>

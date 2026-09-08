@@ -1,35 +1,25 @@
 "use client";
 
 /**
- * The list of leads and the detail dialog behind each row. A row carries the
- * unread dot, the channel badge, the assigned-artist pill (owners) or the
- * Unassigned flag (artists), and the newest activity time; opening it is what
- * marks the thread read.
+ * The list of leads. A row carries the unread dot, the channel badge, the
+ * assigned-artist pill (owners) or the Unassigned flag (artists), and the
+ * newest activity time. A row is a link to the enquiry's own page; landing
+ * there is what marks the thread read.
  */
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { formatPence } from "@/components/admin/money";
-import { enquiryStatusLabel, formatDateTime } from "../_shared/labels";
-import { isUnassigned } from "./enquiry-helpers";
-import { EnquiryThread } from "./EnquiryThread";
-import { EnquiryMeta } from "./EnquiryMeta";
-import { ReplyComposer } from "./ReplyComposer";
+import { formatDateTime } from "../_shared/labels";
+import { enquiryHref, isUnassigned } from "./enquiry-helpers";
 import {
   CHANNEL_BADGE,
   useAction,
   type ArtistOption,
   type EnquiryItem,
 } from "./inbox-shared";
-import { claimEnquiry, markEnquiryRead } from "./actions";
+import { claimEnquiry } from "./actions";
 
 export interface EnquiryListProps {
   items: EnquiryItem[];
@@ -48,35 +38,15 @@ export interface EnquiryListProps {
   pageSize: number;
   /** Lower-cased status label for the empty state ("new", "closed", …). */
   emptyLabel: string;
-  /**
-   * A `?open=` deep link resolved to a visible enquiry, or null/absent. This
-   * is the caller's one-shot "pending" flag — it is expected to go back to
-   * null (via `onAutoOpened`) the instant the row has opened, so a later
-   * remount (tab/filter change) never reopens it.
-   */
-  openEnquiryId?: string | null;
-  /** Called once, by the row that auto-opened, so the caller can clear its pending id. */
-  onAutoOpened?: (id: string) => void;
-  /**
-   * The deep-linked enquiry fell outside the page and was fetched
-   * separately — the "most recent" count below would otherwise read one
-   * short of what is actually showing.
-   */
-  pinnedExtra?: boolean;
 }
 
 export function EnquiryList({
   items,
-  artists,
-  canConvert,
   viewerArtistId,
   showAssignedPill,
   truncated,
   pageSize,
   emptyLabel,
-  openEnquiryId,
-  onAutoOpened,
-  pinnedExtra,
 }: EnquiryListProps) {
   // One wrapper around both states on purpose. The note belongs MOST on an
   // empty tab — "no closed enquiries" is a flat lie when the studio has
@@ -97,12 +67,8 @@ export function EnquiryList({
             <li key={item.id}>
               <EnquiryRow
                 item={item}
-                artists={artists}
-                canConvert={canConvert}
                 viewerArtistId={viewerArtistId}
                 showAssignedPill={showAssignedPill}
-                defaultOpen={item.id === openEnquiryId}
-                onAutoOpened={onAutoOpened}
               />
             </li>
           ))}
@@ -110,9 +76,7 @@ export function EnquiryList({
       )}
       {truncated && (
         <p className="pt-1 text-center text-xs text-text-muted">
-          {pinnedExtra
-            ? `Showing the ${pageSize} most recent plus the linked enquiry — older ones are not loaded here. Open an older enquiry from the customer's record.`
-            : `Showing the ${pageSize} most recent enquiries — older ones are not loaded here. Open an older enquiry from the customer's record.`}
+          {`Showing the ${pageSize} most recent enquiries — older ones are not loaded here. Open an older enquiry from the customer's record.`}
         </p>
       )}
     </div>
@@ -121,102 +85,77 @@ export function EnquiryList({
 
 function EnquiryRow({
   item,
-  artists,
-  canConvert,
   viewerArtistId,
   showAssignedPill,
-  defaultOpen,
-  onAutoOpened,
 }: {
   item: EnquiryItem;
-  artists: ArtistOption[];
-  canConvert: boolean;
   viewerArtistId: string | null;
   showAssignedPill: boolean;
-  defaultOpen: boolean;
-  onAutoOpened?: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
   const { pending, run } = useAction();
-
-  // A deep link opens the thread without a click, so nothing would otherwise
-  // clear its unread flag. Mount-only on purpose: every later open goes
-  // through onOpenChange below. `onAutoOpened` tells the caller the pending
-  // id has been consumed, so a later remount (tab/filter change) starts
-  // from `defaultOpen: false` instead of forcing the dialog open again.
-  //
-  // Swallowed on purpose: marking read is a side effect nobody is waiting on,
-  // and it CAN legitimately fail — an enquiry reassigned to another artist
-  // between the render and the click throws `Forbidden`. An unhandled
-  // rejection over a dot that did not clear helps no one.
-  useEffect(() => {
-    if (defaultOpen) {
-      if (item.unread) markEnquiryRead(item.id).catch(() => {});
-      onAutoOpened?.(item.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const claimable = Boolean(viewerArtistId) && isUnassigned(item);
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        // Opening the thread is what counts as reading it. See the note on
-        // the mount effect above for why the rejection is swallowed.
-        if (next && item.unread) markEnquiryRead(item.id).catch(() => {});
-      }}
-    >
-      <DialogTrigger className="w-full rounded-lg border border-border-default bg-bg-card px-5 py-4 text-left transition-colors hover:border-border-strong">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-2 font-medium text-text-primary">
-            {item.unread && (
-              <span
-                className="size-2 shrink-0 rounded-full bg-bb-crimson"
-                role="img"
-                aria-label="Unread"
-              />
-            )}
-            {item.contactName}
-          </span>
-          <span className="flex items-center gap-2">
-            <Badge variant="outline">{CHANNEL_BADGE[item.channel]}</Badge>
-            {showAssignedPill && (
-              <Badge
-                variant={item.preferredArtistName ? "secondary" : "default"}
-              >
-                {item.preferredArtistName ?? "Unassigned"}
-              </Badge>
-            )}
-            {!showAssignedPill && isUnassigned(item) && (
-              <Badge>Unassigned</Badge>
-            )}
-            <span className="text-xs text-text-muted">
-              {formatDateTime(item.lastMessageAtISO ?? item.createdAtISO)}
+    <div className="rounded-lg border border-border-default bg-bg-card transition-colors hover:border-border-strong has-[a:focus-visible]:border-bb-crimson">
+      <Link
+        href={enquiryHref(item.id)}
+        className="flex min-h-11 items-center gap-3 px-5 py-4 outline-none"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-2 font-medium text-text-primary">
+              {item.unread && (
+                <span
+                  className="size-2 shrink-0 rounded-full bg-bb-crimson"
+                  role="img"
+                  aria-label="Unread"
+                />
+              )}
+              {item.contactName}
             </span>
-          </span>
+            <span className="flex items-center gap-2">
+              <Badge variant="outline">{CHANNEL_BADGE[item.channel]}</Badge>
+              {showAssignedPill && (
+                <Badge
+                  variant={item.preferredArtistName ? "secondary" : "default"}
+                >
+                  {item.preferredArtistName ?? "Unassigned"}
+                </Badge>
+              )}
+              {!showAssignedPill && isUnassigned(item) && (
+                <Badge>Unassigned</Badge>
+              )}
+              <span className="text-xs text-text-muted">
+                {formatDateTime(item.lastMessageAtISO ?? item.createdAtISO)}
+              </span>
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-1 text-sm text-text-muted">
+            {item.subject ??
+              ([item.style, item.placement, item.size]
+                .filter(Boolean)
+                .join(" · ") ||
+                "No brief")}
+            {item.budgetPence != null
+              ? ` · budget ${formatPence(item.budgetPence)}`
+              : ""}
+          </p>
         </div>
-        <p className="mt-1 line-clamp-1 text-sm text-text-muted">
-          {item.subject ??
-            ([item.style, item.placement, item.size]
-              .filter(Boolean)
-              .join(" · ") ||
-              "No brief")}
-          {item.budgetPence != null
-            ? ` · budget ${formatPence(item.budgetPence)}`
-            : ""}
-        </p>
-      </DialogTrigger>
+        <ChevronRight
+          className="size-4 shrink-0 text-text-disabled"
+          aria-hidden
+        />
+      </Link>
       {/*
-        A sibling of the trigger, never inside it: the trigger is a <button>,
-        and nesting a button inside a button is invalid HTML that browsers
-        silently un-nest, breaking both controls.
+        A sibling of the link, never inside it: a button inside an anchor is
+        invalid HTML that browsers silently un-nest, breaking both controls.
       */}
-      {viewerArtistId && isUnassigned(item) && (
-        <div className="mt-1 flex justify-end">
+      {claimable && (
+        <div className="flex justify-end border-t border-border-subtle px-5 py-2">
           <Button
             variant="outline"
             size="sm"
+            className="min-h-9"
             disabled={pending}
             onClick={() => run(() => claimEnquiry(item.id))}
           >
@@ -224,34 +163,6 @@ function EnquiryRow({
           </Button>
         </div>
       )}
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-text-primary">
-            {item.contactName}
-          </DialogTitle>
-          <DialogDescription>
-            {item.contactEmail ?? "No email"} ·{" "}
-            {enquiryStatusLabel(item.status)}
-          </DialogDescription>
-        </DialogHeader>
-
-        <EnquiryMeta
-          item={item}
-          artists={artists}
-          canConvert={canConvert}
-          viewerArtistId={viewerArtistId}
-          onDone={() => setOpen(false)}
-        />
-        <EnquiryThread items={item.thread} />
-        <ReplyComposer
-          enquiryId={item.id}
-          source={item.source}
-          claimsOnReply={Boolean(viewerArtistId) && isUnassigned(item)}
-          options={item.replyOptions}
-          defaultChannel={item.defaultReplyChannel}
-          onSent={() => setOpen(false)}
-        />
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

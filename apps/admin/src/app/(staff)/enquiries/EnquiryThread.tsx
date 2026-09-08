@@ -108,11 +108,18 @@ function Attachments({ items }: { items: ThreadAttachmentItem[] }) {
   );
 }
 
-export function EnquiryThread({ items }: { items: ThreadItem[] }) {
+export function EnquiryThread({
+  items,
+  heading = true,
+}: {
+  items: ThreadItem[];
+  /** False when the surrounding control already carries the count. */
+  heading?: boolean;
+}) {
   if (items.length === 0) return null;
   return (
     <section className="space-y-2">
-      <Label>Thread ({items.length})</Label>
+      {heading && <Label>Thread ({items.length})</Label>}
       <ol className="space-y-2">
         {items.map((m) => {
           const internal = m.direction === "internal";
@@ -132,7 +139,7 @@ export function EnquiryThread({ items }: { items: ThreadItem[] }) {
             >
               <div
                 className={cn(
-                  "max-w-[85%] rounded-lg border px-3 py-2 text-sm",
+                  "max-w-[min(85%,68ch)] rounded-lg border px-3 py-2 text-sm",
                   internal
                     ? "w-full border-dashed border-border-default bg-bg-base text-text-muted"
                     : outbound

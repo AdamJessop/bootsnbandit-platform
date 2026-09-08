@@ -13,22 +13,6 @@ vi.mock("./actions", () => ({
   replyToEnquiry: vi.fn(),
 }));
 
-// The detail Dialog portals to <body>, which never renders under SSR in the
-// node environment — pass children through so the assign select is visible.
-vi.mock("@/components/ui/dialog", () => {
-  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  return {
-    Dialog: Passthrough,
-    DialogContent: Passthrough,
-    DialogDescription: Passthrough,
-    DialogHeader: Passthrough,
-    DialogTitle: Passthrough,
-    DialogTrigger: Passthrough,
-  };
-});
-
 import { EnquiryInbox, type EnquiryItem } from "./EnquiryInbox";
 import { countByStatus } from "./enquiry-helpers";
 const items: EnquiryItem[] = [
@@ -160,7 +144,7 @@ describe("countByStatus", () => {
 });
 
 describe("EnquiryInbox closed select labels", () => {
-  it("filter + assign selects show labels/names, not raw values", () => {
+  it("filter selects show labels, not raw values", () => {
     const html = renderToStaticMarkup(
       <EnquiryInbox
         items={[{ ...items[0], preferredArtistId: "cln4artist1aaaa" }]}
@@ -177,9 +161,6 @@ describe("EnquiryInbox closed select labels", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
-        openEnquiryId={null}
-        openTab={null}
-        notice={null}
       />,
     );
     const triggers = [
@@ -190,9 +171,8 @@ describe("EnquiryInbox closed select labels", () => {
     expect(triggers).toContain("All artists");
     expect(triggers).toContain("All styles");
     expect(triggers).not.toContain("__all__");
-    // Assign select is seeded with the preferred artist's cuid.
-    expect(triggers).toContain("Sarah North");
-    expect(triggers).not.toContain("cln4artist1aaaa");
+    // The assign control lives on the enquiry page now, not in the inbox.
+    expect(html).not.toContain("cln4artist1aaaa");
   });
 });
 
@@ -214,9 +194,6 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
-        openEnquiryId={null}
-        openTab={null}
-        notice={null}
       />,
     );
     expect(html).toContain("Customer replied");
@@ -241,9 +218,6 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
-        openEnquiryId={null}
-        openTab={null}
-        notice={null}
       />,
     );
     expect(html).toContain('aria-label="Unread"');
@@ -274,15 +248,12 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
-        openEnquiryId={null}
-        openTab={null}
-        notice={null}
       />,
     );
     expect(html).toContain("Unassigned");
   });
 
-  it("offers artists a take + internal-note composer, and renders the thread", () => {
+  it("offers artists Take this on an unassigned row, and links the row to its page", () => {
     const html = renderToStaticMarkup(
       <EnquiryInbox
         items={[{ ...items[0], preferredArtistId: null }]}
@@ -299,24 +270,17 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId="a1"
         showAssignedPill={false}
-        openEnquiryId={null}
-        openTab={null}
-        notice={null}
       />,
     );
-    expect(html).toContain("Take this enquiry");
-    // The note is now a channel on the single composer, not a second box, so
-    // what the row renders is the channel selector. Its items live in a
-    // portal that SSR never opens — ReplyComposer.test.tsx covers choosing
-    // the note and the "Add note" button that follows.
-    expect(html).toContain('aria-label="Reply channel"');
-    expect(html).toContain("Sends to amy@example.test.");
-    expect(html).toContain("A ladybird on the forearm please");
+    expect(html).toContain("Take this");
+    // The thread, the composer and the triage controls live on the enquiry
+    // page now; the inbox row is a link to it and nothing more.
+    expect(html).toContain('href="/enquiries/1"');
+    expect(html).not.toContain('aria-label="Reply channel"');
+    expect(html).not.toContain("A ladybird on the forearm please");
   });
-});
 
-describe("EnquiryInbox deep link", () => {
-  it("starts on the deep-linked enquiry's tab", () => {
+  it("opens on the tab it was told to", () => {
     const html = renderToStaticMarkup(
       <EnquiryInbox
         items={items}
@@ -327,33 +291,11 @@ describe("EnquiryInbox deep link", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
-        openEnquiryId="2"
-        openTab="converted"
-        notice={null}
+        initialTab="converted"
       />,
     );
-    // items[1] ("Bob") is the converted one; landing on New would show
-    // "Amy" and hide the very enquiry the link pointed at.
+    // items[1] ("Bob") is the converted one.
     expect(html).toContain("Bob");
     expect(html).not.toContain("No converted enquiries.");
-  });
-
-  it("shows a quiet notice for a link it cannot open", () => {
-    const html = renderToStaticMarkup(
-      <EnquiryInbox
-        items={items}
-        artists={[]}
-        counts={{ new: 1, customer_replied: 0, replied: 0, converted: 1, closed: 0 }}
-        truncated={false}
-        pageSize={300}
-        canConvert
-        viewerArtistId={null}
-        showAssignedPill={false}
-        openEnquiryId={null}
-        openTab={null}
-        notice="That enquiry is not in your inbox — it may have been assigned to another artist."
-      />,
-    );
-    expect(html).toContain("not in your inbox");
   });
 });

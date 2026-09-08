@@ -67,11 +67,15 @@ export function InboxFilters({
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Tabs value={tab} onValueChange={(v) => onTabChange(v as EnquiryStatus)}>
-        <TabsList>
+    <div className="flex min-w-0 flex-wrap items-center gap-3">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => onTabChange(v as EnquiryStatus)}
+        className="min-w-0 max-w-full"
+      >
+        <TabsList className="h-auto! max-w-full flex-wrap gap-y-1">
           {STATUS_ORDER.map((s) => (
-            <TabsTrigger key={s} value={s}>
+            <TabsTrigger key={s} value={s} className="h-8">
               {enquiryStatusLabel(s)}
               {/*
                 The count is the server-side total for this status across

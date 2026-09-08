@@ -42,6 +42,7 @@ vi.mock("@/components/ui/dialog", () => {
 });
 
 import { EnquiryList } from "./EnquiryList";
+import { enquiryHref } from "./enquiry-helpers";
 import type { EnquiryItem } from "./inbox-shared";
 
 const ITEM: EnquiryItem = {
@@ -224,7 +225,7 @@ describe("EnquiryList", () => {
     expect(html).toContain("Showing the 50 most recent enquiries");
   });
 
-  it("says so and credits the pinned extra when a deep link added one past the cap", () => {
+  it("links every row to the enquiry's own page", () => {
     const html = renderToStaticMarkup(
       <EnquiryList
         items={[ITEM]}
@@ -232,55 +233,21 @@ describe("EnquiryList", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
-        truncated
+        truncated={false}
         pageSize={300}
         emptyLabel="new"
-        pinnedExtra
       />,
     );
-    expect(html).toContain(
-      "Showing the 300 most recent plus the linked enquiry",
-    );
+    expect(html).toContain(`href="${enquiryHref(ITEM.id)}"`);
+    // Nothing from the old dialog rides along on the row.
+    expect(html).not.toContain('role="dialog"');
+    expect(html).not.toContain("Reply channel");
   });
 });
 
-describe("EnquiryList deep-link one-shot", () => {
-  it("opens the row while the deep link is pending", () => {
-    const html = renderToStaticMarkup(
-      <EnquiryList
-        items={[ITEM]}
-        artists={[]}
-        canConvert
-        viewerArtistId={null}
-        showAssignedPill
-        truncated={false}
-        pageSize={300}
-        emptyLabel="new"
-        openEnquiryId={ITEM.id}
-      />,
-    );
-    expect(html).toContain('data-open="true"');
-  });
-
-  it("does not reopen the row once the caller has consumed the pending id", () => {
-    // Simulates what happens in EnquiryInbox after `onAutoOpened` fires and
-    // clears `pendingOpenId`: a later tab/filter change remounts the row
-    // with `openEnquiryId` already null, so the dialog must not be forced
-    // open (and its unread flag must not be re-marked) a second time.
-    const html = renderToStaticMarkup(
-      <EnquiryList
-        items={[ITEM]}
-        artists={[]}
-        canConvert
-        viewerArtistId={null}
-        showAssignedPill
-        truncated={false}
-        pageSize={300}
-        emptyLabel="new"
-        openEnquiryId={null}
-      />,
-    );
-    expect(html).toContain('data-open="false"');
-    expect(html).not.toContain('data-open="true"');
+describe("enquiryHref", () => {
+  it("is the enquiry page, with the id made URL-safe", () => {
+    expect(enquiryHref("abc123")).toBe("/enquiries/abc123");
+    expect(enquiryHref("a b")).toBe("/enquiries/a%20b");
   });
 });

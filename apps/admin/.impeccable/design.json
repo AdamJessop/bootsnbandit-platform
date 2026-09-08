@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T00:00:00Z",
+  "title": "Design System: Boots 'n' Bandit Studio (staff back-of-house)",
+  "extensions": {
+    "colorMeta": {
+      "crimson": { "role": "primary", "displayName": "Bandit Crimson", "canonical": "#c92f4d", "tonalRamp": ["#2a0a10", "#4a1220", "#7d1830", "#9c1f38", "#c92f4d", "#d9647a", "#e99aa9", "#f7d3da"] },
+      "crimson-deep": { "role": "primary", "displayName": "Crimson Deep", "canonical": "#9c1f38", "tonalRamp": ["#2a0a10", "#4a1220", "#7d1830", "#9c1f38", "#c92f4d", "#d9647a", "#e99aa9", "#f7d3da"] },
+      "crimson-press": { "role": "primary", "displayName": "Crimson Press", "canonical": "#7d1830", "tonalRamp": ["#2a0a10", "#4a1220", "#7d1830", "#9c1f38", "#c92f4d", "#d9647a", "#e99aa9", "#f7d3da"] },
+      "gold": { "role": "secondary", "displayName": "Studio Gold", "canonical": "#cfa05a", "tonalRamp": ["#2b1f0c", "#4c3616", "#6e4f22", "#93692f", "#b58540", "#cfa05a", "#e7cf95", "#f6ecd3"] },
+      "gold-soft": { "role": "secondary", "displayName": "Gold Soft", "canonical": "#e7cf95", "tonalRamp": ["#2b1f0c", "#4c3616", "#6e4f22", "#93692f", "#b58540", "#cfa05a", "#e7cf95", "#f6ecd3"] },
+      "teal": { "role": "tertiary", "displayName": "Bandit Teal", "canonical": "#36b0a8", "tonalRamp": ["#0a2624", "#123f3c", "#1a5f5a", "#1f807a", "#2a9791", "#36b0a8", "#7dd0ca", "#c9ece9"] },
+      "teal-deep": { "role": "tertiary", "displayName": "Teal Deep", "canonical": "#1f807a", "tonalRamp": ["#0a2624", "#123f3c", "#1a5f5a", "#1f807a", "#2a9791", "#36b0a8", "#7dd0ca", "#c9ece9"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#0b0a09", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-base": { "role": "neutral", "displayName": "Base (shell)", "canonical": "#080706", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-default": { "role": "neutral", "displayName": "Page", "canonical": "#0d0c0a", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-card": { "role": "neutral", "displayName": "Card", "canonical": "#141210", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-raised": { "role": "neutral", "displayName": "Raised / Muted", "canonical": "#161310", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-overlay": { "role": "neutral", "displayName": "Overlay (popover)", "canonical": "#1f1b16", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "bg-elevated": { "role": "neutral", "displayName": "Elevated (active segment)", "canonical": "#272118", "tonalRamp": ["#080706", "#0d0c0a", "#141210", "#161310", "#1f1b16", "#272118", "#3d352a", "#5e574a"] },
+      "text-primary": { "role": "neutral", "displayName": "Bone (headings)", "canonical": "#fbf7f0", "tonalRamp": ["#5e574a", "#7a7263", "#9b9384", "#b8b0a2", "#ddd6ca", "#ece6db", "#fbf7f0", "#fffdf9"] },
+      "text-secondary": { "role": "neutral", "displayName": "Parchment (body)", "canonical": "#ddd6ca", "tonalRamp": ["#5e574a", "#7a7263", "#9b9384", "#b8b0a2", "#ddd6ca", "#ece6db", "#fbf7f0", "#fffdf9"] },
+      "text-muted": { "role": "neutral", "displayName": "Muted", "canonical": "#9b9384", "tonalRamp": ["#5e574a", "#7a7263", "#9b9384", "#b8b0a2", "#ddd6ca", "#ece6db", "#fbf7f0", "#fffdf9"] },
+      "text-disabled": { "role": "neutral", "displayName": "Disabled", "canonical": "#5e574a", "tonalRamp": ["#5e574a", "#7a7263", "#9b9384", "#b8b0a2", "#ddd6ca", "#ece6db", "#fbf7f0", "#fffdf9"] },
+      "border-subtle": { "role": "neutral", "displayName": "Border Subtle", "canonical": "#1c1813", "tonalRamp": ["#1c1813", "#2a241d", "#3d352a", "#4f4636", "#5e574a", "#7a7263", "#9b9384", "#b8b0a2"] },
+      "border-default": { "role": "neutral", "displayName": "Hairline", "canonical": "#2a241d", "tonalRamp": ["#1c1813", "#2a241d", "#3d352a", "#4f4636", "#5e574a", "#7a7263", "#9b9384", "#b8b0a2"] },
+      "border-strong": { "role": "neutral", "displayName": "Border Strong", "canonical": "#3d352a", "tonalRamp": ["#1c1813", "#2a241d", "#3d352a", "#4f4636", "#5e574a", "#7a7263", "#9b9384", "#b8b0a2"] },
+      "on-crimson": { "role": "neutral", "displayName": "On Crimson", "canonical": "#ffffff", "tonalRamp": ["#5e574a", "#7a7263", "#9b9384", "#b8b0a2", "#ddd6ca", "#ece6db", "#fbf7f0", "#ffffff"] },
+      "on-gold": { "role": "neutral", "displayName": "On Gold", "canonical": "#1a1308", "tonalRamp": ["#1a1308", "#2b1f0c", "#4c3616", "#6e4f22", "#93692f", "#b58540", "#cfa05a", "#e7cf95"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Pirata One)", "purpose": "The page h1 only, via the .display utility. Never below the title." },
+      "title": { "displayName": "Title", "purpose": "Decision-row and step titles, card titles, author names." },
+      "body": { "displayName": "Body", "purpose": "Base body on <body>; messages and briefs render at 15px, UI text at 14px." },
+      "body-small": { "displayName": "Body Small", "purpose": "Default UI text: buttons, inputs, hints, table cells." },
+      "label": { "displayName": "Tracked Label", "purpose": "Section heads (gold) and fact labels (muted): 11px bold uppercase Inter at 0.16em." },
+      "nav": { "displayName": "Nav Label", "purpose": "Sidebar items, role pill, sheet and drawer titles, segmented control; uppercase and tracking-wide." },
+      "caption": { "displayName": "Caption", "purpose": "Hints, timestamps, unavailable-channel reasons; 11px in thread meta rows." }
+    },
+    "shadows": [
+      { "name": "segment-lift", "value": "0 1px 2px rgba(0,0,0,0.5)", "purpose": "The selected tab of a segmented control. The only resting shadow." },
+      { "name": "overlay-md", "value": "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)", "purpose": "Select menus and popovers, always with ring-1 ring-foreground/10." },
+      { "name": "overlay-lg", "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)", "purpose": "Sheets. Dialogs use the ring only." }
+    ],
+    "motion": [
+      { "name": "dur-fast", "value": "130ms", "purpose": "Colour-only hover changes." },
+      { "name": "dur", "value": "220ms", "purpose": "Default state transitions and the segmented-control panel slide." },
+      { "name": "dur-slow", "value": "340ms", "purpose": "Reserved larger moves; unused on staff surfaces so far." },
+      { "name": "ease-out", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Entering panels and default easing." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.65, 0, 0.35, 1)", "purpose": "Sheet slide (200ms via the shadcn primitive)." },
+      { "name": "panel-enter", "value": "animate-in fade-in slide-in-from-right-4 (forward) / slide-in-from-left-4 (back), motion-reduce:animate-none", "purpose": "Segment switch; no motion on first paint; reduced motion clamps every animation to 0.01ms globally." },
+      { "name": "focus-ring", "value": "outline: 2px solid #c92f4d; outline-offset: 2px (global) / ring 3px rgba(201,47,77,0.5) + crimson border (shadcn controls)", "purpose": "Keyboard focus on every focusable element." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1440px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one crimson action per view: Send reply, Create consult.",
+      "html": "<button class=\"ds-btn-primary\">Send reply</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:32px; min-height:44px; padding:0 10px; border:1px solid transparent; border-radius:10px; background:var(--bb-crimson,#c92f4d); color:#fff; font:500 14px/1 Tahoma,Geneva,Verdana,sans-serif; cursor:pointer; transition:background 130ms cubic-bezier(0.2,0.8,0.2,1), transform 130ms; } .ds-btn-primary:hover { background:rgba(201,47,77,0.8); } .ds-btn-primary:active { transform:translateY(1px); } .ds-btn-primary:focus-visible { outline:none; border-color:#c92f4d; box-shadow:0 0 0 3px rgba(201,47,77,0.5); } .ds-btn-primary:disabled { opacity:.5; pointer-events:none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Second-rank actions: Assign, Export CSV.",
+      "html": "<button class=\"ds-btn-outline\">Assign</button>",
+      "css": ".ds-btn-outline { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 10px; border:1px solid var(--border-default,#2a241d); border-radius:10px; background:rgba(42,36,29,0.3); color:var(--text-secondary,#ddd6ca); font:500 14px/1 Tahoma,Geneva,Verdana,sans-serif; cursor:pointer; transition:background 130ms, color 130ms; } .ds-btn-outline:hover { background:rgba(42,36,29,0.5); color:var(--text-primary,#fbf7f0); } .ds-btn-outline:focus-visible { outline:none; border-color:#c92f4d; box-shadow:0 0 0 3px rgba(201,47,77,0.5); } .ds-btn-outline:disabled { opacity:.5; }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Close enquiry, cancel booking: crimson text on a crimson tint.",
+      "html": "<button class=\"ds-btn-destructive\">Close enquiry</button>",
+      "css": ".ds-btn-destructive { display:inline-flex; align-items:center; justify-content:center; height:32px; min-height:44px; padding:0 10px; border:1px solid transparent; border-radius:10px; background:rgba(201,47,77,0.2); color:#c92f4d; font:500 14px/1 Tahoma,Geneva,Verdana,sans-serif; cursor:pointer; transition:background 130ms; } .ds-btn-destructive:hover { background:rgba(201,47,77,0.3); } .ds-btn-destructive:focus-visible { outline:none; border-color:rgba(201,47,77,0.4); box-shadow:0 0 0 3px rgba(201,47,77,0.4); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Hairline field on a near-transparent well; crimson border and ring on focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Thanks for getting in touch…\" />",
+      "css": ".ds-input { width:100%; height:32px; min-height:44px; padding:4px 10px; border:1px solid var(--border-default,#2a241d); border-radius:10px; background:rgba(42,36,29,0.3); color:var(--text-primary,#fbf7f0); font:400 14px/1.4 Tahoma,Geneva,Verdana,sans-serif; outline:none; transition:border-color 130ms, box-shadow 130ms; } .ds-input::placeholder { color:var(--text-muted,#9b9384); } .ds-input:focus-visible { border-color:#c92f4d; box-shadow:0 0 0 3px rgba(201,47,77,0.5); } .ds-input:disabled { opacity:.5; background:rgba(42,36,29,0.8); cursor:not-allowed; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "20px pill. default = crimson (New, Unassigned); secondary = raised (Converted, artist); outline = hairline (channel); destructive = crimson tint (Customer replied, Closed).",
+      "html": "<span class=\"ds-badge ds-badge-default\">New</span> <span class=\"ds-badge ds-badge-secondary\">Holly</span> <span class=\"ds-badge ds-badge-outline\">Instagram</span> <span class=\"ds-badge ds-badge-destructive\">Customer replied</span> <span class=\"ds-badge ds-badge-outline ds-badge-gold\">Unverified sender</span>",
+      "css": ".ds-badge { display:inline-flex; align-items:center; gap:4px; height:20px; padding:2px 8px; border:1px solid transparent; border-radius:9999px; font:500 12px/1 Tahoma,Geneva,Verdana,sans-serif; white-space:nowrap; } .ds-badge-default { background:#c92f4d; color:#fff; } .ds-badge-secondary { background:var(--bg-raised,#161310); color:var(--text-primary,#fbf7f0); } .ds-badge-outline { border-color:var(--border-default,#2a241d); color:var(--text-secondary,#ddd6ca); } .ds-badge-destructive { background:rgba(201,47,77,0.2); color:#c92f4d; } .ds-badge-gold { border-color:rgba(207,160,90,0.5); color:#cfa05a; }"
+    },
+    {
+      "name": "Sidebar Nav",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Uppercase tracked Inter items; active is a 15% crimson fill; unread pill and owner crown as trailing marks.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg><span>Calendar</span></a><a class=\"ds-nav-item ds-nav-item-active\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-6l-2 3h-4l-2-3H2\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/></svg><span>Enquiries</span><span class=\"ds-nav-unread\">5</span></a><a class=\"ds-nav-item\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 21h18M5 21V7l8-4v18M19 21V11l-6-4\"/></svg><span>Studio</span><svg class=\"ds-nav-crown\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z\"/><path d=\"M5 21h14\"/></svg></a></nav>",
+      "css": ".ds-nav { display:flex; flex-direction:column; gap:2px; width:240px; padding:12px; background:var(--bg-base,#080706); border-right:1px solid var(--border-default,#2a241d); } .ds-nav-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:8px; color:var(--text-muted,#9b9384); font:500 13px/1 Inter,system-ui,sans-serif; text-transform:uppercase; letter-spacing:0.025em; text-decoration:none; transition:background 130ms, color 130ms; } .ds-nav-item:hover { background:var(--bg-raised,#161310); color:var(--text-primary,#fbf7f0); } .ds-nav-item-active { background:rgba(201,47,77,0.15); color:var(--text-primary,#fbf7f0); } .ds-nav-item:focus-visible { outline:2px solid #c92f4d; outline-offset:2px; } .ds-nav-item span:nth-of-type(1) { flex:1; } .ds-nav-icon { width:18px; height:18px; flex-shrink:0; } .ds-nav-unread { display:grid; place-items:center; min-width:20px; padding:2px 6px; border-radius:9999px; background:#c92f4d; color:#fff; font:700 10px/1 Inter,system-ui,sans-serif; font-variant-numeric:tabular-nums; } .ds-nav-crown { width:14px; height:14px; color:#cfa05a; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "nav-item-active",
+      "description": "The enquiry page's Conversation / Brief / Actions switcher; active tab lifts on bg-elevated with a gold count chip.",
+      "html": "<div class=\"ds-seg\" role=\"tablist\"><button class=\"ds-seg-tab ds-seg-tab-active\" role=\"tab\" aria-selected=\"true\">Conversation <span class=\"ds-seg-count\">6</span></button><button class=\"ds-seg-tab\" role=\"tab\">Brief <span class=\"ds-seg-count\">3</span></button><button class=\"ds-seg-tab\" role=\"tab\">Actions</button></div>",
+      "css": ".ds-seg { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:4px; border:1px solid var(--border-default,#2a241d); border-radius:10px; background:var(--bg-base,#080706); } .ds-seg-tab { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 12px; border:0; border-radius:8px; background:transparent; color:var(--text-muted,#9b9384); font:700 12px/1 Inter,system-ui,sans-serif; text-transform:uppercase; letter-spacing:0.12em; white-space:nowrap; cursor:pointer; transition:background 220ms cubic-bezier(0.2,0.8,0.2,1), color 220ms cubic-bezier(0.2,0.8,0.2,1); } .ds-seg-tab:hover { background:var(--bg-raised,#161310); color:var(--text-secondary,#ddd6ca); } .ds-seg-tab-active, .ds-seg-tab-active:hover { background:var(--bg-elevated,#272118); color:var(--text-primary,#fbf7f0); box-shadow:0 1px 2px rgba(0,0,0,0.5); } .ds-seg-tab:focus-visible { outline:2px solid #c92f4d; outline-offset:2px; } .ds-seg-count { padding:1px 6px; border-radius:9999px; background:var(--bg-raised,#161310); color:var(--text-muted,#9b9384); font-size:10px; font-variant-numeric:tabular-nums; letter-spacing:0; } .ds-seg-tab-active .ds-seg-count { background:rgba(207,160,90,0.2); color:#cfa05a; }"
+    },
+    {
+      "name": "Thread Bubbles",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Inbound on bg-card, outbound teal-tinted right-aligned, internal note dashed and full width.",
+      "html": "<ol class=\"ds-thread\"><li class=\"ds-msg ds-msg-in\"><div class=\"ds-bubble\"><div class=\"ds-meta\"><span class=\"ds-chan\">Instagram</span><span class=\"ds-who\">priya.inks</span><span class=\"ds-when\">08 Sept 2026, 12:26</span></div><p>Sat 18th please!! Do I need to pay a deposit?</p></div></li><li class=\"ds-msg ds-msg-note\"><div class=\"ds-bubble\"><div class=\"ds-meta\"><span class=\"ds-chan\">Internal note</span><span class=\"ds-who\">Holly</span><span class=\"ds-when\">06 Sept 2026, 17:26</span></div><p>Wrist end will be tender but fine for a first.</p></div></li><li class=\"ds-msg ds-msg-out\"><div class=\"ds-bubble\"><div class=\"ds-meta\"><span class=\"ds-chan\">Instagram</span><span class=\"ds-who\">Holly</span><span class=\"ds-when\">06 Sept 2026, 18:26</span></div><p>Totally normal, the wrist is the tender bit but we take breaks.</p></div></li></ol>",
+      "css": ".ds-thread { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; font:400 14px/1.5 Tahoma,Geneva,Verdana,sans-serif; } .ds-msg { display:flex; } .ds-msg-in { justify-content:flex-start; } .ds-msg-out { justify-content:flex-end; } .ds-msg-note { justify-content:center; } .ds-bubble { max-width:min(85%,68ch); padding:8px 12px; border:1px solid var(--border-default,#2a241d); border-radius:10px; background:var(--bg-card,#141210); color:var(--text-secondary,#ddd6ca); } .ds-msg-out .ds-bubble { border-color:rgba(54,176,168,0.4); background:rgba(54,176,168,0.1); } .ds-msg-note .ds-bubble { width:100%; max-width:none; border-style:dashed; background:var(--bg-base,#080706); color:var(--text-muted,#9b9384); } .ds-bubble p { margin:0; white-space:pre-wrap; } .ds-meta { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:4px; font-size:11px; color:var(--text-muted,#9b9384); } .ds-chan { display:inline-flex; align-items:center; height:20px; padding:2px 8px; border:1px solid var(--border-default,#2a241d); border-radius:9999px; font-size:12px; font-weight:500; color:var(--text-secondary,#ddd6ca); } .ds-who { color:var(--text-primary,#fbf7f0); } .ds-when { margin-left:auto; }"
+    },
+    {
+      "name": "Section Head + Fact List",
+      "kind": "custom",
+      "refersTo": "section-label",
+      "description": "Gold tracked label over a two-column definition list with muted tracked keys; the admin's density signature.",
+      "html": "<section class=\"ds-facts\"><h2 class=\"ds-section-label\">At a glance</h2><dl class=\"ds-factlist\"><div><dt>Style</dt><dd>Fine-line</dd></div><div><dt>Placement</dt><dd>Forearm</dd></div><div><dt>Size</dt><dd>Medium</dd></div><div><dt>Budget</dt><dd class=\"ds-fact-empty\">Not given</dd></div></dl></section>",
+      "css": ".ds-facts { display:flex; flex-direction:column; gap:12px; } .ds-section-label { margin:0; font:700 11px/1.2 Inter,system-ui,sans-serif; text-transform:uppercase; letter-spacing:0.16em; color:#cfa05a; } .ds-factlist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; margin:0; } .ds-factlist dt { font:700 11px/1.2 Inter,system-ui,sans-serif; text-transform:uppercase; letter-spacing:0.16em; color:var(--text-muted,#9b9384); } .ds-factlist dd { margin:4px 0 0; font:400 15px/1.4 Tahoma,Geneva,Verdana,sans-serif; color:var(--text-primary,#fbf7f0); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ds-factlist .ds-fact-empty { color:var(--text-disabled,#5e574a); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Hand-built panel: bg-card, hairline, 10px radius, 16px padding. Timeline entries and chart figures use it.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Consult booked</p><p class=\"ds-card-body\">Thu 9 Oct, 11:00 with Holly.</p></div>",
+      "css": ".ds-card { padding:12px 16px; border:1px solid var(--border-default,#2a241d); border-radius:10px; background:var(--bg-card,#141210); color:var(--text-secondary,#ddd6ca); font:400 14px/1.5 Tahoma,Geneva,Verdana,sans-serif; } .ds-card-title { margin:0; font-weight:500; color:var(--text-primary,#fbf7f0); } .ds-card-body { margin:4px 0 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Back Room of the Studio",
+    "overview": "The public site is the shopfront: chrome-filled blackletter, ornament, gradient washes. The admin is the room behind it, where the same crimson, gold, and teal live on the same warm black but are used to read and decide, not to sell. Density is high and steady: 14px body copy in Tahoma, 32px controls, 20px pill badges, tables and threads with 8px rhythm. Colour is spent sparingly and always means something: crimson is the one primary action and the one urgent state, gold is the studio's own voice (section heads, the owner's crown, an attention note), and teal is what the studio sent out.\n\nComposition follows one of two patterns. Detail records (customer, staff member, content editors) are an 1100px column with a right rail. The enquiry thread, the most recent surface, is a single 760px-measure reading column governed by a segmented control (Conversation, Brief, Actions) with the reply composer docked to the viewport bottom, so staff on a phone between clients see one thing at a time and always have the reply in reach. The shell is a 240px sidebar at 1024px and above, and a 64px top bar plus 64px bottom nav below that.\n\nConfirmed rejections: no chrome-gradient display fills (the .display.chrome utility exists but the admin never applies it), no radial background washes beyond the body's faint 50%-opacity crimson/teal haze, no photography or ornament in the shell. The build's review screenshots use synthetic gradient placeholders where customer images would appear; those are not studio work and not a visual convention.",
+    "keyCharacteristics": [
+      "Warm-black layering (five surface steps, all within a 4% lightness band) instead of shadows",
+      "One display face (Pirata One) used only for page titles, at 24 to 38px",
+      "An 11px bold uppercase Inter label at 0.16em tracking, gold for section heads and muted for facts",
+      "Crimson used once per screen for the primary action, plus the unread badge and urgent statuses",
+      "Teal marks outbound messages; dashed borders mark internal notes; gold marks attention and the unverified sender",
+      "44px minimum targets, crimson focus rings, reduced motion honoured"
+    ],
+    "rules": [
+      { "name": "The One Crimson Rule", "body": "Each view gets one filled crimson button. Everything else that wants attention gets a crimson badge, a crimson-tinted destructive button, or nothing.", "section": "colors" },
+      { "name": "The Sent-Is-Teal Rule", "body": "Teal is only ever the studio's outbound message. Do not use it for success, links, or decoration; the timeline link hover is the single exception already in the build and should not spread.", "section": "colors" },
+      { "name": "The Gold Voice Rule", "body": "Gold is text and hairlines (section heads, crown, hints, the unverified-sender badge). Gold never fills a control.", "section": "colors" },
+      { "name": "The One Blackletter Rule", "body": "Pirata One appears once per page, as the h1. If a second element needs weight, it gets 15px/500 Inter-less body or a gold 11px label, never the display face.", "section": "typography" },
+      { "name": "The Tracked Label Rule", "body": "Anything uppercase is Inter, bold or medium, and tracked (0.16em for section and fact labels, tracking-wide for nav). Uppercase Tahoma does not exist in this world.", "section": "typography" },
+      { "name": "The Hairline-Not-Shadow Rule", "body": "Separate surfaces with a 1px border-default and a one-step tonal change. A shadow means the element is floating (menu, sheet, dialog) or is the selected segment.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use .display for the page h1 only, at clamp(24px, 4vw, 38px), in text-primary.",
+      "Do head sections with the 11px / 700 / uppercase / 0.16em Inter label in gold, and label facts with the same style in text-muted.",
+      "Do pick badge variants through enquiryStatusVariant / bookingStatusVariant; a status colour is a lookup, not a choice.",
+      "Do keep the reply composer docked (sticky bottom-16, lg:bottom-0) with its own bg-base ground and top hairline whenever a surface has a message thread.",
+      "Do make anything a finger presses at least 44px tall (min-h-11); the 32px control default is for pointer-first table rows and toolbars.",
+      "Do rely on :focus-visible (2px crimson outline, 2px offset, or the 3px 50% crimson ring on shadcn controls) and never remove it.",
+      "Do time state changes with --dur (220ms) and --ease-out, and use --dur-fast (130ms) for colour-only hovers; keep motion-reduce:animate-none on any entering panel.",
+      "Do keep depth tonal: one step up the warm-black ramp plus a border-default hairline.",
+      "Do cap message and brief copy at 65 to 68ch."
+    ],
+    "donts": [
+      "Don't fill a second button crimson on the same view; demote it to outline or ghost.",
+      "Don't use teal for anything but outbound messages and chart series 3.",
+      "Don't fill a control or surface with gold; gold is text, hairlines and low-alpha tints only.",
+      "Don't apply the chrome gradient (.display.chrome), the --glow-* rings, or radial washes to admin surfaces; they belong to the public site.",
+      "Don't put Pirata One anywhere below the page title, and don't set Tahoma in uppercase.",
+      "Don't use a solid border for an internal note; the dashed hairline is what distinguishes staff-only text from the customer's thread.",
+      "Don't build a modal for a detail record; details are routes (the enquiry thread left its Dialog for /enquiries/[id]), and Dialogs are for short confirmations.",
+      "Don't describe the review screenshots' placeholder gradients as imagery conventions; real customer references render as object-cover square tiles with a hairline."
+    ]
+  }
+}
