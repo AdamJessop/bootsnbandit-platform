@@ -6,6 +6,7 @@ import {
   metaRedirectUri,
   META_STATE_COOKIE,
 } from "@bnb/core/services/channels/meta-oauth";
+import { SecretConfigError } from "@bnb/core/services/secrets";
 
 /**
  * GET /api/meta/oauth/callback — where Facebook Login for Business lands.
@@ -25,7 +26,12 @@ const CHANNELS_PATH = "/studio/channels";
 function back(query: string): Response {
   return new Response(null, {
     status: 302,
-    headers: { location: `${CHANNELS_PATH}?${query}` },
+    headers: {
+      location: `${CHANNELS_PATH}?${query}`,
+      // The flash names what happened to a connection attempt; it has no
+      // business in a shared cache or a browser's back-forward store.
+      "cache-control": "no-store",
+    },
   });
 }
 
@@ -47,7 +53,16 @@ export async function GET(req: Request): Promise<Response> {
   const params = new URL(req.url).searchParams;
   const jar = await cookies();
   const expected = jar.get(META_STATE_COOKIE)?.value ?? null;
-  // Single use, whatever happens next: a replayed callback URL gets nothing.
+
+  // The state check comes FIRST — before Meta's own `error` param is believed,
+  // and before the nonce is spent. Anyone can send this URL, so an unverified
+  // caller must not be able to burn the nonce of the connect attempt the owner
+  // actually has in flight.
+  const state = params.get("state");
+  if (!expected || !state || !sameNonce(state, expected)) {
+    return back("meta_error=bad_state");
+  }
+  // Verified as ours: single use from here, whatever happens next.
   jar.delete(META_STATE_COOKIE);
 
   const denied = params.get("error");
@@ -55,11 +70,6 @@ export async function GET(req: Request): Promise<Response> {
     return back(
       `meta_error=${SAFE_ERROR.test(denied) ? denied : "access_denied"}`,
     );
-  }
-
-  const state = params.get("state");
-  if (!expected || !state || !sameNonce(state, expected)) {
-    return back("meta_error=bad_state");
   }
 
   const code = params.get("code");
@@ -83,6 +93,9 @@ export async function GET(req: Request): Promise<Response> {
     // Graph's message can name the app and the token; it goes to the server
     // log, and the owner gets a slug plus the runbook.
     console.error("[meta] OAuth exchange failed:", err);
+    // Facebook said yes; we could not STORE the token. Blaming the redirect
+    // URI would send the owner looking in entirely the wrong place.
+    if (err instanceof SecretConfigError) return back("meta_error=session_secret");
     return back("meta_error=exchange_failed");
   }
 }

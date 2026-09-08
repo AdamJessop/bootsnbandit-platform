@@ -62,6 +62,8 @@ const META_FLASH: Record<string, string> = {
   access_denied: "The connection was cancelled at Facebook.",
   exchange_failed:
     "Facebook rejected the connection — check the app's redirect URI, then try again.",
+  session_secret:
+    "SESSION_SECRET must be at least 32 characters before Pages can be connected.",
 };
 const META_ERROR_FALLBACK =
   "Facebook returned an error while connecting — try again or check the app settings.";
@@ -69,6 +71,8 @@ const META_ERROR_FALLBACK =
 const META_WARNING_FLASH: Record<string, string> = {
   subscribe_failed:
     "One or more Pages could not be subscribed to the webhook — press Connect again.",
+  unsubscribe_failed:
+    "Removed here, but Facebook may still deliver — remove the app from the Page in Business Settings.",
 };
 const META_WARNING_FALLBACK =
   "The connection finished with a warning — check the list above.";
@@ -196,9 +200,13 @@ export default async function ChannelsPage({
           <p className="mb-3 text-sm text-bb-teal">
             Connected {one("meta_connected")} destination
             {one("meta_connected") === "1" ? "" : "s"}.
-            {one("meta_warning")
-              ? ` ${META_WARNING_FLASH[one("meta_warning") ?? ""] ?? META_WARNING_FALLBACK}`
-              : ""}
+          </p>
+        ) : null}
+        {/* Stands on its own: Disconnect redirects with a warning and no count. */}
+        {one("meta_warning") ? (
+          <p className="mb-3 text-sm text-bb-gold">
+            {META_WARNING_FLASH[one("meta_warning") ?? ""] ??
+              META_WARNING_FALLBACK}
           </p>
         ) : null}
         {one("meta_error") ? (
@@ -269,6 +277,15 @@ export default async function ChannelsPage({
                           ? DATE.format(c.lastEventAt)
                           : "— Nothing received yet"}
                       </span>
+                      {/* A rotated SESSION_SECRET leaves the row looking
+                          perfectly healthy while every message on it fails —
+                          this is the only place that is visible. */}
+                      {c.tokenReadable ? null : (
+                        <span className="mt-1 flex items-center gap-1.5 text-xs text-bb-gold">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          Reconnect required — stored token can&apos;t be read
+                        </span>
+                      )}
                       <span className="mt-0.5 block font-mono text-[11px] text-text-muted">
                         Page ID: {c.pageId}
                         {c.channel === "instagram" && c.igAccountId

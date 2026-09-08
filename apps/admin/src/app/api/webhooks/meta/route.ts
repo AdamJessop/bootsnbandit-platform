@@ -12,6 +12,10 @@ import {
   type MetaIngestOutcome,
 } from "@bnb/core/services/channels/meta-inbound";
 import { recordWebhookFailure } from "@bnb/core/services/webhook-failures";
+import {
+  MAX_WEBHOOK_BODY_BYTES,
+  readCappedBody,
+} from "../_lib/read-capped-body";
 
 /**
  * GET/POST /api/webhooks/meta — Messenger + Instagram DMs.
@@ -35,47 +39,23 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Unauthenticated route: cap the body before doing any work with it. Checked
- * twice — against the (spoofable) `content-length` header before touching the
- * body at all, and against the actual bytes as they stream in, since a caller
- * can omit or lie about the header.
+ * Wall-clock budget for ONE delivery. A delivery can carry many events, each
+ * of which may fetch attachments; past this point the remaining events are
+ * recorded as deferred failures and answered 200, because a POST Meta gives up
+ * on is a delivery we lose entirely — a `WebhookFailure` with a Retry button
+ * is strictly better than that.
  */
-const MAX_BODY_BYTES = 1_048_576;
+const DELIVERY_BUDGET_MS = 10_000;
+
+const BUDGET_ERROR =
+  "Deferred: the delivery exceeded its processing budget — press Retry.";
 
 /**
- * The raw body, or null when it exceeds the cap.
- *
- * Deliberately NOT `req.text()`: that buffers whatever the caller sends before
- * anything — signature verification included — has had a chance to reject it.
- * The bytes are decoded exactly once, as UTF-8, and that string is what the
- * signature is checked against: re-serialising would change the bytes.
+ * Meta's `hub.challenge` is echoed back verbatim, so it is the one place a
+ * caller controls our response body. It is a short number in practice; a cap
+ * keeps this endpoint from being used as an arbitrary-content reflector.
  */
-async function readCappedBody(req: Request): Promise<string | null> {
-  if (!req.body) return "";
-
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-    total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8").decode(bytes);
-}
+const MAX_CHALLENGE_CHARS = 512;
 
 /** Never lets a failed audit write turn into a 500. */
 async function noteFailure(input: {
@@ -107,6 +87,10 @@ export async function GET(req: Request): Promise<Response> {
     console.warn(`[webhooks/meta] rejected a verification: ${result.reason}`);
     return jsonError(403, "Verification failed");
   }
+  if (result.challenge.length > MAX_CHALLENGE_CHARS) {
+    console.warn("[webhooks/meta] rejected a verification: oversize challenge");
+    return jsonError(403, "Verification failed");
+  }
   // Verbatim plain text — Meta compares the body byte for byte.
   return new Response(result.challenge, {
     status: 200,
@@ -121,7 +105,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const declaredLength = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
     return jsonError(413, "Payload too large");
   }
 
@@ -158,9 +142,25 @@ export async function POST(req: Request): Promise<Response> {
   const outcomes: MetaIngestOutcome[] = [];
   let failed = false;
 
+  const startedAt = Date.now();
+
   // Sequential on purpose: two messages from the same new customer in one
   // delivery must not race each other into two customers and two enquiries.
   for (const event of events) {
+    // Checked BEFORE each event, never mid-event: a half-processed message is
+    // worse than a deferred one. What is left becomes a replayable failure.
+    if (Date.now() - startedAt > DELIVERY_BUDGET_MS) {
+      failed = true;
+      console.warn(
+        `[webhooks/meta] deferred ${event.mid ?? "an event"} — delivery budget spent`,
+      );
+      await noteFailure({
+        externalId: event.mid,
+        payload: singleEventBody(event),
+        error: BUDGET_ERROR,
+      });
+      continue;
+    }
     try {
       outcomes.push(await ingestMetaEvent(event));
     } catch (err) {

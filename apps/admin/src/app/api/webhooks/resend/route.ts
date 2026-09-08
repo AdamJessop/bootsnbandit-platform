@@ -2,6 +2,10 @@ import { json, jsonError } from "@bnb/core/http";
 import { ingestResendEvent } from "@bnb/core/services/channels/email-inbound";
 import { verifyWebhookSignature } from "@bnb/core/services/channels/webhook-signature";
 import { recordWebhookFailure } from "@bnb/core/services/webhook-failures";
+import {
+  MAX_WEBHOOK_BODY_BYTES,
+  readCappedBody,
+} from "../_lib/read-capped-body";
 
 /**
  * POST /api/webhooks/resend — inbound email.
@@ -20,53 +24,6 @@ import { recordWebhookFailure } from "@bnb/core/services/webhook-failures";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/**
- * Unauthenticated route: cap the body before doing any work with it. Checked
- * twice — against the (spoofable) `content-length` header before touching the
- * body at all, and against the actual bytes as they stream in, since a caller
- * can omit or lie about the header. The second check is what makes the cap
- * real: nothing is ever buffered past it.
- */
-const MAX_BODY_BYTES = 1_048_576;
-
-/**
- * The raw body, or null when it exceeds the cap.
- *
- * Deliberately NOT `req.text()`: that buffers whatever the caller sends before
- * anything — signature verification included — has had a chance to reject it,
- * so an unsigned request could pin memory at will. Reading the stream by hand
- * lets the read be abandoned the instant the running total crosses the cap.
- * The bytes are decoded exactly once, as UTF-8, and the resulting string is
- * what the signature is checked against: re-serialising would change the bytes
- * and break the signature.
- */
-async function readCappedBody(req: Request): Promise<string | null> {
-  if (!req.body) return "";
-
-  const reader = req.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (!value) continue;
-    total += value.byteLength;
-    if (total > MAX_BODY_BYTES) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
-
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder("utf-8").decode(bytes);
-}
 
 /** Best-effort id for the failure row, so the panel can name the email. */
 function externalIdOf(event: unknown): string | null {
@@ -99,7 +56,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const declaredLength = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
     return jsonError(413, "Payload too large");
   }
 

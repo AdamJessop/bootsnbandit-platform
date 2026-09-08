@@ -21,6 +21,7 @@ import {
 import { MetaWindowClosedError } from "@bnb/core/services/channels/meta";
 import {
   loadMetaReplyTarget,
+  partsSentFrom,
   sendEnquiryMetaMessage,
 } from "@bnb/core/services/channels/meta-outbound";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
@@ -145,10 +146,35 @@ export async function replyToEnquiry(
         authorUserId: user.id,
       });
     } catch (err) {
+      // A long reply goes out as several Meta messages. When one fails part
+      // way through, the earlier parts are ALREADY on the customer's phone and
+      // already recorded on the thread — so the enquiry genuinely has been
+      // replied to, and staff must send only what is missing rather than the
+      // whole thing again.
+      const { sentParts, totalParts } = partsSentFrom(err);
+      if (sentParts > 0) {
+        console.error(
+          `[enquiries] Meta reply for ${enquiryId} sent ${sentParts}/${totalParts} parts:`,
+          err,
+        );
+        await updateEnquiryStatus(enquiryId, "replied");
+        await claimIfUnassigned(user, enquiry);
+        revalidatePath("/enquiries");
+        return {
+          ok: false,
+          message: `Part of the reply was sent (${sentParts} of ${totalParts}) — the rest failed; send only the remainder.`,
+        };
+      }
       if (err instanceof MetaWindowClosedError) {
         // The one error staff can act on: the 24-hour window. Nothing was
-        // sent, so nothing is recorded and the status is untouched.
-        return { ok: false, message: err.message };
+        // sent, so nothing is recorded and the status is untouched. "Email
+        // them instead" is only actionable with the address in front of them.
+        return {
+          ok: false,
+          message: context.contactEmail
+            ? `${err.message} Their email address is ${context.contactEmail}.`
+            : err.message,
+        };
       }
       console.error(`[enquiries] Meta reply failed for ${enquiryId}:`, err);
       return {

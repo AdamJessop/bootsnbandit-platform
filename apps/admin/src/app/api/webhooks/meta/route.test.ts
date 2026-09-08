@@ -47,6 +47,25 @@ function signedRequest(
   });
 }
 
+/** One delivery carrying three separate messages. */
+function threeEvents() {
+  return {
+    object: "page",
+    entry: [
+      {
+        id: "102938475610293",
+        time: 1788000000000,
+        messaging: [1, 2, 3].map((n) => ({
+          sender: { id: "7213456789012345" },
+          recipient: { id: "102938475610293" },
+          timestamp: 1788000000000 + n,
+          message: { mid: `m_budget_${n}`, text: `part ${n}` },
+        })),
+      },
+    ],
+  };
+}
+
 function getRequest(query: Record<string, string>) {
   const url = new URL("http://admin.test/api/webhooks/meta");
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
@@ -98,6 +117,30 @@ describe("GET /api/webhooks/meta", () => {
       }),
     );
     expect(res.status).toBe(403);
+  });
+
+  it("403s an oversize hub.challenge instead of reflecting it", async () => {
+    // The challenge is echoed verbatim, so it is the one caller-controlled
+    // response body here — it stays a short number or it does not come back.
+    const res = await GET(
+      getRequest({
+        "hub.mode": "subscribe",
+        "hub.verify_token": VERIFY_TOKEN,
+        "hub.challenge": "9".repeat(513),
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.text()).not.toContain("9".repeat(513));
+
+    // 512 is still fine.
+    const ok = await GET(
+      getRequest({
+        "hub.mode": "subscribe",
+        "hub.verify_token": VERIFY_TOKEN,
+        "hub.challenge": "9".repeat(512),
+      }),
+    );
+    expect(ok.status).toBe(200);
   });
 
   it("503s when the verify token is not configured", async () => {
@@ -217,6 +260,36 @@ describe("POST /api/webhooks/meta", () => {
       expect.objectContaining({ provider: "meta", externalId: null }),
     );
     expect(ingestMetaEvent).not.toHaveBeenCalled();
+  });
+
+  it("defers what is left once the delivery has spent its wall-clock budget", async () => {
+    // Three events, each costing 6 s of fake wall clock against a 10 s budget:
+    // the first two run, the third is deferred as a replayable failure and the
+    // response is still 200 (a 5xx would make Meta disable the webhook).
+    const body = threeEvents();
+    vi.useFakeTimers();
+    try {
+      ingestMetaEvent.mockImplementation(async () => {
+        vi.advanceTimersByTime(6_000);
+        return { status: "ignored", reason: "unsupported" };
+      });
+      const res = await POST(signedRequest(body));
+      expect(res.status).toBe(200);
+      expect((await res.json()).ok).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(ingestMetaEvent).toHaveBeenCalledTimes(2);
+    expect(recordWebhookFailure).toHaveBeenCalledTimes(1);
+    expect(recordWebhookFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "meta",
+        externalId: "m_budget_3",
+        error:
+          "Deferred: the delivery exceeded its processing budget — press Retry.",
+      }),
+    );
   });
 
   it("200s a signed body with no messaging events at all", async () => {

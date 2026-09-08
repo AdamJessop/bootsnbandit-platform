@@ -38,6 +38,12 @@ vi.mock("@bnb/core/services/channels/meta-outbound", () => ({
   loadMetaReplyTarget: vi.fn(),
   sendEnquiryMetaMessage: vi.fn(),
   MetaSendError: class MetaSendError extends Error {},
+  // The real one-liner: it only reads the counts an error carries, and the
+  // partial-send behaviour under test depends on it reading them correctly.
+  partsSentFrom: (err: unknown) => ({
+    sentParts: (err as { sentParts?: number })?.sentParts ?? 0,
+    totalParts: (err as { totalParts?: number })?.totalParts ?? 0,
+  }),
 }));
 vi.mock("@bnb/core/services/enquiries", () => ({
   updateEnquiryStatus: vi.fn(),
@@ -465,7 +471,7 @@ describe("reply threading, notes, read markers and close authorisation", () => {
   });
 });
 
-function metaEnquiry() {
+function metaEnquiry(over: Record<string, unknown> = {}) {
   vi.mocked(requireRole).mockResolvedValue({
     id: "u1",
     role: "OWNER",
@@ -497,6 +503,7 @@ function metaEnquiry() {
         connectionId: "conn1",
       },
     ],
+    ...over,
   } as never);
 }
 
@@ -540,6 +547,45 @@ describe("replyToEnquiry on a Meta thread", () => {
         "Messenger/Instagram only allows replies within 24 hours of the customer's last message — email them instead.",
     });
     expect(updateEnquiryStatus).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+  });
+
+  it("names the customer's email address when the 24-hour window is shut", async () => {
+    metaEnquiry({
+      contactEmail: "amy@example.test",
+      customer: { email: "amy@example.test" },
+    });
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+    vi.mocked(sendEnquiryMetaMessage).mockRejectedValue(
+      new MetaWindowClosedError("messenger"),
+    );
+
+    const res = await replyToEnquiry("e1", { message: "Are you still there?" });
+
+    // "Email them instead" is useless without the address — it is on the
+    // record right here, and staff would otherwise go hunting for it.
+    expect(res.ok).toBe(false);
+    expect(res.message).toContain("amy@example.test");
+  });
+
+  it("says how much of a split reply got out when the rest failed", async () => {
+    metaEnquiry();
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+    const partial = Object.assign(new Error("Meta refused the message"), {
+      sentParts: 1,
+      totalParts: 3,
+    });
+    vi.mocked(sendEnquiryMetaMessage).mockRejectedValue(partial);
+
+    const res = await replyToEnquiry("e1", { message: "A very long reply" });
+
+    // Part one IS on the customer's phone: the enquiry really has been
+    // replied to, and staff must send only what is missing.
+    expect(res.ok).toBe(false);
+    expect(res.message).toBe(
+      "Part of the reply was sent (1 of 3) — the rest failed; send only the remainder.",
+    );
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
     expect(sendEnquiryEmail).not.toHaveBeenCalled();
   });
 

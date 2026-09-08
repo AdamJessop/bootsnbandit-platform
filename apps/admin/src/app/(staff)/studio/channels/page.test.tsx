@@ -128,6 +128,7 @@ describe("ChannelsPage — Meta", () => {
       webhookSubscribedAt: new Date("2026-09-05T10:00:00Z"),
       lastEventAt: new Date("2026-09-08T11:22:33Z"),
       connectedAt: new Date("2026-09-05T10:00:00Z"),
+      tokenReadable: true,
     },
     {
       id: "c2",
@@ -140,8 +141,15 @@ describe("ChannelsPage — Meta", () => {
       webhookSubscribedAt: null,
       lastEventAt: null,
       connectedAt: new Date("2026-09-05T10:00:00Z"),
+      tokenReadable: true,
     },
   ];
+
+  function metaConfigured() {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+  }
 
   it("says Meta is not configured, and does not offer Connect", async () => {
     delete process.env.META_APP_ID;
@@ -235,6 +243,44 @@ describe("ChannelsPage — Meta", () => {
       "The connection finished with a warning — check the list above.",
     );
     expect(html).not.toContain("some_unknown_warning");
+  });
+
+  it("flags a connection whose stored token can no longer be read", async () => {
+    metaConfigured();
+    listChannelConnections.mockResolvedValue([
+      { ...CONNECTIONS[0], tokenReadable: false },
+      CONNECTIONS[1],
+    ]);
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(
+      await Page({ searchParams: Promise.resolve({}) }),
+    );
+    // Otherwise the row is indistinguishable from a healthy one while every
+    // message on it silently fails.
+    expect(html).toContain("Reconnect required");
+    expect(html).toContain("stored token can&#x27;t be read");
+    // Only the affected row is flagged.
+    expect(html.match(/Reconnect required/g)).toHaveLength(1);
+  });
+
+  it("explains a short SESSION_SECRET and a failed unsubscribe", async () => {
+    metaConfigured();
+    const { default: Page } = await import("./page");
+    const short = renderToStaticMarkup(
+      await Page({
+        searchParams: Promise.resolve({ meta_error: "session_secret" }),
+      }),
+    );
+    expect(short).toContain("SESSION_SECRET must be at least 32 characters");
+
+    // Disconnect redirects with a warning and NO connected count, so the
+    // warning has to stand on its own.
+    const unsub = renderToStaticMarkup(
+      await Page({
+        searchParams: Promise.resolve({ meta_warning: "unsubscribe_failed" }),
+      }),
+    );
+    expect(unsub).toContain("Facebook may still deliver");
   });
 
   it("lists failed events from both providers, naming which is which", async () => {
