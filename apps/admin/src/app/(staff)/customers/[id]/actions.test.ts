@@ -22,15 +22,20 @@ vi.mock("@bnb/core/db", () => ({
 vi.mock("@bnb/core/email", () => ({ sendEmail: vi.fn() }));
 vi.mock("@bnb/core/services/identity-linking", () => ({
   linkIdentityToCustomer: vi.fn(),
+  listLinkableIdentities: vi.fn(),
 }));
 
 const { requireRole } = await import("@bnb/core/auth");
 const { prisma } = await import("@bnb/core/db");
 const { sendEmail } = await import("@bnb/core/email");
-const { linkIdentityToCustomer } = await import(
+const { linkIdentityToCustomer, listLinkableIdentities } = await import(
   "@bnb/core/services/identity-linking"
 );
-const { linkIdentityAction, sendManualEmail } = await import("./actions");
+const {
+  linkIdentityAction,
+  loadLinkableIdentitiesAction,
+  sendManualEmail,
+} = await import("./actions");
 
 const OWNER = {
   id: "u1",
@@ -159,6 +164,59 @@ describe("linkIdentityAction", () => {
       ok: false,
       message: "That handle already belongs to a customer…",
     });
+  });
+});
+
+describe("loadLinkableIdentitiesAction", () => {
+  it("is owner-only", async () => {
+    vi.mocked(requireRole).mockRejectedValue(new Error("Forbidden"));
+    await expect(loadLinkableIdentitiesAction("c1")).rejects.toThrow(
+      /forbidden/i,
+    );
+    // An artist must never be handed a list of other customers' handles —
+    // and the list is only fetched at all once an owner asks for it.
+    expect(requireRole).toHaveBeenCalledWith("OWNER");
+    expect(listLinkableIdentities).not.toHaveBeenCalled();
+  });
+
+  it("excludes this customer's own handles and labels the rest", async () => {
+    vi.mocked(requireRole).mockResolvedValue(OWNER as never);
+    vi.mocked(listLinkableIdentities).mockResolvedValue([
+      {
+        id: "i1",
+        channel: "instagram",
+        displayName: "amy.ink",
+        customerId: "stub1",
+        customerName: "Instagram user",
+        createdAt: new Date("2026-09-01T10:00:00.000Z"),
+      },
+      {
+        id: "i2",
+        channel: "messenger",
+        displayName: null,
+        customerId: "stub2",
+        customerName: "Messenger user",
+        createdAt: new Date("2026-09-02T10:00:00.000Z"),
+      },
+    ]);
+
+    const options = await loadLinkableIdentitiesAction("c1");
+
+    expect(listLinkableIdentities).toHaveBeenCalledWith({
+      excludeCustomerId: "c1",
+    });
+    expect(options).toEqual([
+      {
+        id: "i1",
+        channel: "instagram",
+        label: "amy.ink · Instagram (from Instagram user)",
+      },
+      {
+        id: "i2",
+        channel: "messenger",
+        label: "Unnamed · Messenger (from Messenger user)",
+      },
+    ]);
   });
 });
 

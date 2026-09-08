@@ -102,6 +102,25 @@ describe("messagePreview", () => {
   it("survives an empty body", () => {
     expect(messagePreview("")).toBe("");
   });
+
+  it("never cuts an emoji in half at the boundary", () => {
+    // "🎨" is a surrogate PAIR: slicing by UTF-16 code unit at the cut point
+    // leaves a lone high surrogate, which renders as U+FFFD (the black
+    // diamond) in the timeline row.
+    const body = `${"x".repeat(119)}🎨tail`;
+    const preview = messagePreview(body);
+    expect(preview).toBe(`${"x".repeat(119)}🎨…`);
+    expect(preview).not.toContain("�");
+    // No lone surrogate anywhere in the output.
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(preview)).toBe(false);
+  });
+
+  it("counts code points, not code units, when deciding to truncate at all", () => {
+    // 120 emoji is 240 UTF-16 units but exactly the cap — nothing to cut.
+    const body = "🎨".repeat(120);
+    expect(messagePreview(body)).toBe(body);
+    expect(messagePreview("🎨".repeat(121)).endsWith("…")).toBe(true);
+  });
 });
 
 describe("buildTimeline thread messages", () => {

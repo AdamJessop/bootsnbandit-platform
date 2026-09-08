@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { visibleEnquiryWhere } from "@bnb/core/services/enquiry-messages";
-import { listLinkableIdentities } from "@bnb/core/services/identity-linking";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { CustomerTimeline } from "@/components/admin/CustomerTimeline";
@@ -12,10 +11,7 @@ import { loyaltyTierLabel } from "../../_shared/labels";
 import { buildTimeline } from "./timeline-builder";
 import { CustomerActions } from "./CustomerActions";
 import { buildIdentityChips, IdentityChips } from "./IdentityChips";
-import {
-  LinkIdentityCard,
-  type LinkableIdentityOption,
-} from "./LinkIdentityCard";
+import { LinkIdentityCard } from "./LinkIdentityCard";
 
 /**
  * Customer detail (BACKOFHOUSE-IA F2): unified timeline (enquiries + bookings +
@@ -35,11 +31,23 @@ export default async function CustomerDetailPage({
   const guard = owner
     ? {}
     : { bookings: { some: { artistId: user.artistId ?? "__none__" } } };
+  const viewer = {
+    userId: user.id,
+    role: user.role,
+    artistId: user.artistId ?? null,
+  };
 
   const customer = await prisma.customer.findFirst({
     where: { id, ...guard },
     include: {
-      enquiries: { orderBy: { createdAt: "desc" } },
+      // Scoped exactly like the thread messages below. An artist who shares a
+      // booking with this customer can open their record, but that must not
+      // become a side door onto enquiries the inbox would never show them —
+      // another artist's leads, complete with a link straight into the thread.
+      enquiries: {
+        where: visibleEnquiryWhere(viewer),
+        orderBy: { createdAt: "desc" },
+      },
       bookings: {
         orderBy: { start: "desc" },
         include: {
@@ -52,13 +60,7 @@ export default async function CustomerDetailPage({
       enquiryMessages: {
         // The customer record must never widen what the inbox would show: an
         // artist reads only the threads they could open there.
-        where: {
-          enquiry: visibleEnquiryWhere({
-            userId: user.id,
-            role: user.role,
-            artistId: user.artistId ?? null,
-          }),
-        },
+        where: { enquiry: visibleEnquiryWhere(viewer) },
         orderBy: { createdAt: "desc" },
         // A long-running customer can have hundreds of messages; the timeline
         // is a summary, not an archive — the thread itself is one click away.
@@ -76,19 +78,6 @@ export default async function CustomerDetailPage({
   });
 
   if (!customer) notFound();
-
-  // Owner-only, and only fetched for owners: an artist never sees the list.
-  const linkable: LinkableIdentityOption[] = owner
-    ? (await listLinkableIdentities({ excludeCustomerId: customer.id })).map(
-        (i) => ({
-          id: i.id,
-          channel: i.channel,
-          label: `${i.displayName ?? "Unnamed"} · ${
-            i.channel === "instagram" ? "Instagram" : "Messenger"
-          } (from ${i.customerName})`,
-        }),
-      )
-    : [];
 
   const sessions = customer.bookings
     .filter((b) => b.session)
@@ -184,9 +173,10 @@ export default async function CustomerDetailPage({
             initialConsent={customer.marketingConsent}
             hasEmail={Boolean(customer.email)}
           />
-          {owner && (
-            <LinkIdentityCard customerId={customer.id} identities={linkable} />
-          )}
+          {/* Owner-only: an artist is never offered the merge, and the list
+              behind it is not fetched at all until an owner presses the
+              button inside the card. */}
+          {owner && <LinkIdentityCard customerId={customer.id} />}
         </aside>
       </div>
       <Toaster position="top-center" />

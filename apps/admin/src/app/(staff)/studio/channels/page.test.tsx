@@ -125,6 +125,24 @@ describe("ChannelsPage", () => {
 });
 
 describe("ChannelsPage — Meta", () => {
+  /**
+   * Relative to now, not pinned to a date in 2026. `connectionHealth` starts
+   * printing "Reconnect recommended" 30 days after the later of `connectedAt`
+   * and `lastEventAt` — a fixed fixture is a suite that passes today and
+   * fails, for no reason anyone changed, a month from now.
+   */
+  const HOUR = 3_600_000;
+  const DAY = 24 * HOUR;
+  const now = Date.now();
+  const ago = (ms: number) => new Date(now - ms);
+  const CONNECTED_AT = ago(3 * DAY);
+  const LAST_EVENT_AT = ago(2 * HOUR);
+  const DATE = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "long",
+    timeStyle: "short",
+    timeZone: "Europe/London",
+  });
+
   const CONNECTIONS = [
     {
       id: "c1",
@@ -134,9 +152,9 @@ describe("ChannelsPage — Meta", () => {
       igAccountId: "17841400000000000",
       name: "Boots 'n' Bandit",
       active: true,
-      webhookSubscribedAt: new Date("2026-09-05T10:00:00Z"),
-      lastEventAt: new Date("2026-09-08T11:22:33Z"),
-      connectedAt: new Date("2026-09-05T10:00:00Z"),
+      webhookSubscribedAt: CONNECTED_AT,
+      lastEventAt: LAST_EVENT_AT,
+      connectedAt: CONNECTED_AT,
       tokenReadable: true,
     },
     {
@@ -149,7 +167,7 @@ describe("ChannelsPage — Meta", () => {
       active: true,
       webhookSubscribedAt: null,
       lastEventAt: null,
-      connectedAt: new Date("2026-09-05T10:00:00Z"),
+      connectedAt: CONNECTED_AT,
       tokenReadable: true,
     },
   ];
@@ -195,9 +213,12 @@ describe("ChannelsPage — Meta", () => {
     expect(html).toContain("Boots &#x27;n&#x27; Bandit");
     expect(html).toContain("Messenger");
     expect(html).toContain("Instagram");
-    expect(html).toContain("8 September 2026");
+    expect(html).toContain(DATE.format(LAST_EVENT_AT));
+    expect(html).toContain(DATE.format(CONNECTED_AT));
     expect(html).toContain("Nothing received yet");
     expect(html).toContain("Not subscribed");
+    // A page connected three days ago has nothing to be nagged about.
+    expect(html).not.toContain("Reconnect recommended");
     expect(html).toContain("Disconnect");
     // Page id on every row, IG account id on the instagram row too.
     expect(html).toContain("102938475610293");

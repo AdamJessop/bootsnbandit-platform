@@ -67,10 +67,16 @@ export function enquiryHref(enquiryId: string): string {
  * One line of a message, for a timeline row. Newlines and runs of spaces
  * collapse (a quoted email reply would otherwise blow the row open) and long
  * bodies are cut with an ellipsis.
+ *
+ * Cut on CODE POINTS, not `String.prototype.slice`: an emoji is a surrogate
+ * pair, and slicing by UTF-16 code unit lands between its halves often enough
+ * that DM previews end in a black diamond. `Array.from` iterates code points,
+ * so the cut can only ever fall between whole characters.
  */
 export function messagePreview(body: string, max = 120): string {
   const flat = body.replace(/\s+/g, " ").trim();
-  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+  const points = Array.from(flat);
+  return points.length > max ? `${points.slice(0, max).join("")}…` : flat;
 }
 
 const MESSAGE_TITLE: Record<string, string> = {

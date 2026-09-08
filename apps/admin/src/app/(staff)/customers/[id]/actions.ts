@@ -10,8 +10,12 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
-import { linkIdentityToCustomer } from "@bnb/core/services/identity-linking";
+import {
+  linkIdentityToCustomer,
+  listLinkableIdentities,
+} from "@bnb/core/services/identity-linking";
 import { validateManualEmail, validateNotes } from "./action-helpers";
+import type { LinkableIdentityOption } from "./LinkIdentityCard";
 
 async function assertCanAccessCustomer(
   customerId: string,
@@ -93,6 +97,29 @@ export async function sendManualEmail(
         ? "Email sent and logged to the timeline."
         : "Email logged to the timeline (delivery not configured).",
   };
+}
+
+/**
+ * The handles this customer could absorb, fetched only once an owner asks.
+ *
+ * OWNER only, and for the same reason as the link itself: the list names
+ * other people's records, and it is the raw material for a merge. It used to
+ * run on every owner render of every customer detail page — a scan across
+ * every stub customer in the studio, paid for on every visit, for a repair
+ * used a handful of times a year.
+ */
+export async function loadLinkableIdentitiesAction(
+  customerId: string,
+): Promise<LinkableIdentityOption[]> {
+  await requireRole("OWNER");
+  const rows = await listLinkableIdentities({ excludeCustomerId: customerId });
+  return rows.map((i) => ({
+    id: i.id,
+    channel: i.channel,
+    label: `${i.displayName ?? "Unnamed"} · ${
+      i.channel === "instagram" ? "Instagram" : "Messenger"
+    } (from ${i.customerName})`,
+  }));
 }
 
 /**
