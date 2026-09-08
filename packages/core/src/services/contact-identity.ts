@@ -65,6 +65,12 @@ export interface FindOrCreateCustomerInput {
   /** Applied ONLY when creating a brand-new customer — never on a match. */
   tags?: string[];
   identity?: ContactIdentityInput | null;
+  /**
+   * The customer this identity is ALREADY known to resolve to, when the caller
+   * has just read that row for its own reasons (the Meta inbound path reads it
+   * for the stored display name). Saves repeating the identity lookup here.
+   */
+  identityCustomerId?: string | null;
 }
 
 /** Best available human-readable name, never blank (the column is required). */
@@ -117,16 +123,23 @@ export async function findOrCreateCustomer(
   const identity = input.identity ?? null;
 
   if (identity) {
-    const link = await prisma.customerIdentity.findUnique({
-      where: {
-        channel_externalId: {
-          channel: identity.channel,
-          externalId: identity.externalId,
+    if (input.identityCustomerId) {
+      const known = await prisma.customer.findUnique({
+        where: { id: input.identityCustomerId },
+      });
+      if (known) return known;
+    } else {
+      const link = await prisma.customerIdentity.findUnique({
+        where: {
+          channel_externalId: {
+            channel: identity.channel,
+            externalId: identity.externalId,
+          },
         },
-      },
-      select: { customer: true },
-    });
-    if (link) return link.customer;
+        select: { customer: true },
+      });
+      if (link) return link.customer;
+    }
   }
 
   const or: Prisma.CustomerWhereInput[] = [];
@@ -183,12 +196,27 @@ export async function findOrCreateCustomer(
   }
 
   if (identity) {
-    await linkIdentity(
+    const link = await linkIdentity(
       created.id,
       identity.channel,
       identity.externalId,
       identity.displayName,
     );
+    // A concurrent first message from the same handle got there first: the
+    // upsert found ITS row and left the handle pointing at ITS customer. Ours
+    // is stillborn, and unlike an email/phone duplicate there is nothing to
+    // merge it on later — a Meta handle carries no contact details, so the two
+    // records would never collapse. Delete it (the `none` guards make this a
+    // no-op the instant anything actually references it) and return the winner.
+    if (link.customerId !== created.id && or.length === 0) {
+      await prisma.customer.deleteMany({
+        where: { id: created.id, enquiries: { none: {} }, bookings: { none: {} } },
+      });
+      const winner = await prisma.customer.findUnique({
+        where: { id: link.customerId },
+      });
+      if (winner) return winner;
+    }
   }
   return created;
 }

@@ -6,7 +6,7 @@ import {
   type StoreAttachmentInput,
 } from "../assets";
 import {
-  findConnectionByExternalId,
+  lookupConnectionByExternalId,
   touchConnectionEvent,
   type MetaConnection,
 } from "../channel-connections";
@@ -36,8 +36,19 @@ export const MAX_META_ATTACHMENTS = 10;
 /** Total bytes one message may pull into inline attachment rows. */
 export const MAX_META_INLINE_TOTAL_BYTES = 16 * 1024 * 1024;
 
-/** Hard ceiling on how long a single attachment download may take. */
-const DOWNLOAD_TIMEOUT_MS = 15_000;
+/**
+ * Hard ceiling on how long a single attachment download may take. Well under
+ * the webhook route's own delivery budget: several of these in a row must not
+ * be able to hold a POST open past the point Meta gives up on it.
+ */
+const DOWNLOAD_TIMEOUT_MS = 8_000;
+
+/**
+ * Wall-clock budget for ALL the attachment downloads of ONE message. Once it
+ * is spent, whatever is left becomes a link instead — the URL is still on the
+ * thread, and a link beats losing the message to a timed-out delivery.
+ */
+export const MAX_ATTACHMENT_WALL_MS = 8_000;
 
 /** A Meta user carries no email or phone — this is the best name we have. */
 export const UNKNOWN_SENDER_NAME: Record<MetaChannelKind, string> = {
@@ -60,6 +71,8 @@ export interface MetaInboundDeps {
   }): Promise<MetaProfile | null>;
   /** Resolves null when the body is missing, too large or unreadable. */
   download(url: string, maxBytes: number): Promise<Uint8Array | null>;
+  /** Monotonic-ish milliseconds; injectable so a budget is testable. */
+  now?(): number;
 }
 
 function fullName(first: unknown, last: unknown): string | null {
@@ -92,6 +105,8 @@ export function metaInboundDeps(
   appSecret: string | undefined = process.env.META_APP_SECRET,
 ): MetaInboundDeps {
   return {
+    now: () => Date.now(),
+
     async fetchProfile({ connection, userId, channel }) {
       const fields =
         channel === "instagram" ? "name,username" : "first_name,last_name";
@@ -203,14 +218,19 @@ async function collectAttachments(
 ): Promise<StoreAttachmentInput[]> {
   const out: StoreAttachmentInput[] = [];
   let spent = 0;
+  const now = deps.now ?? (() => Date.now());
+  const startedAt = now();
 
   for (const attachment of event.attachments.slice(0, MAX_META_ATTACHMENTS)) {
     const url = attachment.url;
     const remaining = MAX_META_INLINE_TOTAL_BYTES - spent;
+    // Bytes AND time: a message full of slow attachments must not be able to
+    // hold the webhook POST open. Past the budget the rest are links.
     const wantsBytes =
       attachment.type === "image" &&
       isAllowedMetaAttachmentUrl(url) &&
-      remaining > 0;
+      remaining > 0 &&
+      now() - startedAt < MAX_ATTACHMENT_WALL_MS;
 
     if (wantsBytes && url) {
       let downloaded: Uint8Array | null = null;
@@ -247,7 +267,9 @@ async function collectAttachments(
 function bodyTextFor(event: MetaMessagingEvent): string | null {
   const text = event.text?.trim();
   if (text) return text;
-  const n = event.attachments.length;
+  // Capped the same way `collectAttachments` caps: the sentence must describe
+  // the rows staff will actually see, not what arrived and was dropped.
+  const n = Math.min(event.attachments.length, MAX_META_ATTACHMENTS);
   if (n === 1) return "(sent an attachment)";
   if (n > 1) return `(sent ${n} attachments)`;
   return null;
@@ -281,8 +303,26 @@ export async function ingestMetaEvent(
   // `entry.id` is the Page id (messenger) or the IG account id (instagram);
   // either way it is the connection's externalId. No connection means this
   // app is subscribed to a Page this studio never connected — not our traffic.
-  const connection = await findConnectionByExternalId(event.entryId);
-  if (!connection) return { status: "ignored", reason: "unknown_page" };
+  const lookup = await lookupConnectionByExternalId(event.entryId);
+  if (lookup.kind === "none") {
+    // Logged, not silent: "this app is subscribed to a Page we never connected"
+    // is a real misconfiguration, and it is otherwise indistinguishable from
+    // "nothing is arriving at all".
+    console.warn(
+      `[meta] ignoring an event for an unconnected destination: entry ${event.entryId}, mid ${event.mid}`,
+    );
+    return { status: "ignored", reason: "unknown_page" };
+  }
+  if (lookup.kind === "unreadable") {
+    // NOT `unknown_page`: the Page IS connected, its credential just cannot be
+    // read (SESSION_SECRET rotated, row corrupted). Throwing makes the route
+    // write a replayable WebhookFailure instead of dropping real customer
+    // traffic while the panel still says Connected.
+    throw new Error(
+      `Connection ${lookup.row.id} has an unreadable access token — reconnect the Page in Studio › Channels`,
+    );
+  }
+  const connection = lookup.connection;
 
   const existing = await prisma.enquiryMessage.findUnique({
     where: { externalId: event.mid },
@@ -314,7 +354,7 @@ export async function ingestMetaEvent(
         externalId: event.customerId,
       },
     },
-    select: { displayName: true },
+    select: { customerId: true, displayName: true },
   });
   // The name is a nicety; the message is the point. The default deps swallow
   // their own failures, but an injected one need not — and Graph being down
@@ -335,6 +375,9 @@ export async function ingestMetaEvent(
 
   const customer = await findOrCreateCustomer({
     name: displayName,
+    // The identity row was just read above; handing over the customer it names
+    // saves the resolver reading exactly the same row again.
+    identityCustomerId: known?.customerId ?? null,
     identity: {
       channel: event.channel,
       externalId: event.customerId,

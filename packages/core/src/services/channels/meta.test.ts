@@ -153,6 +153,43 @@ describe("parseMetaWebhook", () => {
     ]);
   });
 
+  it("reads an Instagram share / story mention without throwing", () => {
+    // Instagram sends attachment types Messenger never does, sometimes with no
+    // payload url at all. They are not images and must not become one; the
+    // point is that the parser keeps the type word and carries on.
+    const [event] = parseMetaWebhook({
+      object: "instagram",
+      entry: [
+        {
+          id: "17841400000000000",
+          time: 1788000000000,
+          messaging: [
+            {
+              sender: { id: "6011223344556677" },
+              recipient: { id: "17841400000000000" },
+              timestamp: 1788000000000,
+              message: {
+                mid: "m_ig_share_1",
+                attachments: [
+                  { type: "share", payload: { url: "https://l.instagram.com/x" } },
+                  { type: "story_mention", payload: {} },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(event.kind).toBe("message");
+    expect(event.text).toBeNull();
+    expect(event.attachments).toEqual([
+      { type: "share", url: "https://l.instagram.com/x" },
+      { type: "story_mention", url: null },
+    ]);
+    // Neither is an image, so neither can ever be fetched as one.
+    expect(event.attachments.every((a) => a.type !== "image")).toBe(true);
+  });
+
   it("flags an echo and reports the CUSTOMER as the recipient side", () => {
     const [event] = parseMetaWebhook(echo);
     expect(event).toMatchObject({
@@ -298,6 +335,9 @@ describe("the 24-hour messaging window", () => {
     expect(isWindowGraphError({ code: 10, error_subcode: 2018278 })).toBe(true);
     expect(isWindowGraphError({ code: 10 })).toBe(true);
     expect(isWindowGraphError({ error_subcode: 2018278 })).toBe(true);
+    // 551 "this person isn't available right now" is the same verdict wearing
+    // a different number, and staff can only do the same thing about it.
+    expect(isWindowGraphError({ code: 551 })).toBe(true);
     expect(isWindowGraphError({ code: 190 })).toBe(false);
     expect(isWindowGraphError(null)).toBe(false);
   });

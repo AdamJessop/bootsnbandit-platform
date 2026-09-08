@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_EMAIL_FROM } from "./constants";
 
 /**
  * sendEmail must:
@@ -280,9 +281,7 @@ describe("sendEmail — enquiry reply identity", () => {
     >;
     // Not hard-coded: a developer .env may set EMAIL_FROM, and the point of
     // this case is that transactional mail keeps whatever that default is.
-    expect(payload.from).toBe(
-      process.env.EMAIL_FROM ?? "Boots 'n' Bandit <hello@bootsnbandit.co.uk>",
-    );
+    expect(payload.from).toBe(process.env.EMAIL_FROM ?? DEFAULT_EMAIL_FROM);
     expect(payload).not.toHaveProperty("replyTo");
     expect(payload).not.toHaveProperty("headers");
   });

@@ -45,6 +45,8 @@ export function verifyMetaSignature(input: {
   if (!input.appSecret) return { ok: false, reason: "no_secret" };
   const header = input.header?.trim();
   if (!header) return { ok: false, reason: "missing_header" };
+  // Deliberately case-SENSITIVE: Meta sends exactly `sha256=`, so accepting
+  // `SHA256=` would only ever widen what we treat as a signed request.
   if (!header.startsWith("sha256=")) return { ok: false, reason: "bad_format" };
   const digest = header.slice("sha256=".length);
   // Checked before comparing so a malformed header is reported as malformed
@@ -196,6 +198,9 @@ export function parseMetaWebhook(body: unknown): MetaMessagingEvent[] {
             : "unknown";
 
       const isEcho = item.message?.is_echo === true;
+      // Meta's `timestamp` and `entry.time` are MILLISECONDS since the epoch,
+      // not seconds — `new Date(ms)` below depends on that. A seconds value
+      // would land in 1970 and quietly break the 24-hour window.
       const ms =
         typeof item.timestamp === "number" ? item.timestamp : entryTime;
 
@@ -380,12 +385,24 @@ export function isWithinSendWindow(
 }
 
 /**
+ * "This person isn't available right now" — Graph's other way of saying the
+ * conversation is not open to us. It belongs with the window errors: the same
+ * advice ("email them instead") is the only thing staff can do about it.
+ */
+export const META_USER_UNAVAILABLE_CODE = 551;
+
+/**
  * Graph's own verdict, for the race where the window shut between our check
  * and the request: code 10 ("permission denied" — the family the messaging
- * window lives in) or subcode 2018278 ("outside allowed window").
+ * window lives in), code 551 (user unavailable) or subcode 2018278 ("outside
+ * allowed window").
  */
 export function isWindowGraphError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   const err = error as { code?: unknown; error_subcode?: unknown };
-  return err.code === 10 || err.error_subcode === 2018278;
+  return (
+    err.code === 10 ||
+    err.code === META_USER_UNAVAILABLE_CODE ||
+    err.error_subcode === 2018278
+  );
 }

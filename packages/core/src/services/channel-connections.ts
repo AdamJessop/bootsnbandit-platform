@@ -24,6 +24,13 @@ export interface ChannelConnectionRow {
   webhookSubscribedAt: Date | null;
   lastEventAt: Date | null;
   connectedAt: Date;
+  /**
+   * Whether the stored token still decrypts under the current SESSION_SECRET.
+   * The panel needs to distinguish "connected" from "connected but the
+   * credential is unusable" — the row looks identical otherwise, while every
+   * send and every inbound event silently fails. Never the token itself.
+   */
+  tokenReadable: boolean;
 }
 
 export interface MetaConnection extends ChannelConnectionRow {
@@ -57,8 +64,18 @@ interface RawRow {
   connectedAt: Date;
 }
 
-function toRow(raw: RawRow): ChannelConnectionRow {
-  return { ...raw, channel: raw.channel as MetaChannel };
+function toRow(raw: RawRow, tokenReadable: boolean): ChannelConnectionRow {
+  return { ...raw, channel: raw.channel as MetaChannel, tokenReadable };
+}
+
+/** Does this envelope still open? Never returns (or logs) the plaintext. */
+function canDecrypt(envelope: string): boolean {
+  try {
+    decryptSecret(envelope);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface UpsertChannelConnectionInput {
@@ -97,16 +114,24 @@ export async function upsertChannelConnection(
     update: shared,
     select: ROW_SELECT,
   });
-  return toRow(row as RawRow);
+  // Just encrypted with the running key, so it reads back by construction.
+  return toRow(row as RawRow, true);
 }
 
-/** Everything the Channels panel lists. Never selects the token column. */
+/**
+ * Everything the Channels panel lists. The token column is read ONLY to answer
+ * "does this still decrypt?" — the plaintext never leaves this function, and
+ * the returned shape has no field to put it in.
+ */
 export async function listChannelConnections(): Promise<ChannelConnectionRow[]> {
   const rows = await prisma.channelConnection.findMany({
     orderBy: [{ connectedAt: "desc" }, { id: "desc" }],
-    select: ROW_SELECT,
+    select: { ...ROW_SELECT, accessToken: true },
   });
-  return rows.map((row) => toRow(row as RawRow));
+  return rows.map((row) => {
+    const { accessToken, ...rest } = row as RawRow & { accessToken: string };
+    return toRow(rest, canDecrypt(accessToken));
+  });
 }
 
 /**
@@ -121,7 +146,7 @@ function withToken(
   if (!raw) return null;
   const { accessToken, ...rest } = raw;
   try {
-    return { ...toRow(rest), accessToken: decryptSecret(accessToken) };
+    return { ...toRow(rest, true), accessToken: decryptSecret(accessToken) };
   } catch (err) {
     console.error(
       `[channels] connection ${raw.id} has an unreadable access token — reconnect the Page:`,
@@ -131,15 +156,52 @@ function withToken(
   }
 }
 
+/**
+ * The three answers a lookup can honestly give.
+ *
+ * `none` and `unreadable` are NOT the same thing, and collapsing them to null
+ * is how a rotated SESSION_SECRET turns every inbound Meta message into a
+ * silently ignored "unknown page" while the panel still says Connected.
+ */
+export type ChannelConnectionLookup =
+  | { kind: "none" }
+  | { kind: "unreadable"; row: ChannelConnectionRow }
+  | { kind: "ok"; connection: MetaConnection };
+
 /** By the id Meta addresses it with: page id (messenger) / IG id (instagram). */
+export async function lookupConnectionByExternalId(
+  externalId: string,
+): Promise<ChannelConnectionLookup> {
+  const raw = (await prisma.channelConnection.findFirst({
+    where: { externalId, active: true },
+    select: { ...ROW_SELECT, accessToken: true },
+  })) as (RawRow & { accessToken: string }) | null;
+  if (!raw) return { kind: "none" };
+
+  const { accessToken, ...rest } = raw;
+  try {
+    return {
+      kind: "ok",
+      connection: { ...toRow(rest, true), accessToken: decryptSecret(accessToken) },
+    };
+  } catch (err) {
+    console.error(
+      `[channels] connection ${raw.id} has an unreadable access token — reconnect the Page:`,
+      err,
+    );
+    return { kind: "unreadable", row: toRow(rest, false) };
+  }
+}
+
+/**
+ * The old shape, for callers that genuinely cannot act on the difference —
+ * "no usable connection" is all they can do anything about.
+ */
 export async function findConnectionByExternalId(
   externalId: string,
 ): Promise<MetaConnection | null> {
-  const raw = await prisma.channelConnection.findFirst({
-    where: { externalId, active: true },
-    select: { ...ROW_SELECT, accessToken: true },
-  });
-  return withToken(raw as (RawRow & { accessToken: string }) | null);
+  const lookup = await lookupConnectionByExternalId(externalId);
+  return lookup.kind === "ok" ? lookup.connection : null;
 }
 
 export async function getConnection(id: string): Promise<MetaConnection | null> {
@@ -150,13 +212,19 @@ export async function getConnection(id: string): Promise<MetaConnection | null> 
   return withToken(raw as (RawRow & { accessToken: string }) | null);
 }
 
-/** "Last event received" on the Channels panel — the liveness signal. */
+/**
+ * "Last event received" on the Channels panel — the liveness signal.
+ *
+ * Monotonic: Meta redelivers, and a delivery can arrive out of order, so the
+ * write is guarded to `max(existing, at)`. Letting a replay drag the timestamp
+ * backwards would make a perfectly healthy connection look stale.
+ */
 export async function touchConnectionEvent(
   id: string,
   at: Date = new Date(),
 ): Promise<void> {
   await prisma.channelConnection.updateMany({
-    where: { id },
+    where: { id, OR: [{ lastEventAt: null }, { lastEventAt: { lt: at } }] },
     data: { lastEventAt: at },
   });
 }

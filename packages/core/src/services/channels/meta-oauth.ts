@@ -88,6 +88,18 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 
+/**
+ * Page and IG account ids are numeric strings. They are interpolated into a
+ * Graph path AND stored as the `externalId` an inbound webhook is matched on,
+ * so anything that is not plain digits is refused rather than normalised.
+ */
+const NUMERIC_ID = /^\d+$/;
+
+function metaId(value: unknown): string | null {
+  const raw = str(value);
+  return raw && NUMERIC_ID.test(raw) ? raw : null;
+}
+
 /** `/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}` */
 export function parseMetaAccounts(body: unknown): MetaPageAccount[] {
   if (typeof body !== "object" || body === null) return [];
@@ -103,7 +115,7 @@ export function parseMetaAccounts(body: unknown): MetaPageAccount[] {
       access_token?: unknown;
       instagram_business_account?: { id?: unknown; username?: unknown };
     };
-    const id = str(page.id);
+    const id = metaId(page.id);
     const accessToken = str(page.access_token);
     // A Page with no token is a Page we cannot act on — skip it rather than
     // storing a connection that can never send.
@@ -112,7 +124,7 @@ export function parseMetaAccounts(body: unknown): MetaPageAccount[] {
       id,
       name: str(page.name) ?? id,
       accessToken,
-      igAccountId: str(page.instagram_business_account?.id),
+      igAccountId: metaId(page.instagram_business_account?.id),
       igUsername: str(page.instagram_business_account?.username),
     });
   }
@@ -124,6 +136,12 @@ export interface MetaOAuthDeps {
   exchangeLongLived(userToken: string): Promise<string>;
   listAccounts(userToken: string): Promise<MetaPageAccount[]>;
   subscribeApp(input: { pageId: string; pageToken: string }): Promise<boolean>;
+  /**
+   * The other half of `subscribeApp`. Deleting our row is not enough: Meta
+   * keeps delivering to a Page the app is still subscribed to, and those
+   * deliveries then vanish as `unknown_page`.
+   */
+  unsubscribeApp(input: { pageId: string; pageToken: string }): Promise<boolean>;
 }
 
 const OAUTH_TIMEOUT_MS = 15_000;
@@ -171,15 +189,22 @@ export function metaOAuthDeps(
    * `Referer`, browser history, our own error reporting. Graph accepts POST
    * with `application/x-www-form-urlencoded` on every endpoint below.
    */
-  async function postForm(path: string, fields: Record<string, string>) {
+  async function sendForm(
+    method: "POST" | "DELETE",
+    path: string,
+    fields: Record<string, string>,
+  ) {
     const res = await fetchImpl(metaGraphUrl(path, env), {
-      method: "POST",
+      method,
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(fields).toString(),
       signal: AbortSignal.timeout(OAUTH_TIMEOUT_MS),
     });
     return graphJson(res);
   }
+
+  const postForm = (path: string, fields: Record<string, string>) =>
+    sendForm("POST", path, fields);
 
   /**
    * Read edges are GET (Graph rejects POST on `/me/accounts`), so the token
@@ -247,12 +272,32 @@ export function metaOAuthDeps(
           access_token: pageToken,
           appsecret_proof: appSecretProof(pageToken, appSecret),
         })) as { success?: unknown };
-        return body.success !== false;
+        // Graph says `{"success":true}` when it worked. Anything else — an
+        // empty body included — is Graph declining to confirm, and treating
+        // that as success stores a `webhookSubscribedAt` for a Page that is
+        // not actually subscribed.
+        return body.success === true;
       } catch (err) {
         // The message can name the app; the token never appears in it because
         // it was never in the URL. A failed subscription is not fatal — the
         // connection is kept and the owner is told to retry.
         console.error(`[meta] subscribe failed for page ${pageId}:`, err);
+        return false;
+      }
+    },
+
+    async unsubscribeApp({ pageId, pageToken }) {
+      try {
+        const { appSecret } = credentials();
+        const body = (await sendForm("DELETE", `${pageId}/subscribed_apps`, {
+          access_token: pageToken,
+          appsecret_proof: appSecretProof(pageToken, appSecret),
+        })) as { success?: unknown };
+        return body.success === true;
+      } catch (err) {
+        // Non-fatal by design: the local row is still removed, and the owner
+        // is told to remove the app from the Page in Business Settings.
+        console.error(`[meta] unsubscribe failed for page ${pageId}:`, err);
         return false;
       }
     },

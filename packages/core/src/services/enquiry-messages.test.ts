@@ -111,6 +111,60 @@ describe("enquiry messages (DB)", () => {
     expect(after.lastInboundAt).not.toBeNull();
   });
 
+  it("never moves the activity timestamps backwards, or flips status for a backdated message", async () => {
+    if (!(await dbReachable())) return;
+    const { enquiry } = await seed("new");
+    const live = new Date("2026-09-08T12:00:00.000Z");
+    await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "messenger",
+      bodyText: "latest",
+      externalId: uid("mid-live"),
+      at: live,
+    });
+    // Staff replied after that message, so the enquiry is awaiting the customer.
+    await db().enquiry.update({
+      where: { id: enquiry.id },
+      data: { status: "replied" },
+    });
+
+    // A replayed / out-of-order delivery from BEFORE the live one. It is a
+    // real new row, but it is not new customer traffic: dragging
+    // `lastInboundAt` back would silently close a live 24-hour Meta window,
+    // and flipping the status would claim the customer just wrote in.
+    await recordInbound({
+      enquiryId: enquiry.id,
+      channel: "messenger",
+      bodyText: "backdated",
+      externalId: uid("mid-old"),
+      at: new Date("2026-09-08T09:00:00.000Z"),
+    });
+
+    const after = await db().enquiry.findUniqueOrThrow({
+      where: { id: enquiry.id },
+    });
+    expect(after.lastInboundAt?.toISOString()).toBe(live.toISOString());
+    expect(after.lastMessageAt?.toISOString()).toBe(live.toISOString());
+    expect(after.status).toBe("replied");
+    expect(
+      await db().enquiryMessage.count({ where: { enquiryId: enquiry.id } }),
+    ).toBe(2);
+
+    // A backdated OUTBOUND is the same rule for lastMessageAt.
+    await recordOutbound({
+      enquiryId: enquiry.id,
+      channel: "messenger",
+      bodyText: "backdated reply",
+      externalId: uid("mid-old-out"),
+      at: new Date("2026-09-08T10:00:00.000Z"),
+    });
+    expect(
+      (
+        await db().enquiry.findUniqueOrThrow({ where: { id: enquiry.id } })
+      ).lastMessageAt?.toISOString(),
+    ).toBe(live.toISOString());
+  });
+
   it("is idempotent on externalId", async () => {
     if (!(await dbReachable())) return;
     const { enquiry } = await seed();

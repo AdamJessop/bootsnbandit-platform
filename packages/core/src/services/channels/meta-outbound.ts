@@ -22,13 +22,6 @@ import {
 
 const SEND_TIMEOUT_MS = 15_000;
 
-/**
- * "This person isn't available right now" — Graph's other way of saying the
- * conversation is not open to us. It belongs with the window errors: the same
- * advice ("email them instead") is the only thing staff can do about it.
- */
-const USER_UNAVAILABLE_CODE = 551;
-
 /** Graph refused the send for a reason that is not the messaging window. */
 export class MetaSendError extends Error {
   constructor(message: string) {
@@ -73,6 +66,34 @@ export async function loadMetaReplyTarget(
 export interface MetaSentPart {
   text: string;
   messageId: string;
+}
+
+/**
+ * How far a multi-part send got before it failed, stamped onto whatever error
+ * comes out of `sendMetaMessage`. A long reply is several Graph calls: when
+ * part two fails, part one is already on the customer's phone, and the caller
+ * has to tell staff to send only the remainder rather than the whole thing
+ * again. Read it with `partsSentFrom`.
+ */
+export interface MetaPartialSend {
+  sentParts: number;
+  totalParts: number;
+}
+
+function withPartCounts(err: unknown, sentParts: number, totalParts: number): unknown {
+  if (typeof err === "object" && err !== null) {
+    Object.assign(err, { sentParts, totalParts });
+  }
+  return err;
+}
+
+/** The counts `sendMetaMessage` stamped on an error, or zeroes. */
+export function partsSentFrom(err: unknown): MetaPartialSend {
+  const e = err as Partial<MetaPartialSend> | null;
+  return {
+    sentParts: typeof e?.sentParts === "number" ? e.sentParts : 0,
+    totalParts: typeof e?.totalParts === "number" ? e.totalParts : 0,
+  };
 }
 
 export interface SendMetaMessageInput {
@@ -140,6 +161,27 @@ export async function sendMetaMessage(
   const parts = splitOutboundText(input.text);
   const sent: MetaSentPart[] = [];
 
+  try {
+    await sendParts({ input, parts, sent, url, proof, fetchImpl });
+  } catch (err) {
+    // Every throw below leaves the customer holding `sent.length` messages —
+    // the caller needs that number to ask for the remainder, not a resend.
+    throw withPartCounts(err, sent.length, parts.length);
+  }
+
+  return sent;
+}
+
+async function sendParts(args: {
+  input: SendMetaMessageInput;
+  parts: string[];
+  sent: MetaSentPart[];
+  url: string;
+  proof: string | null;
+  fetchImpl: typeof fetch;
+}): Promise<void> {
+  const { input, parts, sent, url, proof, fetchImpl } = args;
+
   for (const text of parts) {
     let body: GraphSendResponse;
     try {
@@ -169,10 +211,8 @@ export async function sendMetaMessage(
     // with an `error` object often enough that trusting `res.ok` would let a
     // refusal through as a successful send with no message id.
     if (body.error) {
-      if (
-        isWindowGraphError(body.error) ||
-        body.error.code === USER_UNAVAILABLE_CODE
-      ) {
+      // Code 10 / subcode 2018278 / code 551 all live in `isWindowGraphError`.
+      if (isWindowGraphError(body.error)) {
         throw new MetaWindowClosedError(input.channel);
       }
       // Only Graph's own message — never the request, which holds the token.
@@ -192,8 +232,6 @@ export async function sendMetaMessage(
     sent.push(part);
     await input.onPartSent?.(part);
   }
-
-  return sent;
 }
 
 export interface SendEnquiryMetaInput {

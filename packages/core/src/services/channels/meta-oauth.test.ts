@@ -116,6 +116,43 @@ describe("parseMetaAccounts", () => {
     expect(parseMetaAccounts({})).toEqual([]);
     expect(parseMetaAccounts({ data: "nope" })).toEqual([]);
   });
+
+  it("refuses a page or IG id that is not a plain number", () => {
+    // Both ids end up interpolated into a Graph path and stored as the
+    // `externalId` a webhook is matched on — anything but digits is not an id.
+    expect(
+      parseMetaAccounts({
+        data: [
+          {
+            id: "102938475610293/../me",
+            name: "Traversal",
+            access_token: "EAAG_x",
+          },
+        ],
+      }),
+    ).toEqual([]);
+
+    expect(
+      parseMetaAccounts({
+        data: [
+          {
+            id: "102938475610293",
+            name: "Odd IG",
+            access_token: "EAAG_x",
+            instagram_business_account: { id: "not-a-number", username: "x" },
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: "102938475610293",
+        name: "Odd IG",
+        accessToken: "EAAG_x",
+        igAccountId: null,
+        igUsername: "x",
+      },
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -255,6 +292,54 @@ describe("metaOAuthDeps", () => {
     expectNoSecretsInUrls(calls);
   });
 
+  it("treats a subscription response with no success flag as a failure", async () => {
+    // Graph answers `{"success":true}` on success. An empty body is Graph
+    // telling us nothing — believing it would store a webhookSubscribedAt for
+    // a Page that never got subscribed.
+    const { fetchImpl } = stubFetch([{}]);
+    expect(
+      await metaOAuthDeps(fetchImpl, ENV).subscribeApp({
+        pageId: "102938475610293",
+        pageToken: "EAAG_page_token_synthetic",
+      }),
+    ).toBe(false);
+  });
+
+  it("unsubscribes with a DELETE and the page token OUT of the URL", async () => {
+    const { fetchImpl, calls } = stubFetch([{ success: true }]);
+    const ok = await metaOAuthDeps(fetchImpl, ENV).unsubscribeApp({
+      pageId: "102938475610293",
+      pageToken: "EAAG_page_token_synthetic",
+    });
+
+    expect(ok).toBe(true);
+    expect(calls[0].url).toBe(
+      "https://graph.facebook.com/v21.0/102938475610293/subscribed_apps",
+    );
+    expect(calls[0].method).toBe("DELETE");
+    expect(calls[0].body.get("access_token")).toBe("EAAG_page_token_synthetic");
+    expect(calls[0].body.get("appsecret_proof")).toBe(
+      appSecretProof("EAAG_page_token_synthetic", "app-secret-synthetic"),
+    );
+    expectNoSecretsInUrls(calls);
+  });
+
+  it("reports a refused unsubscribe as false rather than throwing", async () => {
+    const { fetchImpl } = stubFetch([
+      { error: { message: "(#200) Requires pages_manage_metadata" } },
+    ]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const ok = await metaOAuthDeps(fetchImpl, ENV).unsubscribeApp({
+      pageId: "p1",
+      pageToken: "EAAG_page_token_synthetic",
+    });
+    expect(ok).toBe(false);
+    for (const call of spy.mock.calls) {
+      expect(JSON.stringify(call)).not.toContain("EAAG_page_token_synthetic");
+    }
+    spy.mockRestore();
+  });
+
   it("reports a refused subscription as false rather than throwing", async () => {
     const { fetchImpl } = stubFetch([
       { error: { message: "(#200) Requires pages_manage_metadata" } },
@@ -302,6 +387,7 @@ describe("connectMetaPages", () => {
     exchangeLongLived: vi.fn(async () => "LONG_USER_TOKEN"),
     listAccounts: vi.fn(async () => parseMetaAccounts(ACCOUNTS_BODY)),
     subscribeApp: vi.fn(async () => true),
+    unsubscribeApp: vi.fn(async () => true),
   };
 
   beforeEach(() => {

@@ -30,6 +30,7 @@ const CONNECTION = {
   webhookSubscribedAt: new Date("2026-09-01T00:00:00Z"),
   lastEventAt: null,
   connectedAt: new Date("2026-09-01T00:00:00Z"),
+  tokenReadable: true,
   accessToken: "EAAG_synthetic_page_token",
 };
 
@@ -255,6 +256,63 @@ describe("sendEnquiryMetaMessage", () => {
       deliveryStatus: "sent",
     });
     expect(recordOutbound.mock.calls[1][0]).toMatchObject({ externalId: "m_b" });
+  });
+
+  it("says how much of a multi-part reply got out before it failed", async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      return call === 1
+        ? Response.json({ message_id: "m_a" })
+        : Response.json({
+            error: { message: "(#100) Invalid parameter", code: 100 },
+          });
+    }) as unknown as typeof fetch;
+
+    const promise = sendEnquiryMetaMessage({
+      context: CONTEXT,
+      target: {
+        connection: CONNECTION,
+        channel: "messenger",
+        recipientId: "7213456789012345",
+      },
+      body: "word ".repeat(600),
+      authorUserId: "u1",
+      now: NOW,
+      fetchImpl,
+    });
+
+    // Part one is on the customer's phone and IS recorded; the error carries
+    // how far it got so the caller can say "send only the remainder".
+    await expect(promise).rejects.toMatchObject({
+      sentParts: 1,
+      totalParts: 2,
+    });
+    expect(recordOutbound).toHaveBeenCalledTimes(1);
+    expect(recordOutbound.mock.calls[0][0]).toMatchObject({
+      externalId: "m_a",
+    });
+  });
+
+  it("reports nothing sent when the very first part fails", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ error: { message: "(#100) Invalid parameter", code: 100 } }),
+    ) as unknown as typeof fetch;
+    await expect(
+      sendEnquiryMetaMessage({
+        context: CONTEXT,
+        target: {
+          connection: CONNECTION,
+          channel: "messenger",
+          recipientId: "7213456789012345",
+        },
+        body: "Just the one part",
+        authorUserId: "u1",
+        now: NOW,
+        fetchImpl,
+      }),
+    ).rejects.toMatchObject({ sentParts: 0, totalParts: 1 });
+    expect(recordOutbound).not.toHaveBeenCalled();
   });
 });
 

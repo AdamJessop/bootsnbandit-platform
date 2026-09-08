@@ -167,6 +167,52 @@ describe("findOrCreateCustomer + linkIdentity (DB)", () => {
     ).toBe(2);
   });
 
+  it("two concurrent first messages from one handle make ONE customer", async () => {
+    if (!(await dbReachable())) return;
+    const psid = uid("racepsid");
+    // Neither call sees the other's identity row, so both fall through to the
+    // create branch. Exactly one may survive: a Messenger user has no email or
+    // phone to collapse the duplicates on later.
+    const [a, b] = await Promise.all([
+      findOrCreateCustomer({
+        identity: { channel: "messenger", externalId: psid, displayName: "Race" },
+      }),
+      findOrCreateCustomer({
+        identity: { channel: "messenger", externalId: psid, displayName: "Race" },
+      }),
+    ]);
+    track(a);
+    track(b);
+    expect(a.id).toBe(b.id);
+
+    const link = await db().customerIdentity.findUniqueOrThrow({
+      where: { channel_externalId: { channel: "messenger", externalId: psid } },
+    });
+    expect(link.customerId).toBe(a.id);
+    expect(
+      await db().customer.count({ where: { name: "Race", id: { not: a.id } } }),
+    ).toBe(0);
+  });
+
+  it("takes a pre-resolved identity customer instead of looking it up again", async () => {
+    if (!(await dbReachable())) return;
+    const psid = uid("preres");
+    const first = track(
+      await findOrCreateCustomer({
+        identity: { channel: "messenger", externalId: psid, displayName: "Pre" },
+      }),
+    );
+    const spy = vi.spyOn(prisma.customerIdentity, "findUnique");
+    const again = await findOrCreateCustomer({
+      name: "Pre",
+      identity: { channel: "messenger", externalId: psid },
+      identityCustomerId: first.id,
+    });
+    expect(again.id).toBe(first.id);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it("links a handle onto an existing customer matched by email", async () => {
     if (!(await dbReachable())) return;
     const local = uid("eff");

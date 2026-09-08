@@ -257,13 +257,30 @@ export async function recordInbound(
     if (isDuplicate) return row;
 
     const at = input.at ?? row.createdAt;
-    await tx.enquiry.updateMany({
-      where: { id: input.enquiryId, status: "replied" },
-      data: { status: "customer_replied" },
+    // Monotonic, and the status flip rides on it. A webhook redelivery or an
+    // out-of-order batch can carry a message OLDER than the one the enquiry
+    // already holds: recording it is right, but dragging `lastInboundAt`
+    // backwards would silently close a live 24-hour Meta window and mark the
+    // thread as "the customer just replied" when they did not.
+    const advanced = await tx.enquiry.updateMany({
+      where: {
+        id: input.enquiryId,
+        OR: [{ lastInboundAt: null }, { lastInboundAt: { lt: at } }],
+      },
+      data: { lastInboundAt: at },
     });
-    await tx.enquiry.update({
-      where: { id: input.enquiryId },
-      data: { lastMessageAt: at, lastInboundAt: at },
+    if (advanced.count > 0) {
+      await tx.enquiry.updateMany({
+        where: { id: input.enquiryId, status: "replied" },
+        data: { status: "customer_replied" },
+      });
+    }
+    await tx.enquiry.updateMany({
+      where: {
+        id: input.enquiryId,
+        OR: [{ lastMessageAt: null }, { lastMessageAt: { lt: at } }],
+      },
+      data: { lastMessageAt: at },
     });
     return row;
   }, TRANSACTION_OPTIONS);
@@ -288,9 +305,14 @@ export async function recordOutbound(
     });
     if (isDuplicate) return row;
 
-    await tx.enquiry.update({
-      where: { id: input.enquiryId },
-      data: { lastMessageAt: input.at ?? row.createdAt },
+    const at = input.at ?? row.createdAt;
+    // Monotonic for the same reason as the inbound bump above.
+    await tx.enquiry.updateMany({
+      where: {
+        id: input.enquiryId,
+        OR: [{ lastMessageAt: null }, { lastMessageAt: { lt: at } }],
+      },
+      data: { lastMessageAt: at },
     });
     return row;
   }, TRANSACTION_OPTIONS);
