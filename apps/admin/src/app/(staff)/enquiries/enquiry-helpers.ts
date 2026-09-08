@@ -152,22 +152,38 @@ export function validateReply(input: { message: string }): ReplyResult {
   return { ok: true, message };
 }
 
-export type ReplyChannel = "email" | "none";
+export type ReplyChannel = "email" | "messenger" | "instagram" | "none";
+
+/** How the composer names the channel it is about to use. */
+export const REPLY_CHANNEL_LABEL: Record<
+  Exclude<ReplyChannel, "none">,
+  string
+> = {
+  email: "email",
+  messenger: "Messenger",
+  instagram: "Instagram",
+};
 
 /**
- * Which channel a staff reply goes out on. The spec's rule is "the channel of
- * the last inbound message"; in Phase 2 the only outbound channel that exists
- * is email, so every thread with an address on file replies by email and one
- * without has no reachable channel at all (the action saves an internal note
- * instead of pretending to send).
+ * Which channel a staff reply goes out on: the channel of the LAST INBOUND
+ * message, per the spec.
  *
- * Phase 3 adds the Meta branch here: `messenger`/`instagram` last-inbound with
- * a live ChannelConnection replies on that channel, falling back to email.
+ * `metaTargetReady` is the caller's answer to "is there a live Page behind
+ * that Meta message?" — an active ChannelConnection with a readable token and
+ * a recipient id. When there is not (the Page was disconnected, the token no
+ * longer decrypts, or the message predates connections) the reply falls back
+ * to email rather than failing: the customer's words matter more than the
+ * channel they arrive on.
  */
 export function chooseReplyChannel(input: {
   lastInboundChannel: MessageChannelKind | null;
   hasEmail: boolean;
+  metaTargetReady: boolean;
 }): ReplyChannel {
+  const last = input.lastInboundChannel;
+  if ((last === "messenger" || last === "instagram") && input.metaTargetReady) {
+    return last;
+  }
   return input.hasEmail ? "email" : "none";
 }
 

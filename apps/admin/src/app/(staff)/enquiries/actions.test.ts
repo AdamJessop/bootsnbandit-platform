@@ -32,6 +32,13 @@ vi.mock("@bnb/core/services/channels/email", async (importOriginal) => {
     sendEnquiryEmail: vi.fn(),
   };
 });
+// The Meta send path is mocked whole: its own suite in @bnb/core proves the
+// Graph call, the window and the per-part recording.
+vi.mock("@bnb/core/services/channels/meta-outbound", () => ({
+  loadMetaReplyTarget: vi.fn(),
+  sendEnquiryMetaMessage: vi.fn(),
+  MetaSendError: class MetaSendError extends Error {},
+}));
 vi.mock("@bnb/core/services/enquiries", () => ({
   updateEnquiryStatus: vi.fn(),
 }));
@@ -51,6 +58,18 @@ const { sendEmail } = await import("@bnb/core/email");
 const { loadEnquiryEmailContext, sendEnquiryEmail } = await import(
   "@bnb/core/services/channels/email"
 );
+const { loadMetaReplyTarget, sendEnquiryMetaMessage } = await import(
+  "@bnb/core/services/channels/meta-outbound"
+);
+const { MetaWindowClosedError } = await import(
+  "@bnb/core/services/channels/meta"
+);
+
+const META_TARGET = {
+  connection: { id: "conn1", pageId: "102938475610293", accessToken: "x" },
+  channel: "messenger" as const,
+  recipientId: "7213456789012345",
+};
 
 const CONTEXT = {
   enquiryId: "e1",
@@ -65,6 +84,7 @@ const CONTEXT = {
   lastInboundSubject: "Re: Sleeve idea",
   lastInboundFromAddress: "amy@example.com",
   lastInboundConnectionId: null,
+  lastInboundAt: null,
 };
 const { updateEnquiryStatus } = await import("@bnb/core/services/enquiries");
 const { markRead, recordNote, recordOutbound } = await import(
@@ -91,6 +111,7 @@ const ENQUIRY = {
   contactName: "Amy",
   threadToken: "tok123456",
   subject: "Sleeve idea",
+  lastInboundAt: null,
   preferredArtist: { name: "Sarah North" },
   customer: { email: "amy@example.com" },
   messages: [
@@ -99,6 +120,7 @@ const ENQUIRY = {
       subject: "Re: Sleeve idea",
       messageIdHeader: "<abc@x.test>",
       fromAddress: "amy@example.com",
+      connectionId: null,
     },
   ],
   preferredArtistId: "art1",
@@ -125,6 +147,8 @@ beforeEach(() => {
   vi.mocked(prisma.enquiry.updateMany).mockResolvedValue({ count: 1 } as never);
   vi.mocked(sendEmail).mockResolvedValue({ id: "m1", status: "sent" });
   vi.mocked(sendEnquiryEmail).mockResolvedValue({ id: "m1", status: "sent" });
+  // No Meta route by default — every email test below is an email thread.
+  vi.mocked(loadMetaReplyTarget).mockResolvedValue(null);
 });
 
 describe("replyToEnquiry", () => {
@@ -438,5 +462,137 @@ describe("reply threading, notes, read markers and close authorisation", () => {
     const refused = await closeEnquiry("e1");
     expect(refused.ok).toBe(false);
     expect(refused.message).toMatch(/assigned artist/i);
+  });
+});
+
+function metaEnquiry() {
+  vi.mocked(requireRole).mockResolvedValue({
+    id: "u1",
+    role: "OWNER",
+    displayName: "Owner",
+    artistId: null,
+    email: "owner@example.test",
+  } as never);
+  vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+    id: "e1",
+    customerId: "c1",
+    contactEmail: null,
+    contactName: "Amy Rowe",
+    preferredArtistId: null,
+    style: null,
+    placement: null,
+    source: "web",
+    status: "new",
+    threadToken: "tok12345678",
+    subject: null,
+    lastInboundAt: new Date("2026-09-08T09:00:00Z"),
+    preferredArtist: null,
+    customer: { email: null },
+    messages: [
+      {
+        channel: "messenger",
+        subject: null,
+        messageIdHeader: null,
+        fromAddress: "7213456789012345",
+        connectionId: "conn1",
+      },
+    ],
+  } as never);
+}
+
+describe("replyToEnquiry on a Meta thread", () => {
+  it("sends through the Meta channel and marks the enquiry replied", async () => {
+    metaEnquiry();
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+    vi.mocked(sendEnquiryMetaMessage).mockResolvedValue({
+      messageIds: ["m_out_1"],
+    });
+
+    const res = await replyToEnquiry("e1", { message: "Yes, October works." });
+
+    expect(res).toEqual({
+      ok: true,
+      message: "Reply sent on Messenger and enquiry marked replied.",
+    });
+    expect(sendEnquiryMetaMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: META_TARGET,
+        body: "Yes, October works.",
+        authorUserId: "u1",
+      }),
+    );
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+    expect(updateEnquiryStatus).toHaveBeenCalledWith("e1", "replied");
+  });
+
+  it("surfaces the 24-hour window as a composer error, sending nothing else", async () => {
+    metaEnquiry();
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+    vi.mocked(sendEnquiryMetaMessage).mockRejectedValue(
+      new MetaWindowClosedError("messenger"),
+    );
+
+    const res = await replyToEnquiry("e1", { message: "Are you still there?" });
+
+    expect(res).toEqual({
+      ok: false,
+      message:
+        "Messenger/Instagram only allows replies within 24 hours of the customer's last message — email them instead.",
+    });
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
+  });
+
+  it("falls back to email when the Page is disconnected", async () => {
+    metaEnquiry();
+    vi.mocked(prisma.enquiry.findUniqueOrThrow).mockResolvedValue({
+      id: "e1",
+      customerId: "c1",
+      contactEmail: "amy@example.test",
+      contactName: "Amy Rowe",
+      preferredArtistId: null,
+      style: null,
+      placement: null,
+      source: "web",
+      status: "new",
+      threadToken: "tok12345678",
+      subject: null,
+      lastInboundAt: new Date("2026-09-08T09:00:00Z"),
+      preferredArtist: null,
+      customer: { email: "amy@example.test" },
+      messages: [
+        {
+          channel: "messenger",
+          subject: null,
+          messageIdHeader: null,
+          fromAddress: "7213456789012345",
+          connectionId: "conn1",
+        },
+      ],
+    } as never);
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(null);
+    vi.mocked(sendEnquiryEmail).mockResolvedValue({ id: "re_1", status: "sent" });
+
+    const res = await replyToEnquiry("e1", { message: "Hello again" });
+
+    expect(res.ok).toBe(true);
+    expect(sendEnquiryMetaMessage).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).toHaveBeenCalled();
+  });
+
+  it("reports a Meta failure that is not the window, recording nothing", async () => {
+    metaEnquiry();
+    vi.mocked(loadMetaReplyTarget).mockResolvedValue(META_TARGET as never);
+    vi.mocked(sendEnquiryMetaMessage).mockRejectedValue(
+      new Error("Meta refused the message: (#100) Invalid parameter"),
+    );
+
+    const res = await replyToEnquiry("e1", { message: "Hello?" });
+
+    expect(res.ok).toBe(false);
+    expect(res.message).toMatch(/could not be sent on Messenger/i);
+    expect(updateEnquiryStatus).not.toHaveBeenCalled();
+    expect(recordNote).not.toHaveBeenCalled();
+    expect(sendEnquiryEmail).not.toHaveBeenCalled();
   });
 });

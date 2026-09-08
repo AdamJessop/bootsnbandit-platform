@@ -18,6 +18,11 @@ import {
   sendEnquiryEmail,
   toEnquiryEmailContext,
 } from "@bnb/core/services/channels/email";
+import { MetaWindowClosedError } from "@bnb/core/services/channels/meta";
+import {
+  loadMetaReplyTarget,
+  sendEnquiryMetaMessage,
+} from "@bnb/core/services/channels/meta-outbound";
 import { updateEnquiryStatus } from "@bnb/core/services/enquiries";
 import { markRead, recordNote } from "@bnb/core/services/enquiry-messages";
 import {
@@ -26,6 +31,7 @@ import {
   canCloseEnquiry,
   chooseReplyChannel,
   isUnassigned,
+  REPLY_CHANNEL_LABEL,
   validateReply,
 } from "./enquiry-helpers";
 import type { BookingType } from "@prisma/client";
@@ -99,9 +105,13 @@ export async function replyToEnquiry(
   // `findUniqueOrThrow` has already covered the "no longer exists" case.
   const context = toEnquiryEmailContext(enquiry);
 
+  // Resolved first, because "can we reply on Meta?" is the question that
+  // decides the channel — not a consequence of having picked it.
+  const metaTarget = await loadMetaReplyTarget(context);
   const channel = chooseReplyChannel({
     lastInboundChannel: context.lastInboundChannel,
     hasEmail: Boolean(context.contactEmail),
+    metaTargetReady: metaTarget != null,
   });
 
   if (channel === "none") {
@@ -119,6 +129,40 @@ export async function replyToEnquiry(
       ok: true,
       message: withClaimNote(
         "No reachable channel — saved as an internal note (nothing was sent).",
+        claim,
+      ),
+    };
+  }
+
+  if (metaTarget && (channel === "messenger" || channel === "instagram")) {
+    try {
+      // sendEnquiryMetaMessage records one outbound thread message per part
+      // as Graph accepts it — no extra logging here.
+      await sendEnquiryMetaMessage({
+        context,
+        target: metaTarget,
+        body: valid.message,
+        authorUserId: user.id,
+      });
+    } catch (err) {
+      if (err instanceof MetaWindowClosedError) {
+        // The one error staff can act on: the 24-hour window. Nothing was
+        // sent, so nothing is recorded and the status is untouched.
+        return { ok: false, message: err.message };
+      }
+      console.error(`[enquiries] Meta reply failed for ${enquiryId}:`, err);
+      return {
+        ok: false,
+        message: `The reply could not be sent on ${REPLY_CHANNEL_LABEL[channel]} — check Studio › Channels.`,
+      };
+    }
+    await updateEnquiryStatus(enquiryId, "replied");
+    const claim = await claimIfUnassigned(user, enquiry);
+    revalidatePath("/enquiries");
+    return {
+      ok: true,
+      message: withClaimNote(
+        `Reply sent on ${REPLY_CHANNEL_LABEL[channel]} and enquiry marked replied.`,
         claim,
       ),
     };

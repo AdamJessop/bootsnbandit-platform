@@ -33,6 +33,8 @@ export interface EnquiryEmailContext {
   lastInboundFromAddress: string | null;
   /** ChannelConnection the last inbound message arrived on, when Meta. */
   lastInboundConnectionId: string | null;
+  /** When the customer last wrote — what the Meta 24-hour window is measured from. */
+  lastInboundAt: Date | null;
 }
 
 /**
@@ -51,6 +53,7 @@ export const ENQUIRY_EMAIL_CONTEXT_SELECT = {
   contactName: true,
   contactEmail: true,
   subject: true,
+  lastInboundAt: true,
   preferredArtist: { select: { name: true } },
   customer: { select: { email: true } },
   messages: {
@@ -102,6 +105,7 @@ export function toEnquiryEmailContext(
     lastInboundSubject: last?.subject ?? null,
     lastInboundFromAddress: last?.fromAddress ?? null,
     lastInboundConnectionId: last?.connectionId ?? null,
+    lastInboundAt: enquiry.lastInboundAt,
   };
 }
 

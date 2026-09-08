@@ -191,27 +191,68 @@ describe("filterEnquiries + source filter", () => {
 });
 
 describe("chooseReplyChannel", () => {
-  it("replies by email whenever there is an address, whatever came in last", () => {
-    for (const lastInboundChannel of [
-      "email",
-      "web",
-      "note",
-      "messenger",
-      "instagram",
-      null,
-    ] as const) {
-      expect(chooseReplyChannel({ lastInboundChannel, hasEmail: true })).toBe(
-        "email",
-      );
+  it("replies on the Meta channel the customer last used, when it is live", () => {
+    expect(
+      chooseReplyChannel({
+        lastInboundChannel: "messenger",
+        hasEmail: true,
+        metaTargetReady: true,
+      }),
+    ).toBe("messenger");
+    expect(
+      chooseReplyChannel({
+        lastInboundChannel: "instagram",
+        hasEmail: false,
+        metaTargetReady: true,
+      }),
+    ).toBe("instagram");
+  });
+
+  it("falls back to email when the Meta route is not usable", () => {
+    // Page disconnected, token unreadable, or a message from before
+    // connections existed: the words must still reach the customer.
+    expect(
+      chooseReplyChannel({
+        lastInboundChannel: "messenger",
+        hasEmail: true,
+        metaTargetReady: false,
+      }),
+    ).toBe("email");
+    expect(
+      chooseReplyChannel({
+        lastInboundChannel: "instagram",
+        hasEmail: false,
+        metaTargetReady: false,
+      }),
+    ).toBe("none");
+  });
+
+  it("replies by email for every non-Meta thread with an address", () => {
+    for (const lastInboundChannel of ["email", "web", "note", null] as const) {
+      expect(
+        chooseReplyChannel({
+          lastInboundChannel,
+          hasEmail: true,
+          metaTargetReady: true,
+        }),
+      ).toBe("email");
     }
   });
 
-  it("has no reachable channel without an address", () => {
+  it("has no reachable channel without an address or a Meta route", () => {
     expect(
-      chooseReplyChannel({ lastInboundChannel: "email", hasEmail: false }),
+      chooseReplyChannel({
+        lastInboundChannel: "email",
+        hasEmail: false,
+        metaTargetReady: false,
+      }),
     ).toBe("none");
     expect(
-      chooseReplyChannel({ lastInboundChannel: null, hasEmail: false }),
+      chooseReplyChannel({
+        lastInboundChannel: null,
+        hasEmail: false,
+        metaTargetReady: false,
+      }),
     ).toBe("none");
   });
 });
