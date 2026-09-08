@@ -20,3 +20,4 @@ export * from "./enquiry-threading";
 export * from "./assets";
 export * from "./enquiry-messages";
 export * from "./webhook-failures";
+export * from "./channel-connections";
