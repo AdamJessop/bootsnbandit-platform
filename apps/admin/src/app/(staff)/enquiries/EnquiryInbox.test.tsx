@@ -174,6 +174,9 @@ describe("EnquiryInbox closed select labels", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
+        openEnquiryId={null}
+        openTab={null}
+        notice={null}
       />,
     );
     const triggers = [
@@ -207,6 +210,9 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill={false}
+        openEnquiryId={null}
+        openTab={null}
+        notice={null}
       />,
     );
     expect(html).toContain("Customer replied");
@@ -230,6 +236,9 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
+        openEnquiryId={null}
+        openTab={null}
+        notice={null}
       />,
     );
     expect(html).toContain('aria-label="Unread"');
@@ -259,6 +268,9 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId={null}
         showAssignedPill
+        openEnquiryId={null}
+        openTab={null}
+        notice={null}
       />,
     );
     expect(html).toContain("Unassigned");
@@ -280,6 +292,9 @@ describe("EnquiryInbox row chrome", () => {
         canConvert
         viewerArtistId="a1"
         showAssignedPill={false}
+        openEnquiryId={null}
+        openTab={null}
+        notice={null}
       />,
     );
     expect(html).toContain("Take this enquiry");
@@ -290,5 +305,46 @@ describe("EnquiryInbox row chrome", () => {
     expect(html).toContain('aria-label="Reply channel"');
     expect(html).toContain("Sends to amy@example.test.");
     expect(html).toContain("A ladybird on the forearm please");
+  });
+});
+
+describe("EnquiryInbox deep link", () => {
+  it("starts on the deep-linked enquiry's tab", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={items}
+        artists={[]}
+        counts={{ new: 1, customer_replied: 0, replied: 0, converted: 1, closed: 0 }}
+        truncated={false}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill={false}
+        openEnquiryId="2"
+        openTab="converted"
+        notice={null}
+      />,
+    );
+    // items[1] ("Bob") is the converted one; landing on New would show
+    // "Amy" and hide the very enquiry the link pointed at.
+    expect(html).toContain("Bob");
+    expect(html).not.toContain("No converted enquiries.");
+  });
+
+  it("shows a quiet notice for a link it cannot open", () => {
+    const html = renderToStaticMarkup(
+      <EnquiryInbox
+        items={items}
+        artists={[]}
+        counts={{ new: 1, customer_replied: 0, replied: 0, converted: 1, closed: 0 }}
+        truncated={false}
+        canConvert
+        viewerArtistId={null}
+        showAssignedPill={false}
+        openEnquiryId={null}
+        openTab={null}
+        notice="That enquiry is not in your inbox — it may have been assigned to another artist."
+      />,
+    );
+    expect(html).toContain("not in your inbox");
   });
 });

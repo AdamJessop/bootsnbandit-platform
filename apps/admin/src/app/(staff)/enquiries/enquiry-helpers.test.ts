@@ -12,8 +12,11 @@ import {
   filterEnquiries,
   isUnassigned,
   looksLikeImageUrl,
+  OPEN_NOT_FOUND_NOTICE,
+  pickOpenState,
   replyChannelOptions,
   resolveComposerChannel,
+  resolveOpenParam,
   validateReply,
   type ReplyReachability,
 } from "./enquiry-helpers";
@@ -442,6 +445,61 @@ describe("resolveComposerChannel", () => {
     ).toEqual({
       ok: false,
       error: "Choose a channel to reply on.",
+    });
+  });
+});
+
+describe("resolveOpenParam", () => {
+  it("takes a plain id", () => {
+    expect(resolveOpenParam("cln4enq1aaaabbbb")).toBe("cln4enq1aaaabbbb");
+  });
+
+  it("takes the first of a repeated param", () => {
+    expect(resolveOpenParam(["cln4enq1aaaabbbb", "other"])).toBe(
+      "cln4enq1aaaabbbb",
+    );
+  });
+
+  it("is null for nothing, blanks and anything not shaped like an id", () => {
+    expect(resolveOpenParam(undefined)).toBeNull();
+    expect(resolveOpenParam("")).toBeNull();
+    expect(resolveOpenParam("   ")).toBeNull();
+    // Never reaches the database, so it cannot be an injection or a probe.
+    expect(resolveOpenParam("../../etc/passwd")).toBeNull();
+    expect(resolveOpenParam("' OR 1=1 --")).toBeNull();
+    expect(resolveOpenParam("x".repeat(200))).toBeNull();
+  });
+});
+
+describe("pickOpenState", () => {
+  const items = [
+    { id: "e1", status: "new" as const },
+    { id: "e2", status: "closed" as const },
+  ];
+
+  it("is inert when nothing was asked for", () => {
+    expect(pickOpenState(items, null)).toEqual({
+      openId: null,
+      tab: null,
+      notice: null,
+    });
+  });
+
+  it("opens the enquiry on its own tab", () => {
+    expect(pickOpenState(items, "e2")).toEqual({
+      openId: "e2",
+      tab: "closed",
+      notice: null,
+    });
+  });
+
+  it("gives one quiet notice for anything it cannot show", () => {
+    // Unknown, closed-away or another artist's all land here — deliberately
+    // indistinguishable, so a link cannot be used to probe the inbox.
+    expect(pickOpenState(items, "e404")).toEqual({
+      openId: null,
+      tab: null,
+      notice: OPEN_NOT_FOUND_NOTICE,
     });
   });
 });

@@ -25,6 +25,9 @@ export function EnquiryInbox({
   canConvert,
   viewerArtistId,
   showAssignedPill,
+  openEnquiryId,
+  openTab,
+  notice,
 }: {
   items: EnquiryItem[];
   artists: ArtistOption[];
@@ -42,8 +45,14 @@ export function EnquiryInbox({
   viewerArtistId: string | null;
   /** Owners see who owns each lead; artists see only an Unassigned flag. */
   showAssignedPill: boolean;
+  /** A `?open=` deep link resolved to a visible enquiry, or null. */
+  openEnquiryId: string | null;
+  /** The tab that enquiry lives on, so the link lands where it can be seen. */
+  openTab: EnquiryStatus | null;
+  /** Quiet explanation when the link could not be honoured. */
+  notice: string | null;
 }) {
-  const [tab, setTab] = useState<EnquiryStatus>("new");
+  const [tab, setTab] = useState<EnquiryStatus>(openTab ?? "new");
   const [artistFilter, setArtistFilter] = useState(ALL);
   const [styleFilter, setStyleFilter] = useState(ALL);
   const [sourceFilter, setSourceFilter] = useState(ALL);
@@ -60,6 +69,11 @@ export function EnquiryInbox({
 
   return (
     <div className="space-y-5">
+      {notice && (
+        <p className="rounded-md border border-border-default bg-bg-base px-4 py-3 text-sm text-text-muted">
+          {notice}
+        </p>
+      )}
       <InboxFilters
         tab={tab}
         onTabChange={setTab}
@@ -81,6 +95,7 @@ export function EnquiryInbox({
         showAssignedPill={showAssignedPill}
         truncated={truncated}
         emptyLabel={enquiryStatusLabel(tab).toLowerCase()}
+        openEnquiryId={openEnquiryId}
       />
       <Toaster position="top-center" />
     </div>

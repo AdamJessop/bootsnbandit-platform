@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
 import {
@@ -15,8 +16,10 @@ import { listChannelConnections } from "@bnb/core/services/channel-connections";
 import {
   artistInboxWhere,
   defaultComposerChannel,
+  pickOpenState,
   reachabilityFrom,
   replyChannelOptions,
+  resolveOpenParam,
   type ReplyReachability,
 } from "./enquiry-helpers";
 import type { ThreadItem } from "./EnquiryThread";
@@ -39,7 +42,34 @@ export const dynamic = "force-dynamic";
 /** How many enquiries one inbox render pulls. Counts are NOT capped by it. */
 const INBOX_PAGE_SIZE = 300;
 
-export default async function EnquiriesPage() {
+/**
+ * Everything a row renders, hoisted so the `?open=` extra fetch (below)
+ * cannot drift from the list query.
+ */
+const INBOX_SELECT = {
+  // The reply context (contact email fallbacks, last inbound channel,
+  // connection and timestamp) plus everything a row renders.
+  ...ENQUIRY_EMAIL_CONTEXT_SELECT,
+  style: true,
+  placement: true,
+  size: true,
+  budgetPence: true,
+  description: true,
+  moodboard: true,
+  moodboardData: true,
+  status: true,
+  source: true,
+  channel: true,
+  preferredArtistId: true,
+  createdAt: true,
+  lastMessageAt: true,
+} satisfies Prisma.EnquirySelect;
+
+export default async function EnquiriesPage({
+  searchParams = Promise.resolve({}),
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireRole();
   const owner = user.role === "OWNER";
   const viewer = {
@@ -47,30 +77,15 @@ export default async function EnquiriesPage() {
     role: user.role,
     artistId: user.artistId ?? null,
   };
+  const scope = owner ? {} : artistInboxWhere(user.artistId ?? null);
+  const requestedOpenId = resolveOpenParam((await searchParams).open);
 
   const [enquiries, artists, unread, connections, counts] = await Promise.all([
     prisma.enquiry.findMany({
-      where: owner ? {} : artistInboxWhere(user.artistId ?? null),
+      where: scope,
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       take: INBOX_PAGE_SIZE,
-      select: {
-        // The reply context (contact email fallbacks, last inbound channel,
-        // connection and timestamp) plus everything a row renders.
-        ...ENQUIRY_EMAIL_CONTEXT_SELECT,
-        style: true,
-        placement: true,
-        size: true,
-        budgetPence: true,
-        description: true,
-        moodboard: true,
-        moodboardData: true,
-        status: true,
-        source: true,
-        channel: true,
-        preferredArtistId: true,
-        createdAt: true,
-        lastMessageAt: true,
-      },
+      select: INBOX_SELECT,
     }),
     prisma.artist.findMany({
       where: { active: true },
@@ -81,6 +96,17 @@ export default async function EnquiriesPage() {
     listChannelConnections(),
     statusCountsFor(viewer),
   ]);
+
+  // The link may point at an enquiry older than this page of rows. One extra
+  // read, through the SAME visibility scope — an id the viewer may not see
+  // simply does not come back, and pickOpenState turns that into the notice.
+  if (requestedOpenId && !enquiries.some((e) => e.id === requestedOpenId)) {
+    const extra = await prisma.enquiry.findFirst({
+      where: { id: requestedOpenId, ...scope },
+      select: INBOX_SELECT,
+    });
+    if (extra) enquiries.unshift(extra);
+  }
 
   // A Meta reply needs a live Page behind the last inbound message. Reading
   // every connection once (a handful of rows) answers that for all 300
@@ -172,6 +198,8 @@ export default async function EnquiriesPage() {
     ? artists
     : artists.filter((a) => a.id === user.artistId);
 
+  const open = pickOpenState(items, requestedOpenId);
+
   return (
     <main className="mx-auto max-w-[1000px] px-6 py-10">
       <p className="kicker mb-2">Back of house</p>
@@ -191,6 +219,9 @@ export default async function EnquiriesPage() {
           canConvert={owner || Boolean(user.artistId)}
           viewerArtistId={owner ? null : (user.artistId ?? null)}
           showAssignedPill={owner}
+          openEnquiryId={open.openId}
+          openTab={open.tab}
+          notice={open.notice}
         />
       </div>
     </main>

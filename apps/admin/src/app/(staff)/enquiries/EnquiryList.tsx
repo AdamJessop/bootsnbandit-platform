@@ -6,7 +6,7 @@
  * Unassigned flag (artists), and the newest activity time; opening it is what
  * marks the thread read.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,8 @@ export interface EnquiryListProps {
   truncated: boolean;
   /** Lower-cased status label for the empty state ("new", "closed", …). */
   emptyLabel: string;
+  /** A `?open=` deep link resolved to a visible enquiry, or null/absent. */
+  openEnquiryId?: string | null;
 }
 
 export function EnquiryList({
@@ -52,6 +54,7 @@ export function EnquiryList({
   showAssignedPill,
   truncated,
   emptyLabel,
+  openEnquiryId,
 }: EnquiryListProps) {
   if (items.length === 0) {
     return (
@@ -71,6 +74,7 @@ export function EnquiryList({
               canConvert={canConvert}
               viewerArtistId={viewerArtistId}
               showAssignedPill={showAssignedPill}
+              defaultOpen={item.id === openEnquiryId}
             />
           </li>
         ))}
@@ -91,15 +95,25 @@ function EnquiryRow({
   canConvert,
   viewerArtistId,
   showAssignedPill,
+  defaultOpen,
 }: {
   item: EnquiryItem;
   artists: ArtistOption[];
   canConvert: boolean;
   viewerArtistId: string | null;
   showAssignedPill: boolean;
+  defaultOpen: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const { pending, run } = useAction();
+
+  // A deep link opens the thread without a click, so nothing would otherwise
+  // clear its unread flag. Mount-only on purpose: every later open goes
+  // through onOpenChange below.
+  useEffect(() => {
+    if (defaultOpen && item.unread) void markEnquiryRead(item.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Dialog

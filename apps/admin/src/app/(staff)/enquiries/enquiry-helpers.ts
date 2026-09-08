@@ -223,3 +223,47 @@ export function buildConvertInput(form: ConvertFormInput): ConvertResult {
     },
   };
 }
+
+export const OPEN_NOT_FOUND_NOTICE =
+  "That enquiry is not in your inbox — it may have been assigned to another artist.";
+
+/**
+ * The `?open=` value, or null. Anything not shaped like an id we could have
+ * issued is rejected here so it never becomes a query: a deep link is a URL
+ * strangers can craft, and the cheapest defence is not asking the database
+ * about "' OR 1=1 --" in the first place.
+ */
+export function resolveOpenParam(
+  value: string | string[] | undefined,
+): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const id = raw?.trim();
+  if (!id) return null;
+  return /^[A-Za-z0-9_-]{6,40}$/.test(id) ? id : null;
+}
+
+export interface OpenState {
+  /** The enquiry to open, once we know the viewer may actually see it. */
+  openId: string | null;
+  /** The tab it lives on, so the link does not land on an empty New tab. */
+  tab: EnquiryStatus | null;
+  /** Shown instead, when it cannot be opened. */
+  notice: string | null;
+}
+
+/**
+ * Decide what a `?open=` link does, given the enquiries this viewer can see.
+ * The caller is responsible for having fetched the requested enquiry through
+ * a VISIBILITY-SCOPED query — absent from `items` means "not yours or not
+ * there", and both get the identical notice rather than a 404 that would
+ * confirm the id exists.
+ */
+export function pickOpenState(
+  items: { id: string; status: EnquiryStatus }[],
+  requestedId: string | null,
+): OpenState {
+  if (!requestedId) return { openId: null, tab: null, notice: null };
+  const found = items.find((i) => i.id === requestedId);
+  if (!found) return { openId: null, tab: null, notice: OPEN_NOT_FOUND_NOTICE };
+  return { openId: found.id, tab: found.status, notice: null };
+}
