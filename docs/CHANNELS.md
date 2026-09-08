@@ -412,6 +412,21 @@ panel turns into a sentence. The slugs, for reading logs and support requests:
 | `meta_warning=subscribe_failed` | connected, but the webhook subscription failed — press Connect again |
 | `meta_warning=unsubscribe_failed` | disconnected here, but Facebook may still deliver — see [Disconnecting](#disconnecting) |
 
+### "Reconnect recommended" on a connection
+
+Studio › Channels flags any connection that has received no event for 30 days
+(or, for a Page that has never received one, 30 days since it was connected).
+It is a hint, not a fault: a quiet Page in a quiet month looks the same as an
+expired token. Press **Connect a Facebook Page** and re-authorise; that
+replaces the stored token, refreshes the Page name and re-subscribes the
+webhook. If the studio genuinely had no DMs for a month, ignore it.
+
+The panel does **not** call Graph's `/debug_token` to check the token directly:
+that endpoint takes the token as a URL query parameter, and page tokens must
+never appear in a URL (query strings are written to access logs). "Reconnect
+required — the stored token can't be read" is the one hard failure we can
+detect locally.
+
 ### What is deliberately dropped
 
 - **Delivery and read receipts** — not conversation.

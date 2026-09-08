@@ -9,6 +9,7 @@ import {
   touchConnectionEvent,
   upsertChannelConnection,
 } from "./channel-connections";
+import { connectionHealth, RECONNECT_AFTER_DAYS } from "./channel-connections";
 
 /**
  * The ONE module that decrypts a page token. Everything else — the panel, the
@@ -201,5 +202,76 @@ describe("channel connections", () => {
     });
     expect(await deleteConnection(row!.id)).toBe(1);
     expect(await deleteConnection(row!.id)).toBe(0);
+  });
+});
+
+describe("connectionHealth", () => {
+  const NOW = new Date("2026-09-08T12:00:00.000Z");
+  const CONNECTED = new Date("2026-01-01T12:00:00.000Z");
+
+  it("is healthy when an event arrived recently", () => {
+    expect(
+      connectionHealth(
+        {
+          tokenReadable: true,
+          lastEventAt: new Date("2026-09-01T12:00:00.000Z"),
+          connectedAt: CONNECTED,
+        },
+        NOW,
+      ),
+    ).toEqual({ level: "ok", message: null });
+  });
+
+  it("recommends reconnecting after 30 silent days", () => {
+    const health = connectionHealth(
+      {
+        tokenReadable: true,
+        lastEventAt: new Date("2026-08-01T12:00:00.000Z"),
+        connectedAt: CONNECTED,
+      },
+      NOW,
+    );
+    expect(health.level).toBe("quiet");
+    expect(health.message).toBe(
+      "Reconnect recommended — nothing received for 38 days.",
+    );
+  });
+
+  it("measures a connection that has never received anything from when it was connected", () => {
+    const health = connectionHealth(
+      { tokenReadable: true, lastEventAt: null, connectedAt: CONNECTED },
+      NOW,
+    );
+    expect(health.level).toBe("quiet");
+    expect(health.message).toContain("nothing received since it was connected");
+  });
+
+  it("does not nag a Page connected yesterday that has heard nothing yet", () => {
+    // Quiet is only meaningful once there has been time to be quiet in.
+    expect(
+      connectionHealth(
+        {
+          tokenReadable: true,
+          lastEventAt: null,
+          connectedAt: new Date("2026-09-07T12:00:00.000Z"),
+        },
+        NOW,
+      ).level,
+    ).toBe("ok");
+  });
+
+  it("reports an unreadable token ahead of anything else", () => {
+    const health = connectionHealth(
+      { tokenReadable: false, lastEventAt: null, connectedAt: CONNECTED },
+      NOW,
+    );
+    expect(health).toEqual({
+      level: "unreadable",
+      message: "Reconnect required — the stored token can't be read.",
+    });
+  });
+
+  it("keeps the threshold at 30 days", () => {
+    expect(RECONNECT_AFTER_DAYS).toBe(30);
   });
 });

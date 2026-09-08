@@ -234,3 +234,52 @@ export async function deleteConnection(id: string): Promise<number> {
   const res = await prisma.channelConnection.deleteMany({ where: { id } });
   return res.count;
 }
+
+/** How long a connection may go without an event before we suggest a repair. */
+export const RECONNECT_AFTER_DAYS = 30;
+
+const DAY_MS = 86_400_000;
+
+export type ConnectionHealth =
+  | { level: "ok"; message: null }
+  | { level: "quiet"; message: string }
+  | { level: "unreadable"; message: string };
+
+/**
+ * How a connection is doing, from what we already store.
+ *
+ * A Meta connection rots quietly — an expired token, an unsubscribed Page, the
+ * app removed in Business Settings — and nothing throws: messages simply stop
+ * arriving, which is indistinguishable from a quiet week until someone asks
+ * why nobody is messaging. `lastEventAt` is the only honest signal we hold
+ * without calling Graph, and it is enough to say "check this".
+ *
+ * We deliberately do NOT call Graph's `/debug_token`: it takes both tokens as
+ * QUERY parameters, and a page token must never travel in a URL — query
+ * strings end up in access logs, proxies and error trackers.
+ */
+export function connectionHealth(
+  row: Pick<
+    ChannelConnectionRow,
+    "tokenReadable" | "lastEventAt" | "connectedAt"
+  >,
+  now: Date = new Date(),
+): ConnectionHealth {
+  if (!row.tokenReadable) {
+    return {
+      level: "unreadable",
+      message: "Reconnect required — the stored token can't be read.",
+    };
+  }
+  // A brand-new connection has not had time to be quiet in, so silence is
+  // measured from whichever is later: the last event, or the connection.
+  const since = row.lastEventAt ?? row.connectedAt;
+  const days = Math.floor((now.getTime() - since.getTime()) / DAY_MS);
+  if (days < RECONNECT_AFTER_DAYS) return { level: "ok", message: null };
+  return {
+    level: "quiet",
+    message: row.lastEventAt
+      ? `Reconnect recommended — nothing received for ${days} days.`
+      : `Reconnect recommended — nothing received since it was connected ${days} days ago.`,
+  };
+}

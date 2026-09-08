@@ -5,7 +5,10 @@ import { AlertTriangle, CheckCircle2, Mail, Inbox, XCircle } from "lucide-react"
 import { Camera, Link2, MessageCircle } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
 import { prisma } from "@bnb/core/db";
-import { listChannelConnections } from "@bnb/core/services/channel-connections";
+import {
+  connectionHealth,
+  listChannelConnections,
+} from "@bnb/core/services/channel-connections";
 import {
   inboundEmailDomain,
   outboundAddressFor,
@@ -277,15 +280,20 @@ export default async function ChannelsPage({
                           ? DATE.format(c.lastEventAt)
                           : "— Nothing received yet"}
                       </span>
-                      {/* A rotated SESSION_SECRET leaves the row looking
-                          perfectly healthy while every message on it fails —
-                          this is the only place that is visible. */}
-                      {c.tokenReadable ? null : (
-                        <span className="mt-1 flex items-center gap-1.5 text-xs text-bb-gold">
-                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                          Reconnect required — stored token can&apos;t be read
-                        </span>
-                      )}
+                      {/* A rotated SESSION_SECRET, an expired token or an
+                          unsubscribed Page all leave the row looking healthy
+                          while every message on it fails — this is the only
+                          place that is visible. */}
+                      {(() => {
+                        const health = connectionHealth(c);
+                        if (health.level === "ok") return null;
+                        return (
+                          <span className="mt-1 flex items-center gap-1.5 text-xs text-bb-gold">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                            {health.message}
+                          </span>
+                        );
+                      })()}
                       <span className="mt-0.5 block font-mono text-[11px] text-text-muted">
                         Page ID: {c.pageId}
                         {c.channel === "instagram" && c.igAccountId

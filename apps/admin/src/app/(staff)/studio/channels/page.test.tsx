@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { connectionHealth } from "@bnb/core/services/channel-connections";
 
 vi.mock("@bnb/core/auth", () => ({
   requireRole: vi.fn(async () => ({ id: "o1", role: "OWNER" })),
@@ -10,9 +11,17 @@ vi.mock("./meta-actions", () => ({
   disconnectMetaAction: vi.fn(),
 }));
 const listChannelConnections = vi.fn();
-vi.mock("@bnb/core/services/channel-connections", () => ({
-  listChannelConnections: (...a: unknown[]) => listChannelConnections(...a),
-}));
+vi.mock("@bnb/core/services/channel-connections", async (importOriginal) => {
+  // `connectionHealth` is pure and has no DB dependency — keep the real
+  // implementation so the page renders its actual hint, and mock only the
+  // one call that talks to Postgres.
+  const actual =
+    await importOriginal<typeof import("@bnb/core/services/channel-connections")>();
+  return {
+    ...actual,
+    listChannelConnections: (...a: unknown[]) => listChannelConnections(...a),
+  };
+});
 
 const findFirst = vi.fn();
 vi.mock("@bnb/core/db", () => ({
@@ -302,5 +311,32 @@ describe("ChannelsPage — Meta", () => {
     // No provider filter any more — the panel owns both channels.
     expect(listRecentWebhookFailures).toHaveBeenCalledWith({ openOnly: true });
     expect(countOpenWebhookFailures).toHaveBeenCalledWith();
+  });
+});
+
+/**
+ * The panel is an async Server Component; its new decision is the pure health
+ * verdict it renders, asserted here at the same boundary as the rest of the
+ * file.
+ */
+describe("Channels panel connection health", () => {
+  it("warns about a connection that has gone quiet", () => {
+    expect(
+      connectionHealth({
+        tokenReadable: true,
+        lastEventAt: new Date(Date.now() - 40 * 86_400_000),
+        connectedAt: new Date(Date.now() - 200 * 86_400_000),
+      }).level,
+    ).toBe("quiet");
+  });
+
+  it("says nothing about a live one", () => {
+    expect(
+      connectionHealth({
+        tokenReadable: true,
+        lastEventAt: new Date(),
+        connectedAt: new Date(),
+      }),
+    ).toEqual({ level: "ok", message: null });
   });
 });
