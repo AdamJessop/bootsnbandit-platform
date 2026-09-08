@@ -71,10 +71,9 @@ function fullName(first: unknown, last: unknown): string | null {
 
 /**
  * Meta's proof-of-app-secret: an HMAC of the access token keyed by the app
- * secret. It binds a stolen token to our app, so a leaked token alone cannot
- * be replayed from somewhere else. It is a derived digest, never the token
- * itself, so unlike the token it is safe in a query string — which is the
- * only place Graph accepts it on a GET.
+ * secret, binding a stolen token to our app so it cannot be replayed from
+ * anywhere else. A derived digest, never the token itself — so unlike the
+ * token it is safe in the query string, the only place Graph takes it on GET.
  */
 function appSecretProof(accessToken: string, appSecret: string): string {
   return createHmac("sha256", appSecret).update(accessToken).digest("hex");
@@ -254,6 +253,15 @@ function bodyTextFor(event: MetaMessagingEvent): string | null {
   return null;
 }
 
+/** Liveness for the Channels panel — never worth losing a message over. */
+async function touch(connectionId: string, at: Date): Promise<void> {
+  try {
+    await touchConnectionEvent(connectionId, at);
+  } catch (err) {
+    console.error(`[meta] could not touch connection ${connectionId}:`, err);
+  }
+}
+
 export async function ingestMetaEvent(
   event: MetaMessagingEvent,
   deps: MetaInboundDeps = metaInboundDeps(),
@@ -282,24 +290,20 @@ export async function ingestMetaEvent(
   });
   if (existing) {
     // An echo we already hold is OUR OWN send coming back around — there is
-    // nothing to record and nothing was duplicated. A non-echo we already hold
-    // is a replayed delivery of customer traffic.
-    return event.isEcho
-      ? { status: "ignored", reason: "echo_known" }
-      : {
-          status: "duplicate",
-          enquiryId: existing.enquiryId,
-          messageId: existing.id,
-        };
+    // nothing to record and nothing was duplicated, and nothing arrived from
+    // the customer, so it is not a liveness signal either. A non-echo we
+    // already hold is a replayed delivery of real customer traffic: no second
+    // row, but the connection did just receive something.
+    if (event.isEcho) return { status: "ignored", reason: "echo_known" };
+    await touch(connection.id, event.timestamp);
+    return {
+      status: "duplicate",
+      enquiryId: existing.enquiryId,
+      messageId: existing.id,
+    };
   }
 
-  // Liveness for the Channels panel. Best-effort: a failure here must not
-  // cost us the message.
-  try {
-    await touchConnectionEvent(connection.id, event.timestamp);
-  } catch (err) {
-    console.error(`[meta] could not touch connection ${connection.id}:`, err);
-  }
+  await touch(connection.id, event.timestamp);
 
   // A handle we already know needs no Graph call — profile fetches are rate
   // limited and this runs on every single message.
@@ -312,9 +316,9 @@ export async function ingestMetaEvent(
     },
     select: { displayName: true },
   });
-  // The name is a nicety; the message is the point. The default deps already
-  // swallow their own failures, but an injected one need not — and losing a
-  // customer's message because Graph was down would be indefensible.
+  // The name is a nicety; the message is the point. The default deps swallow
+  // their own failures, but an injected one need not — and Graph being down
+  // must never cost us a customer's message.
   let profile: MetaProfile | null = known ? { name: known.displayName } : null;
   if (!known) {
     try {

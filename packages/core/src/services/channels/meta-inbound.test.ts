@@ -265,6 +265,9 @@ describe("ingestMetaEvent", () => {
       messageId: "msg9",
     });
     expect(recordInbound).not.toHaveBeenCalled();
+    // A redelivery is still traffic arriving on the connection — the Channels
+    // panel's liveness signal should reflect it.
+    expect(touchConnectionEvent).toHaveBeenCalledWith("conn1", expect.any(Date));
   });
 
   it("ignores delivery/read receipts and postbacks", async () => {
