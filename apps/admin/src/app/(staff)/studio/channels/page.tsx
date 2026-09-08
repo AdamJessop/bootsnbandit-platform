@@ -269,6 +269,12 @@ export default async function ChannelsPage({
                           ? DATE.format(c.lastEventAt)
                           : "— Nothing received yet"}
                       </span>
+                      <span className="mt-0.5 block font-mono text-[11px] text-text-muted">
+                        Page ID: {c.pageId}
+                        {c.channel === "instagram" && c.igAccountId
+                          ? ` · IG account ID: ${c.igAccountId}`
+                          : ""}
+                      </span>
                     </span>
                     <form action={disconnectMetaAction}>
                       <input type="hidden" name="id" value={c.id} />

@@ -59,8 +59,37 @@ export async function retryWebhookFailureAction(fd: FormData): Promise<void> {
           "Stored payload is not a replayable Meta event (original body could not be parsed) — check the delivery in the Meta app dashboard.",
         );
       } else {
-        for (const event of events) await ingestMetaEvent(event);
-        await markWebhookFailureRetried(id);
+        const outcomes = [];
+        for (const event of events) outcomes.push(await ingestMetaEvent(event));
+
+        // Mirrors the resend branch: an ignored-because-there-was-nothing-to-
+        // do outcome is not a successful replay, so it must not be marked
+        // retried — the owner would otherwise believe the cause was fixed.
+        const unknownPage = outcomes.some(
+          (o) => o.status === "ignored" && o.reason === "unknown_page",
+        );
+        const unsupported = outcomes.some(
+          (o) => o.status === "ignored" && o.reason === "unsupported",
+        );
+
+        if (unknownPage) {
+          // The Page/IG account this event names is not (or no longer)
+          // connected — reconnecting is the fix, not retrying blindly.
+          await setWebhookFailureError(
+            id,
+            "No active Facebook Page or Instagram connection matches this event — reconnect the Page in Studio › Channels, then retry.",
+          );
+        } else if (unsupported) {
+          // Receipts/postbacks/other non-message kinds: nothing to record.
+          await setWebhookFailureError(
+            id,
+            "Stored payload is not a replayable Meta event — check the delivery in the Meta app dashboard.",
+          );
+        } else {
+          // recorded / duplicate / ignored:echo_known / ignored:no_message
+          // all mean the replay did what the original delivery would have.
+          await markWebhookFailureRetried(id);
+        }
       }
     } else {
       // An unknown provider has no replay path; leave the row open.

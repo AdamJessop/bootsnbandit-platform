@@ -204,4 +204,68 @@ describe("retryWebhookFailureAction on a meta failure", () => {
     expect(ingestMetaEvent).not.toHaveBeenCalled();
     expect(markWebhookFailureRetried).not.toHaveBeenCalled();
   });
+
+  it("does not mark retried when the Page/IG connection is gone", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf5",
+      provider: "meta",
+      payload: STORED,
+    });
+    vi.mocked(ingestMetaEvent).mockResolvedValue({
+      status: "ignored",
+      reason: "unknown_page",
+    } as never);
+
+    const fd = new FormData();
+    fd.set("id", "wf5");
+    await retryWebhookFailureAction(fd);
+
+    expect(markWebhookFailureRetried).not.toHaveBeenCalled();
+    expect(setWebhookFailureError).toHaveBeenCalledWith(
+      "wf5",
+      "No active Facebook Page or Instagram connection matches this event — reconnect the Page in Studio › Channels, then retry.",
+    );
+  });
+
+  it("does not mark retried when the event kind is not a message", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf6",
+      provider: "meta",
+      payload: STORED,
+    });
+    vi.mocked(ingestMetaEvent).mockResolvedValue({
+      status: "ignored",
+      reason: "unsupported",
+    } as never);
+
+    const fd = new FormData();
+    fd.set("id", "wf6");
+    await retryWebhookFailureAction(fd);
+
+    expect(markWebhookFailureRetried).not.toHaveBeenCalled();
+    expect(setWebhookFailureError).toHaveBeenCalledWith(
+      "wf6",
+      "Stored payload is not a replayable Meta event — check the delivery in the Meta app dashboard.",
+    );
+  });
+
+  it("marks retried on a duplicate — the event did land, just not twice", async () => {
+    vi.mocked(getWebhookFailure).mockResolvedValue({
+      id: "wf7",
+      provider: "meta",
+      payload: STORED,
+    });
+    vi.mocked(ingestMetaEvent).mockResolvedValue({
+      status: "duplicate",
+      enquiryId: "e1",
+      messageId: "m1",
+    } as never);
+
+    const fd = new FormData();
+    fd.set("id", "wf7");
+    await retryWebhookFailureAction(fd);
+
+    expect(markWebhookFailureRetried).toHaveBeenCalledWith("wf7");
+    expect(setWebhookFailureError).not.toHaveBeenCalled();
+  });
 });

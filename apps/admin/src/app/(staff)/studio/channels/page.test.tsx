@@ -182,6 +182,9 @@ describe("ChannelsPage — Meta", () => {
     expect(html).toContain("Nothing received yet");
     expect(html).toContain("Not subscribed");
     expect(html).toContain("Disconnect");
+    // Page id on every row, IG account id on the instagram row too.
+    expect(html).toContain("102938475610293");
+    expect(html).toContain("17841400000000000");
   });
 
   it("shows the flash from a finished connect", async () => {
@@ -213,6 +216,25 @@ describe("ChannelsPage — Meta", () => {
       "Facebook returned an error while connecting — try again or check the app settings.",
     );
     expect(html).not.toContain("some_unknown_slug");
+  });
+
+  it("maps an unrecognised meta_warning slug to a generic message, never the raw slug", async () => {
+    process.env.META_APP_ID = "1234567890";
+    process.env.META_APP_SECRET = "synthetic";
+    process.env.META_VERIFY_TOKEN = "synthetic";
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(
+      await Page({
+        searchParams: Promise.resolve({
+          meta_connected: "2",
+          meta_warning: "some_unknown_warning",
+        }),
+      }),
+    );
+    expect(html).toContain(
+      "The connection finished with a warning — check the list above.",
+    );
+    expect(html).not.toContain("some_unknown_warning");
   });
 
   it("lists failed events from both providers, naming which is which", async () => {
