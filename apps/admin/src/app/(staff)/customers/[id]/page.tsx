@@ -79,13 +79,15 @@ export default async function CustomerDetailPage({
 
   // Owner-only, and only fetched for owners: an artist never sees the list.
   const linkable: LinkableIdentityOption[] = owner
-    ? (await listLinkableIdentities()).map((i) => ({
-        id: i.id,
-        channel: i.channel,
-        label: `${i.displayName ?? "Unnamed"} · ${
-          i.channel === "instagram" ? "Instagram" : "Messenger"
-        } (from ${i.customerName})`,
-      }))
+    ? (await listLinkableIdentities({ excludeCustomerId: customer.id })).map(
+        (i) => ({
+          id: i.id,
+          channel: i.channel,
+          label: `${i.displayName ?? "Unnamed"} · ${
+            i.channel === "instagram" ? "Instagram" : "Messenger"
+          } (from ${i.customerName})`,
+        }),
+      )
     : [];
 
   const sessions = customer.bookings

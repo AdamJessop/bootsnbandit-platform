@@ -1,7 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
+import type { Prisma } from "@prisma/client";
 import {
+  applyIdentityMove,
   linkIdentityToCustomer,
   listLinkableIdentities,
+  StubChangedError,
 } from "./identity-linking";
 import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 
@@ -96,6 +99,21 @@ describe("identity linking (DB)", () => {
       where: { customerId: real.id },
     });
     expect(ids).not.toContain(onReal!.id);
+  });
+
+  it("does not offer a customer the handles they already own", async () => {
+    if (!(await dbReachable())) return;
+    const tag = uid("s8");
+    const stub = await stubWithIdentity(tag);
+
+    // Offering someone their own handle is an invitation to a no-op.
+    const mine = await listLinkableIdentities({
+      excludeCustomerId: stub.customer.id,
+    });
+    expect(mine.map((i) => i.id)).not.toContain(stub.identity.id);
+    // …but it is still linkable from anyone else's page.
+    const all = await listLinkableIdentities();
+    expect(all.map((i) => i.id)).toContain(stub.identity.id);
   });
 
   it("moves the handle, its enquiries and its messages, then deletes the stub", async () => {
@@ -239,6 +257,69 @@ describe("identity linking (DB)", () => {
         customerId: target.id,
       }),
     ).toMatchObject({ ok: false, reason: "in_use" });
+    // A refusal must leave the record exactly as it was — the booking above
+    // cascades to its session and consent form, so a stub that is wrongly
+    // absorbed does not merely lose a row.
+    expect(
+      (
+        await db().customerIdentity.findUniqueOrThrow({
+          where: { id: withBooking.identity.id },
+        })
+      ).customerId,
+    ).toBe(withBooking.customer.id);
+    expect(
+      (
+        await db().enquiry.findUniqueOrThrow({
+          where: { id: withBooking.enquiry.id },
+        })
+      ).customerId,
+    ).toBe(withBooking.customer.id);
+    expect(
+      await db().booking.count({
+        where: { customerId: withBooking.customer.id },
+      }),
+    ).toBe(1);
+  });
+
+  it("carries the stub's consent, tags and loyalty across, and records the merge", async () => {
+    if (!(await dbReachable())) return;
+    const tag = uid("s7");
+    const { customer: stub, identity } = await stubWithIdentity(tag, {
+      notes: "Allergic to red ink",
+      marketingConsent: true,
+      tags: ["dm"],
+      loyaltyStamps: 2,
+    });
+    const real = await db().customer.create({
+      data: {
+        name: `Amy ${tag}`,
+        email: `amy-${tag}@example.test`,
+        notes: "Prefers mornings",
+        tags: ["regular"],
+        loyaltyStamps: 3,
+      },
+    });
+    customers.push(real.id);
+
+    expect(
+      await linkIdentityToCustomer({
+        identityId: identity.id,
+        customerId: real.id,
+      }),
+    ).toMatchObject({ ok: true, merged: true });
+
+    // The same rules customer-merge applies: consent OR-ed, tags unioned,
+    // stamps summed. Anything else would make two spellings of one merge.
+    const after = await db().customer.findUniqueOrThrow({
+      where: { id: real.id },
+    });
+    expect(after.marketingConsent).toBe(true);
+    expect([...after.tags].sort()).toEqual(["dm", "regular"]);
+    expect(after.loyaltyStamps).toBe(5);
+    expect(after.notes).toContain("Prefers mornings");
+    expect(after.notes).toContain("Allergic to red ink");
+    // The stub is gone; the note is the only trace of what was absorbed.
+    expect(after.notes).toContain(`[merged ${stub.name} (${stub.id}) on `);
   });
 
   it("reports a missing handle or customer rather than throwing", async () => {
@@ -258,5 +339,126 @@ describe("identity linking (DB)", () => {
         customerId: "no-such-customer",
       }),
     ).toMatchObject({ ok: false, reason: "customer_missing" });
+  });
+});
+
+/**
+ * The transaction body on its own. A booking taken DURING the merge cannot be
+ * raced deterministically against a real database, so the guard that protects
+ * against it is asserted here instead: the body is handed a stand-in client
+ * that records what it was asked to do.
+ */
+describe("applyIdentityMove (transaction body)", () => {
+  /** The predicate that has to appear on both the re-read and the delete. */
+  const STUB_WHERE = {
+    email: null,
+    phone: null,
+    passwordHash: null,
+    bookings: { none: {} },
+  };
+
+  function fakeTx(
+    over: { stub?: object | null; target?: object | null; deleted?: number } = {},
+  ) {
+    const calls: Record<string, unknown[]> = {};
+    const record = (key: string, result: unknown) => (args: unknown) => {
+      (calls[key] ??= []).push(args);
+      return Promise.resolve(result);
+    };
+    const row = (extra: object) => ({
+      id: "x",
+      createdAt: new Date(),
+      name: "amy.ink",
+      email: null,
+      phone: null,
+      notes: null,
+      tags: [],
+      marketingConsent: false,
+      loyaltyStamps: 0,
+      loyaltyTier: 0,
+      passwordHash: null,
+      dob: null,
+      ...extra,
+    });
+    const tx = {
+      customer: {
+        findFirst: record(
+          "customer.findFirst",
+          over.stub === undefined ? row({ id: "stub1" }) : over.stub,
+        ),
+        findUnique: record(
+          "customer.findUnique",
+          over.target === undefined
+            ? row({ id: "target1", name: "Amy" })
+            : over.target,
+        ),
+        update: record("customer.update", {}),
+        deleteMany: record("customer.deleteMany", { count: over.deleted ?? 1 }),
+      },
+      enquiry: { updateMany: record("enquiry.updateMany", { count: 3 }) },
+      enquiryMessage: {
+        updateMany: record("enquiryMessage.updateMany", { count: 9 }),
+      },
+      messageLog: { updateMany: record("messageLog.updateMany", { count: 0 }) },
+      review: { updateMany: record("review.updateMany", { count: 0 }) },
+      customerPasswordToken: {
+        updateMany: record("customerPasswordToken.updateMany", { count: 0 }),
+      },
+      customerIdentity: {
+        updateMany: record("customerIdentity.updateMany", { count: 1 }),
+      },
+    };
+    return { tx: tx as unknown as Prisma.TransactionClient, calls };
+  }
+
+  it("re-reads the owner and deletes it through the stub predicate", async () => {
+    const { tx, calls } = fakeTx();
+
+    expect(
+      await applyIdentityMove(tx, {
+        stubOwnerId: "stub1",
+        targetId: "target1",
+      }),
+    ).toEqual({ kind: "moved", movedEnquiries: 3, movedMessages: 9 });
+
+    // Both the check and the delete carry the predicate. Only the second one
+    // matters for safety: Booking cascades from Customer (and Session and the
+    // consent form cascade from Booking), so a delete by bare id would take a
+    // real appointment with it if a booking landed mid-merge.
+    expect(calls["customer.findFirst"][0]).toEqual({
+      where: { id: "stub1", ...STUB_WHERE },
+      select: expect.anything(),
+    });
+    expect(calls["customer.deleteMany"][0]).toEqual({
+      where: { id: "stub1", ...STUB_WHERE },
+    });
+  });
+
+  it("aborts when the guarded delete matches nothing", async () => {
+    const { tx } = fakeTx({ deleted: 0 });
+    // Throwing is the point: it rolls back every move above it.
+    await expect(
+      applyIdentityMove(tx, { stubOwnerId: "stub1", targetId: "target1" }),
+    ).rejects.toThrow(StubChangedError);
+  });
+
+  it("reports a missing target before writing anything", async () => {
+    const { tx, calls } = fakeTx({ target: null });
+    expect(
+      await applyIdentityMove(tx, { stubOwnerId: "stub1", targetId: "gone" }),
+    ).toEqual({ kind: "target_missing" });
+    expect(calls["enquiry.updateMany"]).toBeUndefined();
+    expect(calls["customer.update"]).toBeUndefined();
+    expect(calls["customer.deleteMany"]).toBeUndefined();
+  });
+
+  it("reports a non-stub owner before writing anything", async () => {
+    const { tx, calls } = fakeTx({ stub: null });
+    expect(
+      await applyIdentityMove(tx, { stubOwnerId: "real1", targetId: "target1" }),
+    ).toEqual({ kind: "not_a_stub" });
+    expect(calls["customer.findUnique"]).toBeUndefined();
+    expect(calls["enquiry.updateMany"]).toBeUndefined();
+    expect(calls["customer.deleteMany"]).toBeUndefined();
   });
 });

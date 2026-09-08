@@ -23,6 +23,6 @@ describe("LinkIdentityCard", () => {
     const html = renderToStaticMarkup(
       <LinkIdentityCard customerId="c1" identities={[]} />,
     );
-    expect(html).toContain("No unlinked Messenger or Instagram handles");
+    expect(html).toContain("No linkable handles");
   });
 });

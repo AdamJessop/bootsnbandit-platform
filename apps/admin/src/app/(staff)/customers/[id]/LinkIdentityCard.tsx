@@ -42,8 +42,7 @@ export function LinkIdentityCard({
       <Label htmlFor="link-identity">Link a Messenger / Instagram handle</Label>
       {identities.length === 0 ? (
         <p className="text-sm text-text-muted">
-          No unlinked Messenger or Instagram handles — every handle already
-          belongs to a customer with contact details or bookings.
+          No linkable handles right now.
         </p>
       ) : (
         <>

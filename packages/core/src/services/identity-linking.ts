@@ -1,5 +1,7 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
 import type { IdentityChannel } from "./contact-identity";
+import { mergedFields } from "./customer-merge-plan";
 
 /**
  * Attach a Messenger/Instagram handle to an existing customer, folding away
@@ -14,6 +16,10 @@ import type { IdentityChannel } from "./contact-identity";
  * A stub is a record with no email, no phone, no password and no bookings:
  * everything it holds arrived through the handle itself, so moving it moves
  * nothing that was ever verified against another person.
+ *
+ * Field-merging is `customer-merge-plan`'s `mergedFields`, unchanged — this is
+ * the same operation the duplicate-customer merge performs, so it must not
+ * grow a second, quietly different set of rules.
  */
 
 /** No email, no phone, no login, no bookings — nothing but the handle. */
@@ -22,6 +28,22 @@ const STUB_CUSTOMER = {
   phone: null,
   passwordHash: null,
   bookings: { none: {} },
+} as const;
+
+/** Exactly customer-merge's SELECT: every column `mergedFields` reads. */
+const MERGE_SELECT = {
+  id: true,
+  createdAt: true,
+  name: true,
+  email: true,
+  phone: true,
+  notes: true,
+  tags: true,
+  marketingConsent: true,
+  loyaltyStamps: true,
+  loyaltyTier: true,
+  passwordHash: true,
+  dob: true,
 } as const;
 
 export interface LinkableIdentity {
@@ -37,14 +59,22 @@ export interface LinkableIdentity {
  * Handles that could be linked elsewhere: the ones sitting on stub records.
  * A handle on a real customer is never offered — moving it would be taking a
  * verified account away from the person it belongs to.
+ *
+ * `excludeCustomerId` drops the handles the customer being viewed already
+ * owns; offering someone their own handle is an invitation to a no-op.
  */
 export async function listLinkableIdentities(
-  limit = 50,
+  options: { excludeCustomerId?: string; limit?: number } = {},
 ): Promise<LinkableIdentity[]> {
   const rows = await prisma.customerIdentity.findMany({
-    where: { customer: STUB_CUSTOMER },
+    where: {
+      customer: STUB_CUSTOMER,
+      ...(options.excludeCustomerId
+        ? { customerId: { not: options.excludeCustomerId } }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
-    take: limit,
+    take: options.limit ?? 50,
     select: {
       id: true,
       channel: true,
@@ -73,10 +103,114 @@ export type LinkIdentityResult =
     };
 
 const IDENTITY_GONE = "That handle no longer exists — refresh and try again.";
+const CUSTOMER_GONE = "That customer no longer exists.";
 const OWNER_IS_REAL =
   "That handle already belongs to a customer with their own contact details or bookings — merge those records instead.";
 const HANDLE_TAKEN =
   "That handle was just linked to a different customer — refresh and try again.";
+
+/**
+ * The stub stopped being a stub between the re-read and the delete — almost
+ * always a booking taken mid-merge. Thrown to roll the transaction back.
+ */
+export class StubChangedError extends Error {
+  constructor() {
+    super("That handle's owner stopped being an empty record mid-merge.");
+    this.name = "StubChangedError";
+  }
+}
+
+export type IdentityMoveOutcome =
+  | { kind: "moved"; movedEnquiries: number; movedMessages: number }
+  | { kind: "not_a_stub" }
+  | { kind: "target_missing" };
+
+/**
+ * How the absorbed row is named in the survivor's notes. `mergedFields` writes
+ * a `[merged <name>]` line for every row it deletes, whether or not that row
+ * had notes of its own; this stamps the id and the date into that name, so a
+ * deleted stub leaves a trace someone can actually follow back.
+ */
+function auditLabel(stub: { id: string; name: string }): string {
+  const name = stub.name.trim() || "Messenger user";
+  return `${name} (${stub.id}) on ${new Date().toISOString()}`;
+}
+
+/**
+ * The whole move, as one transaction body. Exported because this is where the
+ * safety of the operation lives and it has to be testable on its own: every
+ * read the decision rests on happens inside `tx`, and the stub is removed with
+ * a PREDICATE-GUARDED `deleteMany` rather than a `delete` by id.
+ *
+ * That guard is the point. `Booking` cascades from `Customer`, and `Session`
+ * and the consent form cascade from `Booking` — so deleting a row that has
+ * quietly stopped being a stub would take a real appointment with it. Checking
+ * the predicate before the transaction cannot prevent that; checking it as
+ * part of the delete can, because a delete that matches nothing throws here
+ * and rolls back every move above it.
+ */
+export async function applyIdentityMove(
+  tx: Prisma.TransactionClient,
+  input: { stubOwnerId: string; targetId: string },
+): Promise<IdentityMoveOutcome> {
+  const stub = await tx.customer.findFirst({
+    where: { id: input.stubOwnerId, ...STUB_CUSTOMER },
+    select: MERGE_SELECT,
+  });
+  if (!stub) return { kind: "not_a_stub" };
+
+  // The target is read HERE, not before the transaction: its notes and tags
+  // are about to be rewritten from this copy, and a copy fetched earlier
+  // could silently undo a `saveCustomerNotes` that landed in between.
+  const target = await tx.customer.findUnique({
+    where: { id: input.targetId },
+    select: MERGE_SELECT,
+  });
+  if (!target) return { kind: "target_missing" };
+
+  const move = {
+    where: { customerId: stub.id },
+    data: { customerId: target.id },
+  };
+  // The same FK set as customer-merge's applyMergeGroup, less `booking` —
+  // the stub predicate guarantees there are none. (`EnquiryRead` is keyed by
+  // enquiry + user and carries no customer, so reads follow their enquiry.)
+  const enquiries = await tx.enquiry.updateMany(move);
+  const messages = await tx.enquiryMessage.updateMany(move);
+  await tx.messageLog.updateMany(move);
+  await tx.review.updateMany(move);
+  await tx.customerPasswordToken.updateMany(move);
+  await tx.customerIdentity.updateMany(move);
+
+  // Consent (OR), tags (union), stamps (sum), tier (max), dob (coalesce) and
+  // the notes — including the `[merged …]` audit line — all come from the
+  // shared planner. Name, email and phone are deliberately NOT written back:
+  // a stub has neither by definition, so there is nothing to merge into them,
+  // and re-writing the target's own contact columns here could only do harm.
+  const fields = mergedFields(target, [{ ...stub, name: auditLabel(stub) }]);
+  await tx.customer.update({
+    where: { id: target.id },
+    data: {
+      notes: fields.notes,
+      tags: fields.tags,
+      marketingConsent: fields.marketingConsent,
+      loyaltyStamps: fields.loyaltyStamps,
+      loyaltyTier: fields.loyaltyTier,
+      dob: fields.dob,
+    },
+  });
+
+  const removed = await tx.customer.deleteMany({
+    where: { id: stub.id, ...STUB_CUSTOMER },
+  });
+  if (removed.count !== 1) throw new StubChangedError();
+
+  return {
+    kind: "moved",
+    movedEnquiries: enquiries.count,
+    movedMessages: messages.count,
+  };
+}
 
 /**
  * Did somebody else move this handle while we were working? Two owners can
@@ -114,94 +248,59 @@ export async function linkIdentityToCustomer(input: {
 }): Promise<LinkIdentityResult> {
   const identity = await prisma.customerIdentity.findUnique({
     where: { id: input.identityId },
-    select: { id: true, customerId: true, displayName: true },
+    select: { id: true, customerId: true },
   });
   if (!identity) {
     return { ok: false, reason: "identity_missing", message: IDENTITY_GONE };
   }
-  const target = await prisma.customer.findUnique({
-    where: { id: input.customerId },
-    select: { id: true, notes: true },
-  });
-  if (!target) {
-    return {
-      ok: false,
-      reason: "customer_missing",
-      message: "That customer no longer exists.",
-    };
-  }
-  if (identity.customerId === target.id) {
+  if (identity.customerId === input.customerId) {
     // Idempotent: two clicks, or two people clicking, is not an error.
     return { ok: true, merged: false, movedEnquiries: 0, movedMessages: 0 };
   }
 
-  // Re-read the current owner THROUGH the stub predicate: the check and the
-  // decision are then the same query, so a booking taken between them cannot
-  // slip a real customer into the merge.
-  const stub = await prisma.customer.findFirst({
-    where: { id: identity.customerId, ...STUB_CUSTOMER },
-    select: { id: true, name: true, notes: true },
-  });
-  if (!stub) {
-    // Either the owner really is a real customer, or a concurrent link took
-    // the handle (and deleted the stub) a moment ago. Only the second reading
-    // deserves a "someone beat you to it" message.
-    return (
-      (await raceOutcome(input.identityId, target.id, identity.customerId)) ?? {
-        ok: false,
-        reason: "in_use",
-        message: OWNER_IS_REAL,
-      }
-    );
-  }
-
-  const move = {
-    where: { customerId: stub.id },
-    data: { customerId: target.id },
-  };
-  // Same FK set as customer-merge's applyMergeGroup, in one transaction: the
-  // stub must not be deleted while anything still points at it, and a half
-  // done move would strand a thread on a record that no longer exists.
   try {
-    const [enquiries, messages] = await prisma.$transaction([
-      prisma.enquiry.updateMany(move),
-      prisma.enquiryMessage.updateMany(move),
-      prisma.messageLog.updateMany(move),
-      prisma.review.updateMany(move),
-      prisma.customerPasswordToken.updateMany(move),
-      prisma.customerIdentity.updateMany(move),
-      prisma.customer.update({
-        where: { id: target.id },
-        data: {
-          // Whatever an owner typed on the stub is the only thing on it that a
-          // human wrote; keep it rather than deleting it with the row.
-          notes:
-            [target.notes?.trim(), stub.notes?.trim()]
-              .filter(Boolean)
-              .join("\n") || null,
-        },
+    const outcome = await prisma.$transaction((tx) =>
+      applyIdentityMove(tx, {
+        stubOwnerId: identity.customerId,
+        targetId: input.customerId,
       }),
-      prisma.customer.delete({ where: { id: stub.id } }),
-    ]);
-
+    );
+    if (outcome.kind === "target_missing") {
+      return { ok: false, reason: "customer_missing", message: CUSTOMER_GONE };
+    }
+    if (outcome.kind === "not_a_stub") {
+      // Either the owner really is a real customer, or a concurrent link took
+      // the handle (and deleted the stub) a moment ago. Only the second
+      // reading deserves a "someone beat you to it" message.
+      return (
+        (await raceOutcome(
+          input.identityId,
+          input.customerId,
+          identity.customerId,
+        )) ?? { ok: false, reason: "in_use", message: OWNER_IS_REAL }
+      );
+    }
     return {
       ok: true,
       merged: true,
-      movedEnquiries: enquiries.count,
-      movedMessages: messages.count,
+      movedEnquiries: outcome.movedEnquiries,
+      movedMessages: outcome.movedMessages,
     };
   } catch (err) {
-    // A concurrent link committed between our stub read and our write, so the
-    // delete found nothing (P2025) or the two transactions deadlocked. Either
-    // way the whole thing rolled back and nothing here changed — report where
-    // the handle actually ended up. If it has not moved at all this was a real
-    // failure, not a race, and must not be dressed up as one.
+    // The transaction rolled back whole, so nothing here changed. Say what
+    // actually happened rather than surfacing a Prisma error: a concurrent
+    // link that beat us to the handle, or a stub that stopped being one.
     const raced = await raceOutcome(
       input.identityId,
-      target.id,
+      input.customerId,
       identity.customerId,
     );
     if (raced) return raced;
+    if (err instanceof StubChangedError) {
+      return { ok: false, reason: "in_use", message: OWNER_IS_REAL };
+    }
+    // Not a race and not the guard — a real failure, and it must not be
+    // dressed up as one.
     throw err;
   }
 }
