@@ -5,7 +5,19 @@ import {
   unreadCountsFor,
 } from "@bnb/core/services/enquiry-messages";
 import { parseMoodboardData } from "@bnb/core/services/moodboard-data";
-import { artistInboxWhere } from "./enquiry-helpers";
+import {
+  ENQUIRY_EMAIL_CONTEXT_SELECT,
+  toEnquiryEmailContext,
+} from "@bnb/core/services/channels/email";
+import { META_SEND_WINDOW_MS } from "@bnb/core/services/channels/meta";
+import { listChannelConnections } from "@bnb/core/services/channel-connections";
+import {
+  artistInboxWhere,
+  defaultComposerChannel,
+  reachabilityFrom,
+  replyChannelOptions,
+  type ReplyReachability,
+} from "./enquiry-helpers";
 import type { ThreadItem } from "./EnquiryThread";
 import {
   EnquiryInbox,
@@ -32,11 +44,29 @@ export default async function EnquiriesPage() {
     artistId: user.artistId ?? null,
   };
 
-  const [enquiries, artists, unread] = await Promise.all([
+  const [enquiries, artists, unread, connections] = await Promise.all([
     prisma.enquiry.findMany({
       where: owner ? {} : artistInboxWhere(user.artistId ?? null),
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       take: 300,
+      select: {
+        // The reply context (contact email fallbacks, last inbound channel,
+        // connection and timestamp) plus everything a row renders.
+        ...ENQUIRY_EMAIL_CONTEXT_SELECT,
+        style: true,
+        placement: true,
+        size: true,
+        budgetPence: true,
+        description: true,
+        moodboard: true,
+        moodboardData: true,
+        status: true,
+        source: true,
+        channel: true,
+        preferredArtistId: true,
+        createdAt: true,
+        lastMessageAt: true,
+      },
     }),
     prisma.artist.findMany({
       where: { active: true },
@@ -44,7 +74,34 @@ export default async function EnquiriesPage() {
       select: { id: true, name: true },
     }),
     unreadCountsFor(viewer),
+    listChannelConnections(),
   ]);
+
+  // A Meta reply needs a live Page behind the last inbound message. Reading
+  // every connection once (a handful of rows) answers that for all 300
+  // enquiries without a per-row query.
+  const connectionById = new Map(connections.map((c) => [c.id, c]));
+  const now = Date.now();
+
+  function reachabilityFor(
+    context: ReturnType<typeof toEnquiryEmailContext>,
+  ): ReplyReachability {
+    const connection = context.lastInboundConnectionId
+      ? (connectionById.get(context.lastInboundConnectionId) ?? null)
+      : null;
+    return reachabilityFrom({
+      contactEmail: context.contactEmail,
+      lastInboundChannel: context.lastInboundChannel,
+      lastInboundAt: context.lastInboundAt,
+      // Mirrors loadMetaReplyTarget: a live connection AND someone to send to.
+      metaTargetReady: Boolean(
+        connection?.active &&
+        connection.tokenReadable &&
+        context.lastInboundFromAddress,
+      ),
+      metaWindowMs: META_SEND_WINDOW_MS,
+    });
+  }
 
   // One query for every thread on screen — no per-enquiry reads.
   const threads = await listThreadsFor(enquiries.map((e) => e.id));
@@ -73,30 +130,38 @@ export default async function EnquiriesPage() {
       })),
     }));
 
-  const items: EnquiryItem[] = enquiries.map((e) => ({
-    id: e.id,
-    contactName: e.contactName,
-    contactEmail: e.contactEmail,
-    subject: e.subject,
-    style: e.style,
-    placement: e.placement,
-    size: e.size,
-    budgetPence: e.budgetPence,
-    description: e.description,
-    moodboard: e.moodboard,
-    moodboardData: parseMoodboardData(e.moodboardData),
-    status: e.status,
-    source: e.source,
-    channel: e.channel,
-    preferredArtistId: e.preferredArtistId,
-    preferredArtistName: e.preferredArtistId
-      ? (artistName.get(e.preferredArtistId) ?? null)
-      : null,
-    createdAtISO: e.createdAt.toISOString(),
-    lastMessageAtISO: e.lastMessageAt?.toISOString() ?? null,
-    unread: unreadIds.has(e.id),
-    thread: toThreadItems(e.id),
-  }));
+  // These options are computed at render. A window that shuts while the dialog
+  // sits open is caught twice — the layout's 60s router.refresh() redraws them,
+  // and replyToEnquiry re-decides the channel before sending.
+  const items: EnquiryItem[] = enquiries.map((e) => {
+    const reach = reachabilityFor(toEnquiryEmailContext(e));
+    return {
+      id: e.id,
+      contactName: e.contactName,
+      contactEmail: e.contactEmail,
+      subject: e.subject,
+      style: e.style,
+      placement: e.placement,
+      size: e.size,
+      budgetPence: e.budgetPence,
+      description: e.description,
+      moodboard: e.moodboard,
+      moodboardData: parseMoodboardData(e.moodboardData),
+      status: e.status,
+      source: e.source,
+      channel: e.channel,
+      preferredArtistId: e.preferredArtistId,
+      preferredArtistName: e.preferredArtistId
+        ? (artistName.get(e.preferredArtistId) ?? null)
+        : null,
+      createdAtISO: e.createdAt.toISOString(),
+      lastMessageAtISO: e.lastMessageAt?.toISOString() ?? null,
+      unread: unreadIds.has(e.id),
+      thread: toThreadItems(e.id),
+      replyOptions: replyChannelOptions(reach, now),
+      defaultReplyChannel: defaultComposerChannel(reach, now),
+    };
+  });
 
   const artistOptions: ArtistOption[] = owner
     ? artists

@@ -67,6 +67,33 @@ const items: EnquiryItem[] = [
         attachments: [],
       },
     ],
+    replyOptions: [
+      {
+        channel: "email",
+        label: "Email",
+        available: true,
+        hint: "Sends to amy@example.test.",
+      },
+      {
+        channel: "messenger",
+        label: "Messenger",
+        available: false,
+        hint: "No Messenger conversation on this thread.",
+      },
+      {
+        channel: "instagram",
+        label: "Instagram",
+        available: false,
+        hint: "No Instagram conversation on this thread.",
+      },
+      {
+        channel: "note",
+        label: "Internal note",
+        available: true,
+        hint: "Saved on the thread for staff only — never sent.",
+      },
+    ],
+    defaultReplyChannel: "email" as const,
   },
   {
     id: "2",
@@ -89,6 +116,33 @@ const items: EnquiryItem[] = [
     lastMessageAtISO: null,
     unread: false,
     thread: [],
+    replyOptions: [
+      {
+        channel: "email",
+        label: "Email",
+        available: true,
+        hint: "Sends to amy@example.test.",
+      },
+      {
+        channel: "messenger",
+        label: "Messenger",
+        available: false,
+        hint: "No Messenger conversation on this thread.",
+      },
+      {
+        channel: "instagram",
+        label: "Instagram",
+        available: false,
+        hint: "No Instagram conversation on this thread.",
+      },
+      {
+        channel: "note",
+        label: "Internal note",
+        available: true,
+        hint: "Saved on the thread for staff only — never sent.",
+      },
+    ],
+    defaultReplyChannel: "email" as const,
   },
 ];
 
@@ -189,7 +243,12 @@ describe("EnquiryInbox row chrome", () => {
       />,
     );
     expect(html).toContain("Take this enquiry");
-    expect(html).toContain("Internal note (staff only — never sent)");
+    // The note is now a channel on the single composer, not a second box, so
+    // what the row renders is the channel selector. Its items live in a
+    // portal that SSR never opens — ReplyComposer.test.tsx covers choosing
+    // the note and the "Add note" button that follows.
+    expect(html).toContain('aria-label="Reply channel"');
+    expect(html).toContain("Sends to amy@example.test.");
     expect(html).toContain("A ladybird on the forearm please");
   });
 });

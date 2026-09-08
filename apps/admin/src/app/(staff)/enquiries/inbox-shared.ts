@@ -14,6 +14,7 @@ import type {
   EnquiryStatus,
 } from "@prisma/client";
 import type { MoodboardData } from "@bnb/core/services/moodboard-data";
+import type { ComposerChannel, ReplyChannelOption } from "./enquiry-helpers";
 import type { ThreadItem } from "./EnquiryThread";
 
 export interface EnquiryItem {
@@ -41,6 +42,10 @@ export interface EnquiryItem {
   unread: boolean;
   /** The full message thread, oldest first. */
   thread: ThreadItem[];
+  /** Every reply channel with its availability, computed server-side. */
+  replyOptions: ReplyChannelOption[];
+  /** Which one the composer opens on. */
+  defaultReplyChannel: ComposerChannel;
 }
 
 export interface ArtistOption {

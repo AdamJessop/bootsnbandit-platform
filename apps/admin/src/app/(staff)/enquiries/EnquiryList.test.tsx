@@ -49,6 +49,33 @@ const ITEM: EnquiryItem = {
   lastMessageAtISO: "2026-09-02T10:00:00.000Z",
   unread: true,
   thread: [],
+  replyOptions: [
+    {
+      channel: "email",
+      label: "Email",
+      available: true,
+      hint: "Sends to amy@example.test.",
+    },
+    {
+      channel: "messenger",
+      label: "Messenger",
+      available: false,
+      hint: "No Messenger conversation on this thread.",
+    },
+    {
+      channel: "instagram",
+      label: "Instagram",
+      available: false,
+      hint: "No Instagram conversation on this thread.",
+    },
+    {
+      channel: "note",
+      label: "Internal note",
+      available: true,
+      hint: "Saved on the thread for staff only — never sent.",
+    },
+  ],
+  defaultReplyChannel: "email" as const,
 };
 
 describe("EnquiryList", () => {

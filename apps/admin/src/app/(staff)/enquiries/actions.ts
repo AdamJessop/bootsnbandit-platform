@@ -35,6 +35,7 @@ import {
   canAccessEnquiry,
   canCloseEnquiry,
   isUnassigned,
+  reachabilityFrom,
   REPLY_CHANNEL_LABEL,
   resolveComposerChannel,
   validateReply,
@@ -101,23 +102,23 @@ function withClaimNote(
 }
 
 /**
- * The one place reachability is computed from a loaded context. The page
- * builds the identical object for the selector; this is the copy that decides.
+ * Reachability from a loaded context. The page builds the identical object for
+ * the selector through the same `reachabilityFrom`; this is the copy that
+ * decides. The Meta CHANNEL comes from the last inbound message and the live
+ * TARGET from `loadMetaReplyTarget` — two facts, because a disconnected Page
+ * must read as "That Page is not connected", not as "no conversation here".
  */
 function reachabilityOf(
   context: EnquiryEmailContext,
   metaTarget: { channel: "messenger" | "instagram" } | null,
 ): ReplyReachability {
-  return {
+  return reachabilityFrom({
     contactEmail: context.contactEmail,
-    metaChannel: metaTarget?.channel ?? null,
+    lastInboundChannel: context.lastInboundChannel,
+    lastInboundAt: context.lastInboundAt,
     metaTargetReady: metaTarget != null,
-    metaWindowClosesAtISO: context.lastInboundAt
-      ? new Date(
-          context.lastInboundAt.getTime() + META_SEND_WINDOW_MS,
-        ).toISOString()
-      : null,
-  };
+    metaWindowMs: META_SEND_WINDOW_MS,
+  });
 }
 
 export async function replyToEnquiry(
@@ -153,7 +154,10 @@ export async function replyToEnquiry(
       bodyText: valid.message,
     });
     revalidatePath("/enquiries");
-    return { ok: true, message: "Note added to the thread — nothing was sent." };
+    return {
+      ok: true,
+      message: "Note added to the thread — nothing was sent.",
+    };
   }
 
   if (channel === "note") {

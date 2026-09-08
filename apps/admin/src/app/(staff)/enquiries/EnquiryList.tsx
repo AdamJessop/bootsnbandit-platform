@@ -159,6 +159,8 @@ function EnquiryRow({
           enquiryId={item.id}
           source={item.source}
           claimsOnReply={Boolean(viewerArtistId) && isUnassigned(item)}
+          options={item.replyOptions}
+          defaultChannel={item.defaultReplyChannel}
           onSent={() => setOpen(false)}
         />
       </DialogContent>
