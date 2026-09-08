@@ -35,6 +35,15 @@ comes from env vars.
      staff reply nor the web app's enquiry acknowledgement carries a reply
      token. Setup, DNS records and the smoke test are in `docs/CHANNELS.md`;
      live status is in Studio › Channels.
+   - `META_APP_ID` / `META_APP_SECRET` / `META_VERIFY_TOKEN` (all optional,
+     **admin only**; `META_GRAPH_VERSION` optional, defaults `v21.0`) — the
+     Messenger + Instagram channel. Without them `/api/webhooks/meta` answers
+     503, Studio › Channels shows "not configured" and enquiry replies fall
+     back to email. Page access tokens are encrypted with a key derived from
+     `SESSION_SECRET`, which must therefore be **at least 32 characters**;
+     rotating it makes stored tokens unreadable and the Pages must be
+     reconnected. App creation, permissions, webhook fields and the App Review
+     checklist are in `docs/CHANNELS.md`.
 4. **Domains** — in the resource's service list, assign a domain to each app
    service with its container port: `web` → your apex/www domain, port 3000;
    `admin` → admin subdomain, port 3001; `reception` → reception subdomain,
@@ -95,6 +104,12 @@ npx prisma migrate resolve --rolled-back 20260907140000_customer_contact_unique 
 
 Run that from the same local checkout (pointed at production), then do step 2
 above and redeploy.
+
+## Deploying the Meta channels release (2026-09-08)
+
+The `20260909100000_meta_channels` migration is additive (a new
+`ChannelConnection` table and two nullable `EnquiryMessage` columns) and needs
+no data migration or downtime.
 
 ## One-off operations
 
