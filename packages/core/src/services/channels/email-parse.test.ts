@@ -191,3 +191,43 @@ describe("inline attachment budget", () => {
     expect(caps[2]).toBe(1024 * 1024);
   });
 });
+
+describe("sender verification on the parsed email", () => {
+  async function parseWith(headers: Record<string, string>) {
+    const deps: ResendInboundDeps = {
+      async getEmail() {
+        return { ...email([]), headers };
+      },
+      async listAttachments() {
+        return [];
+      },
+      async download() {
+        return null;
+      },
+    };
+    return parseResendInbound(
+      { type: "email.received", data: { email_id: "em_budget_1" } },
+      deps,
+    );
+  }
+
+  it("carries the Authentication-Results verdict through", async () => {
+    const parsed = await parseWith({
+      "Authentication-Results":
+        "mx.resend.com; spf=pass; dkim=pass; dmarc=pass header.from=example.test",
+    });
+    expect(parsed.senderVerified).toBe(true);
+  });
+
+  it("is false when the MTA says the checks did not pass", async () => {
+    const parsed = await parseWith({
+      "Authentication-Results": "mx.resend.com; spf=fail; dkim=none",
+    });
+    expect(parsed.senderVerified).toBe(false);
+  });
+
+  it("is null when the MTA said nothing", async () => {
+    const parsed = await parseWith({});
+    expect(parsed.senderVerified).toBeNull();
+  });
+});

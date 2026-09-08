@@ -59,6 +59,7 @@ export interface ThreadMessageRow {
   subject: string | null;
   bodyText: string;
   deliveryStatus: MessageStatus;
+  senderVerified: boolean | null;
   createdAt: Date;
   attachments: ThreadAttachment[];
 }
@@ -74,6 +75,7 @@ const MESSAGE_SELECT = {
   subject: true,
   bodyText: true,
   deliveryStatus: true,
+  senderVerified: true,
   createdAt: true,
   authorUser: { select: { displayName: true } },
 } as const;
@@ -93,6 +95,7 @@ function toRow(raw: RawMessage, attachments: ThreadAttachment[]): ThreadMessageR
     subject: raw.subject,
     bodyText: raw.bodyText,
     deliveryStatus: raw.deliveryStatus,
+    senderVerified: raw.senderVerified,
     createdAt: raw.createdAt,
     attachments,
   };
@@ -114,6 +117,13 @@ export interface RecordMessageInput {
    * `externalId` holds the provider id, which is not a valid header value.
    */
   messageIdHeader?: string | null;
+  /**
+   * Whether the receiving MTA authenticated the sender (email only).
+   * null/undefined = unknown, which is correct for web and Meta traffic.
+   */
+  senderVerified?: boolean | null;
+  /** The ChannelConnection a Meta message arrived on / went out on. */
+  connectionId?: string | null;
   deliveryStatus?: MessageStatus;
   attachments?: StoreAttachmentInput[];
   at?: Date;
@@ -182,6 +192,8 @@ async function createMessage(
         bodyHtml: input.bodyHtml ?? null,
         externalId: input.externalId ?? null,
         messageIdHeader: input.messageIdHeader ?? null,
+        senderVerified: input.senderVerified ?? null,
+        connectionId: input.connectionId ?? null,
         deliveryStatus: input.deliveryStatus ?? "logged",
         createdAt,
       },

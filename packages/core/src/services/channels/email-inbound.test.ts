@@ -502,4 +502,76 @@ describe("ingestResendEvent (DB)", () => {
       await db().attachment.count({ where: { messageId: outcome.messageId } }),
     ).toBe(0);
   });
+
+  it("persists the MTA's sender-authentication verdict on the message", async () => {
+    if (!(await dbReachable())) return;
+
+    const verified = scenario({
+      from: `Ivy <${uid("ivy")}@example.com>`,
+      to: [`hello@${DOMAIN}`],
+      headers: {
+        "Authentication-Results":
+          "mx.resend.com; spf=pass; dkim=pass; dmarc=pass header.from=example.com",
+      },
+      text: "Verified sender",
+    });
+    const verifiedOutcome = await ingestResendEvent(verified.event, verified.deps);
+    expect(verifiedOutcome.status).toBe("recorded");
+    if (verifiedOutcome.status !== "recorded") return;
+    enquiries.push(verifiedOutcome.enquiryId);
+    const verifiedEnquiry = await db().enquiry.findUniqueOrThrow({
+      where: { id: verifiedOutcome.enquiryId },
+      select: { customerId: true },
+    });
+    if (verifiedEnquiry.customerId) customers.push(verifiedEnquiry.customerId);
+    const verifiedMessage = await db().enquiryMessage.findUniqueOrThrow({
+      where: { externalId: verified.event.data.email_id },
+      select: { senderVerified: true },
+    });
+    expect(verifiedMessage.senderVerified).toBe(true);
+
+    const failed = scenario({
+      from: `Jo <${uid("jo")}@example.com>`,
+      to: [`hello@${DOMAIN}`],
+      headers: {
+        "Authentication-Results": "mx.resend.com; spf=fail; dkim=fail; dmarc=fail",
+      },
+      text: "Failed check",
+    });
+    const failedOutcome = await ingestResendEvent(failed.event, failed.deps);
+    expect(failedOutcome.status).toBe("recorded");
+    if (failedOutcome.status !== "recorded") return;
+    enquiries.push(failedOutcome.enquiryId);
+    const failedEnquiry = await db().enquiry.findUniqueOrThrow({
+      where: { id: failedOutcome.enquiryId },
+      select: { customerId: true },
+    });
+    if (failedEnquiry.customerId) customers.push(failedEnquiry.customerId);
+    const failedMessage = await db().enquiryMessage.findUniqueOrThrow({
+      where: { externalId: failed.event.data.email_id },
+      select: { senderVerified: true },
+    });
+    expect(failedMessage.senderVerified).toBe(false);
+
+    const unknown = scenario({
+      from: `Ken <${uid("ken")}@example.com>`,
+      to: [`hello@${DOMAIN}`],
+      headers: null,
+      text: "No header at all",
+    });
+    const unknownOutcome = await ingestResendEvent(unknown.event, unknown.deps);
+    expect(unknownOutcome.status).toBe("recorded");
+    if (unknownOutcome.status !== "recorded") return;
+    enquiries.push(unknownOutcome.enquiryId);
+    const unknownEnquiry = await db().enquiry.findUniqueOrThrow({
+      where: { id: unknownOutcome.enquiryId },
+      select: { customerId: true },
+    });
+    if (unknownEnquiry.customerId) customers.push(unknownEnquiry.customerId);
+    const unknownMessage = await db().enquiryMessage.findUniqueOrThrow({
+      where: { externalId: unknown.event.data.email_id },
+      select: { senderVerified: true },
+    });
+    expect(unknownMessage.senderVerified).toBeNull();
+  });
 });

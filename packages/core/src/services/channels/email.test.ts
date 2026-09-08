@@ -648,6 +648,8 @@ describe("loadEnquiryEmailContext", () => {
       lastInboundChannel: "email",
       lastInboundMessageId: "<abc@x.test>",
       lastInboundSubject: "Re: Sleeve idea",
+      lastInboundFromAddress: null,
+      lastInboundConnectionId: null,
     });
   });
 

@@ -63,6 +63,8 @@ const CONTEXT = {
   lastInboundChannel: "email" as const,
   lastInboundMessageId: "<abc@x.test>",
   lastInboundSubject: "Re: Sleeve idea",
+  lastInboundFromAddress: "amy@example.com",
+  lastInboundConnectionId: null,
 };
 const { updateEnquiryStatus } = await import("@bnb/core/services/enquiries");
 const { markRead, recordNote, recordOutbound } = await import(

@@ -374,16 +374,27 @@ model EnquiryMessage {
   // `externalId` holds the provider's id (a Resend email id) — a different
   // thing, and not a valid value for those headers.
   messageIdHeader String?
+  // Did the receiving MTA authenticate the sender (DMARC, or SPF+DKIM)?
+  // null = unknown, which is what every web and Meta message records: those
+  // channels authenticate the account, not a header. Never used to drop mail.
+  senderVerified Boolean?
+  // The Meta Page/IG connection this message arrived on (or went out on).
+  // A reply has to reach the SAME page the customer wrote to, and a customer
+  // can move channels inside one thread — so the routing fact belongs to the
+  // message, not the enquiry.
+  connectionId   String?
   deliveryStatus MessageStatus      @default(logged)
   createdAt      DateTime           @default(now())
 
-  enquiry     Enquiry      @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
-  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  authorUser  User?        @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  enquiry     Enquiry            @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorUser  User?              @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  connection  ChannelConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   attachments Attachment[]
 
   @@index([enquiryId, createdAt])
   @@index([customerId])
+  @@index([connectionId])
 }
 
 // Generalised asset store for message attachments. Images up to 8 MB are held
@@ -433,6 +444,39 @@ model CustomerIdentity {
 
   @@unique([channel, externalId])
   @@index([customerId])
+}
+
+// One connected Meta destination: a Facebook Page (channel = messenger) or
+// the Instagram business account linked to it (channel = instagram). Both
+// rows carry the SAME encrypted page access token, because Instagram
+// Messaging is served by the page's /messages endpoint.
+//
+//   externalId  what Meta's webhook addresses this row by — the page id for
+//               messenger, the IG business account id for instagram (unique)
+//   pageId      the Page whose token authorises sends; == externalId for a
+//               messenger row, the owning page for an instagram row
+//   igAccountId the linked IG business account id, on both rows when there is
+//               one (null on a page with no linked professional account)
+model ChannelConnection {
+  id                  String             @id @default(cuid())
+  channel             MessageChannelKind
+  externalId          String             @unique
+  pageId              String
+  igAccountId         String?
+  name                String
+  // AES-256-GCM, "v1:<iv>:<tag>:<ct>" (services/secrets.ts). NEVER plaintext,
+  // never selected onto a page prop, never logged.
+  accessToken         String
+  active              Boolean            @default(true)
+  webhookSubscribedAt DateTime?
+  lastEventAt         DateTime?
+  connectedAt         DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  messages EnquiryMessage[]
+
+  @@index([channel, active])
+  @@index([pageId])
 }
 
 // ---------------------------------------------------------------------------

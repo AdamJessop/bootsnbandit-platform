@@ -406,4 +406,76 @@ describe("enquiry messages (DB)", () => {
     });
     expect(stored.messageIdHeader).toBe(messageIdHeader);
   });
+
+  describe("sender authentication + channel connection on a message", () => {
+    it("persists senderVerified and surfaces it on the thread row", async () => {
+      if (!(await dbReachable())) return;
+      const { customer, enquiry } = await seed();
+
+      const unverified = await recordInbound({
+        enquiryId: enquiry.id,
+        customerId: customer.id,
+        channel: "email",
+        bodyText: "Is this really you?",
+        externalId: uid("ext"),
+        senderVerified: false,
+      });
+      expect(unverified.senderVerified).toBe(false);
+
+      // Unknown (web, Meta) stays null rather than defaulting to "unverified".
+      const unknown = await recordInbound({
+        enquiryId: enquiry.id,
+        customerId: customer.id,
+        channel: "web",
+        bodyText: "From the site",
+        externalId: uid("ext"),
+      });
+      expect(unknown.senderVerified).toBeNull();
+
+      const thread = await listThread(enquiry.id);
+      expect(thread.map((m) => m.senderVerified)).toEqual(
+        expect.arrayContaining([false, null]),
+      );
+    });
+
+    it("stores the connection a Meta message arrived on", async () => {
+      if (!(await dbReachable())) return;
+      const { customer, enquiry } = await seed();
+      const pageId = uid("page");
+      const connection = await db().channelConnection.create({
+        data: {
+          channel: "messenger",
+          externalId: pageId,
+          pageId,
+          name: "Boots 'n' Bandit",
+          accessToken: "v1:enc",
+        },
+        select: { id: true },
+      });
+
+      const row = await recordInbound({
+        enquiryId: enquiry.id,
+        customerId: customer.id,
+        channel: "messenger",
+        bodyText: "hiya",
+        fromAddress: "7213456789012345",
+        externalId: uid("mid"),
+        connectionId: connection.id,
+      });
+
+      const stored = await db().enquiryMessage.findUnique({
+        where: { id: row.id },
+        select: { connectionId: true, fromAddress: true },
+      });
+      expect(stored).toEqual({
+        connectionId: connection.id,
+        fromAddress: "7213456789012345",
+      });
+
+      await db().enquiryMessage.deleteMany({
+        where: { enquiryId: enquiry.id },
+      });
+      await db().channelConnection.delete({ where: { id: connection.id } });
+    });
+  });
 });

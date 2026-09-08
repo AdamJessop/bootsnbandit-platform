@@ -12,6 +12,7 @@ import {
   isAutoSubmitted,
   formatMessageId,
   parseAddress,
+  parseAuthenticationResults,
   parseAddressList,
   stripQuotedReply,
   threadTokenFrom,
@@ -140,6 +141,8 @@ export interface ParsedInboundEmail {
   receivedAt: Date;
   autoSubmitted: boolean;
   attachments: StoreAttachmentInput[];
+  /** MTA verdict on the sender: true/false, or null when no header said. */
+  senderVerified: boolean | null;
 }
 
 export function isEmailReceivedEvent(
@@ -414,6 +417,7 @@ export async function parseResendInbound(
     autoSubmitted:
       isAutoSubmitted(email.headers) || isOwnDomain(sender.address, domain),
     attachments: await collectAttachments(email, deps),
+    senderVerified: parseAuthenticationResults(email.headers),
   };
 }
 

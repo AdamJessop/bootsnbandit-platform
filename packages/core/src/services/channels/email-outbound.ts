@@ -29,6 +29,10 @@ export interface EnquiryEmailContext {
   /** RFC Message-ID of the last inbound message, for In-Reply-To. */
   lastInboundMessageId: string | null;
   lastInboundSubject: string | null;
+  /** PSID/IGSID (Meta) or email address of the last inbound message. */
+  lastInboundFromAddress: string | null;
+  /** ChannelConnection the last inbound message arrived on, when Meta. */
+  lastInboundConnectionId: string | null;
 }
 
 /**
@@ -58,6 +62,7 @@ export const ENQUIRY_EMAIL_CONTEXT_SELECT = {
       subject: true,
       messageIdHeader: true,
       fromAddress: true,
+      connectionId: true,
     },
   },
 } satisfies Prisma.EnquirySelect;
@@ -95,6 +100,8 @@ export function toEnquiryEmailContext(
     lastInboundChannel: last?.channel ?? null,
     lastInboundMessageId: last?.messageIdHeader ?? null,
     lastInboundSubject: last?.subject ?? null,
+    lastInboundFromAddress: last?.fromAddress ?? null,
+    lastInboundConnectionId: last?.connectionId ?? null,
   };
 }
 

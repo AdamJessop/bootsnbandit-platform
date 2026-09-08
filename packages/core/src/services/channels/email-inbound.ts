@@ -112,6 +112,7 @@ export async function ingestResendEvent(
     fromAddress: parsed.fromAddress,
     externalId: parsed.externalId,
     messageIdHeader: parsed.messageId,
+    senderVerified: parsed.senderVerified,
     attachments: parsed.attachments,
     at: parsed.receivedAt,
   });
