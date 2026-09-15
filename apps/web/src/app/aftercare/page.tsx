@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, X, Heart } from "lucide-react";
+import {
+  Check,
+  X,
+  Heart,
+  Droplet,
+  Sun,
+  Hand,
+  Waves,
+  Shirt,
+  ArrowRight,
+} from "lucide-react";
 import { ornDot, SectionHead } from "@/components/site";
 import { getAftercareStages, getFaqs } from "../_data";
 import { HealingTracker } from "./HealingTracker";
@@ -16,15 +26,39 @@ export const metadata: Metadata = {
 };
 
 const DOS = [
-  "Wash gently with lukewarm water and fragrance-free soap.",
-  "Moisturise thinly — a little balm goes a long way.",
-  "Protect it from the sun; SPF 30+ once it's healed.",
+  {
+    icon: Droplet,
+    title: "Wash gently",
+    desc: "Lukewarm water and fragrance-free soap, twice a day.",
+  },
+  {
+    icon: Heart,
+    title: "Moisturise thinly",
+    desc: "A little balm goes a long way — never slather it.",
+  },
+  {
+    icon: Sun,
+    title: "Protect it from the sun",
+    desc: "Keep it covered while healing; SPF 30+ forever after.",
+  },
 ];
 
 const DONTS = [
-  "Don't pick or scratch, however itchy it gets.",
-  "No soaking, pools, baths or saunas for 2–3 weeks.",
-  "No tight clothing or straps over the fresh tattoo.",
+  {
+    icon: Hand,
+    title: "Don't pick or scratch",
+    desc: "However itchy it gets — tap it instead.",
+  },
+  {
+    icon: Waves,
+    title: "No soaking for 2–3 weeks",
+    desc: "No pools, baths, hot tubs or saunas. Short showers only.",
+  },
+  {
+    icon: Shirt,
+    title: "No tight clothing",
+    desc: "Nothing rubbing on it — loose, clean fabrics only.",
+  },
 ];
 
 export default async function AftercarePage() {
@@ -58,44 +92,62 @@ export default async function AftercarePage() {
       <section className="section" style={{ background: "var(--bg-base)" }}>
         <div className="wrap-wide">
           <SectionHead eyebrow="The basics" title="Do & don't" />
-          <div className={styles.dosGrid}>
-            <div className={`card card-pad ${styles.dosCard} ${styles.do}`}>
-              <h3>Do</h3>
-              <ul className={styles.dosList}>
-                {DOS.map((d) => (
-                  <li key={d}>
-                    <Check className="ic teal" /> {d}
-                  </li>
+          <div className={styles.dosDonts}>
+            <div>
+              <h3 className={`${styles.ddHead} ${styles.teal}`}>
+                <Check className="ic" aria-hidden /> Do
+              </h3>
+              <div className={styles.ddList}>
+                {DOS.map(({ icon: Icon, title, desc }) => (
+                  <div key={title} className={styles.ddItem}>
+                    <span className={`${styles.ddIc} ${styles.teal}`}>
+                      <Icon className="ic" aria-hidden />
+                    </span>
+                    <div>
+                      <b>{title}</b>
+                      <small>{desc}</small>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-            <div className={`card card-pad ${styles.dosCard} ${styles.dont}`}>
-              <h3>Don&rsquo;t</h3>
-              <ul className={styles.dosList}>
-                {DONTS.map((d) => (
-                  <li key={d}>
-                    <X className="ic crimson" /> {d}
-                  </li>
+            <div>
+              <h3 className={`${styles.ddHead} ${styles.crimson}`}>
+                <X className="ic" aria-hidden /> Don&rsquo;t
+              </h3>
+              <div className={styles.ddList}>
+                {DONTS.map(({ icon: Icon, title, desc }) => (
+                  <div key={title} className={styles.ddItem}>
+                    <span className={`${styles.ddIc} ${styles.crimson}`}>
+                      <Icon className="ic" aria-hidden />
+                    </span>
+                    <div>
+                      <b>{title}</b>
+                      <small>{desc}</small>
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
 
-          <div
-            className={`card card-pad ${styles.helpCard}`}
-            style={{ marginTop: 20 }}
-          >
-            <div className="row gap-3" style={{ marginBottom: 8 }}>
-              <Heart className="ic gold" />
-              <b>Something not right?</b>
+          <div className={`card card-pad ${styles.help}`}>
+            <div className={styles.helpCopy}>
+              <span className={styles.helpIc}>
+                <Heart className="ic" aria-hidden />
+              </span>
+              <div>
+                <h3>Something not right?</h3>
+                <p className="muted">
+                  Drop us a message any time — we&rsquo;d always rather take a
+                  look. All our work comes with free touch-ups within three
+                  months.
+                </p>
+              </div>
             </div>
-            <p className="muted" style={{ margin: 0 }}>
-              Drop us a message any time — we&rsquo;d always rather take a look.
-              All our work comes with free touch-ups within three months.{" "}
-              <Link href="/enquire" className="gold">
-                Get in touch &rarr;
-              </Link>
-            </p>
+            <Link href="/enquire" className="btn btn-gold">
+              Get in touch <ArrowRight className="ic" aria-hidden />
+            </Link>
           </div>
         </div>
       </section>
