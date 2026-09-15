@@ -24,7 +24,10 @@ export default function NotFound() {
             <Mark />
           </span>
           <span className="eyebrow">404</span>
-          <h1 className="display chrome" style={{ margin: "10px 0 14px" }}>
+          <h1
+            className="display chrome page-title"
+            style={{ margin: "10px 0 14px" }}
+          >
             Lost the trail
           </h1>
           <p className="lead" style={{ maxWidth: 480, margin: "0 auto 24px" }}>

@@ -29,6 +29,11 @@
 .portrait {
   width: 100%;
 }
+/* Design's .artist-hero-name: the page-level h1 scale. */
+.heroName {
+  font-size: clamp(40px, 6vw, 76px);
+  margin: 10px 0 6px;
+}
 .kicker {
   font-family: var(--font-termina);
   font-size: 12px;

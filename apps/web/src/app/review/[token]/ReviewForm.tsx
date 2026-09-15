@@ -49,7 +49,7 @@ export function ReviewForm({
         <div className={styles.orb}>
           <Check />
         </div>
-        <h1 className="display">Thank you</h1>
+        <h1 className="display page-title">Thank you</h1>
         <p className="lead">
           Your review means the world to us
           {artistName ? ` and ${artistName}` : ""}.

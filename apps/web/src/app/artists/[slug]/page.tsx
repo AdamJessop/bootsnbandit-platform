@@ -75,7 +75,7 @@ export default async function ArtistDetailPage({ params }: PageProps) {
                 {artistStatusLabel(artist.status)}
                 {artist.experience ? ` · ${artist.experience} experience` : ""}
               </span>
-              <h1 className="display chrome" style={{ margin: "0 0 10px" }}>
+              <h1 className={`display chrome ${styles.heroName}`}>
                 {artist.name}
               </h1>
               {artist.tag && <p className="lead">{artist.tag}</p>}

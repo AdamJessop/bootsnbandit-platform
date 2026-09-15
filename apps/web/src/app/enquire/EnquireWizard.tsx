@@ -150,7 +150,7 @@ export function EnquireWizard({
         <div className={styles.orb}>
           <Check />
         </div>
-        <h1 className="display">Enquiry sent</h1>
+        <h1 className="display page-title">Enquiry sent</h1>
         <p className="lead">
           Thanks {state.name.split(" ")[0] || "—"}. {consultLabel}
         </p>

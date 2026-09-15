@@ -1530,6 +1530,12 @@
   position: relative;
   z-index: 1;
 }
+/* Page-level h1 — the design's page heading scale (.artist-hero-name).
+   .page-title covers the same heading outside a .page-head. */
+.page-head .display,
+.page-title {
+  font-size: clamp(40px, 6vw, 76px);
+}
 .breadcrumb {
   display: inline-flex;
   align-items: center;

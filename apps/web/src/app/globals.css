@@ -390,6 +390,46 @@
 }
 
 /* ============================================================
+   BASE HEADINGS (ported from design-src/styles.css)
+   The prototype had no reset, so headings kept the browser's default
+   sizes. Tailwind preflight sets them to `inherit`; restore the
+   defaults here so an unclassed h1/h2/h3 renders as it did in the
+   design. Sized classes (.display, .sechead, etc.) still win.
+   ============================================================ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+  h1 {
+    font-size: 2em;
+  }
+  h2 {
+    font-size: 1.5em;
+  }
+  h3 {
+    font-size: 1.17em;
+  }
+  h4 {
+    font-size: 1em;
+  }
+  h5 {
+    font-size: 0.83em;
+  }
+  h6 {
+    font-size: 0.67em;
+  }
+}
+
+/* ============================================================
    HERITAGE TYPE + UTILITY PRIMITIVES (ported subset)
    Full component port lands in Phase 3.
    ============================================================ */
