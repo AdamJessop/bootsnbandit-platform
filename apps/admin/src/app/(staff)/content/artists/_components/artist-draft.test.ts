@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  draftMissing,
   draftToFormData,
   emptyDraft,
   fromRow,
+  hiddenDraft,
   rateCell,
   type ArtistRow,
 } from "./artist-draft";
@@ -59,5 +61,22 @@ describe("artist-draft helpers", () => {
     expect(d.status).toBe("RESIDENT");
     expect(d.accessRole).toBe("ARTIST");
     expect(d.booksStatus).toBe("open");
+  });
+
+  it("draftMissing names the blank required fields (email only on create)", () => {
+    expect(draftMissing(emptyDraft(), true)).toEqual(["Name", "Account email"]);
+    expect(draftMissing({ ...emptyDraft(), name: " " }, false)).toEqual([
+      "Name",
+    ]);
+    expect(draftMissing(fromRow(row), false)).toEqual([]);
+  });
+
+  it("hiddenDraft keeps the profile but submits it with active off", () => {
+    const fd = draftToFormData(hiddenDraft(row), false);
+    expect(fd.get("id")).toBe("a1");
+    expect(fd.get("name")).toBe("Sarah");
+    expect(fd.get("hourlyRatePounds")).toBe("90");
+    expect(fd.getAll("styleIds")).toEqual(["s1", "s2"]);
+    expect(fd.get("active")).toBeNull();
   });
 });

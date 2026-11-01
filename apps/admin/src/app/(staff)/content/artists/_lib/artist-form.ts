@@ -115,3 +115,26 @@ export function slugify(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/** Deliberately loose (x@y.z) — the sign-in invite is the real check. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Server-side validation for an artist save: the first problem as an
+ * owner-facing sentence, or null. Mirrors the editor's disabled-Save rules so
+ * a blank name can never persist as "".
+ */
+export function artistInputError(
+  input: CoercedArtist,
+  isNew: boolean,
+): string | null {
+  if (!input.profile.name) return "Name is required.";
+  if (!slugify(input.profile.slug || input.profile.name)) {
+    return "The slug needs at least one letter or number.";
+  }
+  if (isNew) {
+    if (!input.email) return "Email is required to create the staff account.";
+    if (!EMAIL_RE.test(input.email)) return "That email doesn't look right.";
+  }
+  return null;
+}

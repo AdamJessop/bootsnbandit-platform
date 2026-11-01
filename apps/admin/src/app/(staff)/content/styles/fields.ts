@@ -8,7 +8,7 @@ import type { FieldSpec } from "../_lib/coerce";
  */
 
 export const SPEC: FieldSpec[] = [
-  { name: "name", kind: "string" },
+  { name: "name", kind: "string", label: "name" },
   { name: "sortOrder", kind: "int" },
   { name: "image", kind: "string", nullable: true },
 ];

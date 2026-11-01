@@ -4,6 +4,7 @@
  * server-only imports so it is unit testable.
  */
 
+import { humanise } from "./db-errors";
 import { poundsToPence } from "./money";
 
 /**
@@ -17,6 +18,13 @@ export interface FieldSpec {
   kind: FieldKind;
   /** Empty string -> null instead of "" / 0. */
   nullable?: boolean;
+  /**
+   * Reject the save when blank. Defaults to true for non-nullable `string`
+   * fields — a NOT NULL text column holding "" is never what the owner meant.
+   */
+  required?: boolean;
+  /** Human name used in validation / duplicate messages (defaults from `name`). */
+  label?: string;
 }
 
 export type CoercedValue = string | number | boolean | string[] | null;
@@ -63,4 +71,32 @@ export function coerceFields(
     }
   }
   return out;
+}
+
+/** Whether a spec field must be non-blank (explicit, else NOT NULL string). */
+export function isRequired(f: FieldSpec): boolean {
+  return f.required ?? (f.kind === "string" && !f.nullable);
+}
+
+export function fieldLabel(f: FieldSpec): string {
+  return f.label ?? humanise(f.name);
+}
+
+/**
+ * Server-side twin of the form's required check: the first required field the
+ * coerced payload left blank, as a message ("Title is required."), or null.
+ */
+export function requiredError(
+  data: Record<string, CoercedValue>,
+  spec: FieldSpec[],
+): string | null {
+  for (const f of spec) {
+    if (!isRequired(f)) continue;
+    const v = data[f.name];
+    if (v === null || v === undefined || v === "") {
+      const label = fieldLabel(f);
+      return `${label.charAt(0).toUpperCase()}${label.slice(1)} is required.`;
+    }
+  }
+  return null;
 }

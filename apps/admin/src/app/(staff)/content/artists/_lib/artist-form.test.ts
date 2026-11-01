@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { coerceArtist, poundsToPence, penceToPounds } from "./artist-form";
+import {
+  artistInputError,
+  coerceArtist,
+  poundsToPence,
+  penceToPounds,
+} from "./artist-form";
 
 function fd(entries: Record<string, string | string[]>): FormData {
   const f = new FormData();
@@ -97,5 +102,28 @@ describe("coerceArtist", () => {
   it("defaults access role to ARTIST when unknown", () => {
     const out = coerceArtist(fd({ name: "X", accessRole: "nope" }));
     expect(out.accessRole).toBe("ARTIST");
+  });
+});
+
+describe("artistInputError", () => {
+  const check = (entries: Record<string, string>, isNew: boolean) =>
+    artistInputError(coerceArtist(fd(entries)), isNew);
+
+  it("requires a name, and on create a plausible email", () => {
+    expect(check({ name: "" }, false)).toBe("Name is required.");
+    expect(check({ name: "Jo" }, true)).toMatch(/Email is required/);
+    expect(check({ name: "Jo", email: "jo" }, true)).toMatch(
+      /doesn't look right/,
+    );
+    expect(check({ name: "Jo", email: "jo@example.com" }, true)).toBeNull();
+  });
+
+  it("does not ask for an email on edit", () => {
+    expect(check({ name: "Jo" }, false)).toBeNull();
+  });
+
+  it("rejects a name/slug with no usable characters", () => {
+    expect(check({ name: "★★★" }, false)).toMatch(/slug/);
+    expect(check({ name: "★★★", slug: "star" }, false)).toBeNull();
   });
 });

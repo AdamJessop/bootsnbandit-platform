@@ -11,6 +11,7 @@ const CFG: CrudConfig = {
   model: "tattooStyle",
   spec: SPEC,
   revalidate: "/content/styles",
+  noun: "style",
 };
 
 export default async function StylesContentPage() {

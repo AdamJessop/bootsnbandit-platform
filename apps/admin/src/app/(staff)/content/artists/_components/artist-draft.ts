@@ -131,6 +131,19 @@ export function draftToFormData(draft: Draft, isNew: boolean): FormData {
   return fd;
 }
 
+/** Labels of the fields the editor needs before Save enables. */
+export function draftMissing(draft: Draft, isNew: boolean): string[] {
+  const missing: string[] = [];
+  if (!draft.name.trim()) missing.push("Name");
+  if (isNew && !draft.email.trim()) missing.push("Account email");
+  return missing;
+}
+
+/** The same artist with "Show on website" switched off — the soft delete. */
+export function hiddenDraft(row: ArtistRow): Draft {
+  return { ...fromRow(row), active: false };
+}
+
 export function rateCell(pence: number | null): string {
   return pence == null ? "—" : `£${penceToPounds(pence)}`;
 }

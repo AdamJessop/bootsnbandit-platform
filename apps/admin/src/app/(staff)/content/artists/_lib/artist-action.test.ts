@@ -101,8 +101,61 @@ describe("artist CMS actions", () => {
 
   it("createArtist requires an email so no orphan artist is created", async () => {
     const { createArtist } = await import("./artist-action");
-    await expect(createArtist(fd({ name: "NoEmail" }))).rejects.toThrow();
+    expect(await createArtist(fd({ name: "NoEmail" }))).toEqual({
+      ok: false,
+      error: "Email is required to create the staff account.",
+    });
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("createArtist / updateArtist refuse a blank name", async () => {
+    const { createArtist, updateArtist } = await import("./artist-action");
+    expect(
+      await createArtist(fd({ name: "  ", email: "x@example.com" })),
+    ).toEqual({ ok: false, error: "Name is required." });
+    expect(await updateArtist(fd({ id: "a1", name: "" }))).toEqual({
+      ok: false,
+      error: "Name is required.",
+    });
+    expect(transaction).not.toHaveBeenCalled();
+    expect(artistUpdate).not.toHaveBeenCalled();
+  });
+
+  it("createArtist reports a taken email inline instead of throwing", async () => {
+    userCreate.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: {
+          driverAdapterError: { cause: { constraint: { fields: ["email"] } } },
+        },
+      }),
+    );
+    const { createArtist } = await import("./artist-action");
+    expect(
+      await createArtist(fd({ name: "Cal", email: "cal@example.com" })),
+    ).toEqual({ ok: false, error: "Another user already has that email." });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("updateArtist reports a taken slug inline", async () => {
+    artistUpdate.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["slug"] },
+      }),
+    );
+    const { updateArtist } = await import("./artist-action");
+    const res = await updateArtist(fd({ id: "a1", name: "Sarah" }));
+    expect(res.ok).toBe(false);
+    expect(!res.ok && res.error).toMatch(/already uses that slug/);
+  });
+
+  it("still throws unexpected errors to the error boundary", async () => {
+    artistDelete.mockRejectedValue(new Error("connection refused"));
+    const { deleteArtist } = await import("./artist-action");
+    await expect(deleteArtist(fd({ id: "a1" }))).rejects.toThrow(
+      "connection refused",
+    );
   });
 
   it("updateArtist sets the style relation, status and numeric rates by id", async () => {
@@ -131,7 +184,7 @@ describe("artist CMS actions", () => {
 
   it("deleteArtist removes the artist row", async () => {
     const { deleteArtist } = await import("./artist-action");
-    await deleteArtist(fd({ id: "a1" }));
+    expect(await deleteArtist(fd({ id: "a1" }))).toEqual({ ok: true });
     expect(artistDelete).toHaveBeenCalledWith({ where: { id: "a1" } });
   });
 });

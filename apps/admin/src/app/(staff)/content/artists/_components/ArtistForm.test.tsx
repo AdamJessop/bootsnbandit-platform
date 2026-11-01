@@ -9,13 +9,18 @@ const styles = [
   { id: "s2", name: "Bold" },
 ];
 
-function render(isNew: boolean) {
+function render(
+  isNew: boolean,
+  draft = emptyDraft(),
+  error: string | null = null,
+) {
   return renderToStaticMarkup(
     <ArtistForm
-      draft={emptyDraft()}
+      draft={draft}
       styles={styles}
       isNew={isNew}
       pending={false}
+      error={error}
       onChange={noop}
       onToggleStyle={noop}
       onSubmit={noop}
@@ -42,5 +47,38 @@ describe("ArtistForm", () => {
     expect(html).not.toContain('name="email"');
     expect(html).not.toContain('name="accessRole"');
     expect(html).toContain('name="status"');
+  });
+
+  it("suggests a neutral example email, not the studio's domain", () => {
+    const html = render(true);
+    expect(html).toContain('placeholder="name@example.com"');
+    expect(html).not.toContain("bootsnbandit");
+  });
+
+  it("marks name/email required and holds Save until they are filled", () => {
+    const blank = render(true);
+    expect(blank).toMatch(/id="ae-name"[^>]*required/);
+    expect(blank).toMatch(/<button[^>]*\sdisabled=""[^>]*>Save<\/button>/);
+    expect(blank).toContain("Fill in Name, Account email to save.");
+
+    const filled = render(false, { ...emptyDraft(), name: "Sarah" });
+    expect(filled).not.toMatch(/<button[^>]*\sdisabled=""[^>]*>Save<\/button>/);
+    expect(filled).not.toContain("Fill in");
+  });
+
+  it("offers the soft 'Show on website' toggle", () => {
+    const html = render(false, { ...emptyDraft(), name: "Sarah" });
+    expect(html).toContain("Show on website");
+    expect(html).toContain('name="active"');
+  });
+
+  it("shows the server's error beside Save", () => {
+    const html = render(
+      true,
+      { ...emptyDraft(), name: "Cal", email: "cal@example.com" },
+      "Another user already has that email.",
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Another user already has that email.");
   });
 });

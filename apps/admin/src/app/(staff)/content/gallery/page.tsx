@@ -5,7 +5,12 @@ import { createRow, deleteRow, updateRow, type CrudConfig } from "../_lib/crud";
 import type { FieldSpec } from "../_lib/coerce";
 import { artistField, loadArtistOptions } from "../_lib/artist-options";
 
-/** Gallery CMS (J1) — portfolio pieces. Owner-only. */
+/**
+ * Gallery CMS (J1) — portfolio pieces. Owner-only. `hue` is deliberately not
+ * editable (nor in SPEC, so saves leave any seeded value alone): the public
+ * gallery never reads it — empty image slots derive their placeholder tint
+ * from the title — so the free-text field only confused owners.
+ */
 export const dynamic = "force-dynamic";
 
 const SPEC: FieldSpec[] = [
@@ -14,7 +19,6 @@ const SPEC: FieldSpec[] = [
   { name: "placement", kind: "string", nullable: true },
   { name: "artistId", kind: "string", nullable: true },
   { name: "image", kind: "string", nullable: true },
-  { name: "hue", kind: "string", nullable: true },
   { name: "featured", kind: "bool" },
   { name: "sortOrder", kind: "int" },
 ];
@@ -22,11 +26,10 @@ const CFG: CrudConfig = {
   model: "galleryItem",
   spec: SPEC,
   revalidate: "/content/gallery",
+  noun: "gallery item",
 };
 /** Field definitions; the artist select is built from the live artist list. */
-function galleryFields(
-  artists: { id: string; name: string }[],
-): CrudField[] {
+function galleryFields(artists: { id: string; name: string }[]): CrudField[] {
   return [
     { name: "title", label: "Title", type: "text", required: true },
     artistField(artists),
@@ -34,7 +37,6 @@ function galleryFields(
     { name: "featured", label: "Featured", type: "checkbox" },
     { name: "placement", label: "Placement", type: "text", hideInTable: true },
     { name: "image", label: "Image", type: "image", hideInTable: true },
-    { name: "hue", label: "Hue", type: "text", hideInTable: true },
     { name: "sortOrder", label: "Order", type: "number", hideInTable: true },
   ];
 }

@@ -16,6 +16,7 @@ const CFG: CrudConfig = {
   model: "faq",
   spec: SPEC,
   revalidate: "/content/faq",
+  noun: "FAQ",
 };
 const FIELDS: CrudField[] = [
   { name: "question", label: "Question", type: "text", required: true },

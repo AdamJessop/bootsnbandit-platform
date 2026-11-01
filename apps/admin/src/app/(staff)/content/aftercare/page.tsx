@@ -17,6 +17,7 @@ const CFG: CrudConfig = {
   model: "aftercareStage",
   spec: SPEC,
   revalidate: "/content/aftercare",
+  noun: "aftercare stage",
 };
 const FIELDS: CrudField[] = [
   { name: "order", label: "Order", type: "number" },

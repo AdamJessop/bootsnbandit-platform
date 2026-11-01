@@ -36,5 +36,19 @@ describe("GalleryContentPage", () => {
     expect(html).toContain("Snake");
     expect(html).toContain("Sarah Boots");
     expect(html).not.toContain("Artist ID");
+    // Image column: this row has no photo yet.
+    expect(html).toContain("No image");
+  });
+
+  it("no longer offers the decorative free-text Hue field", async () => {
+    prisma.galleryItem.findMany.mockResolvedValue([]);
+    prisma.artist.findMany.mockResolvedValue([]);
+    const { default: Page } = await import("./page");
+    const tree = await Page();
+    const fields = (tree.props.children as { props: { fields?: unknown } }[])
+      .map((c) => c?.props?.fields)
+      .find(Boolean) as { name: string }[];
+    expect(fields.map((f) => f.name)).not.toContain("hue");
+    expect(fields.map((f) => f.name)).toContain("image");
   });
 });

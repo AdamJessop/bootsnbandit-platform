@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +10,21 @@ import {
   ARTIST_STATUS_OPTIONS,
   type ArtistStatus,
 } from "@bnb/core/artist-status";
-import { BOOKS_OPTIONS, type Draft, type StyleOption } from "./artist-draft";
+import {
+  BOOKS_OPTIONS,
+  draftMissing,
+  type Draft,
+  type StyleOption,
+} from "./artist-draft";
 
 /**
  * The inline create/edit form body for the Artist CMS. On create it also
  * collects the linked staff User's email + access role; on edit those are
  * immutable (managed in Studio › Staff). Status uses the shared enum options,
  * styles are a checkbox multiselect bound to the TattooStyle list, and the two
- * rate inputs are numeric £ (the parent converts to pence).
+ * rate inputs are numeric £ (the parent converts to pence). Save is held while
+ * Name (and, on create, the email) is blank or the headshot is uploading; the
+ * parent's server-action error is shown beside it.
  */
 
 const selectCls =
@@ -27,10 +35,20 @@ export interface ArtistFormProps {
   styles: StyleOption[];
   isNew: boolean;
   pending: boolean;
+  /** Server-action error to show beside Save. */
+  error?: string | null;
   onChange: (patch: Partial<Draft>) => void;
   onToggleStyle: (id: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
+}
+
+function Req() {
+  return (
+    <span aria-hidden className="ml-0.5 text-bb-crimson">
+      *
+    </span>
+  );
 }
 
 export function ArtistForm({
@@ -38,19 +56,24 @@ export function ArtistForm({
   styles,
   isNew,
   pending,
+  error,
   onChange,
   onToggleStyle,
   onSubmit,
   onCancel,
 }: ArtistFormProps) {
+  const [uploading, setUploading] = useState(false);
+  const missing = draftMissing(draft, isNew);
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div>
         <Label htmlFor="ae-name" className="mb-1.5 block">
           Name
+          <Req />
         </Label>
         <Input
           id="ae-name"
+          required
           value={draft.name}
           onChange={(e) => onChange({ name: e.target.value })}
         />
@@ -72,13 +95,15 @@ export function ArtistForm({
           <div>
             <Label htmlFor="ae-email" className="mb-1.5 block">
               Account email
+              <Req />
             </Label>
             <Input
               id="ae-email"
               name="email"
               type="email"
+              required
               value={draft.email}
-              placeholder="artist@bootsnbandit.co.uk"
+              placeholder="name@example.com"
               onChange={(e) => onChange({ email: e.target.value })}
             />
           </div>
@@ -253,6 +278,7 @@ export function ArtistForm({
           onChange={(v) =>
             onChange({ headshot: Array.isArray(v) ? (v[0] ?? "") : v })
           }
+          onUploadingChange={setUploading}
         />
       </div>
 
@@ -270,21 +296,45 @@ export function ArtistForm({
       <div className="flex items-end gap-2">
         <input
           id="ae-active"
+          name="active"
           type="checkbox"
           checked={draft.active}
           onChange={(e) => onChange({ active: e.target.checked })}
           className="h-5 w-5 rounded border-border-strong"
         />
-        <Label htmlFor="ae-active">Active</Label>
+        <div>
+          <Label htmlFor="ae-active">Show on website</Label>
+          <p className="text-xs text-text-muted">
+            Untick to hide this artist from the site without deleting anything.
+          </p>
+        </div>
       </div>
 
-      <div className="mt-2 flex gap-2 sm:col-span-2">
-        <Button type="button" onClick={onSubmit} disabled={pending}>
-          {pending ? "Saving…" : "Save"}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md border border-bb-crimson/40 bg-bb-crimson/10 px-3 py-2 text-sm text-text-primary sm:col-span-2"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2 sm:col-span-2">
+        <Button
+          type="button"
+          onClick={onSubmit}
+          disabled={pending || uploading || missing.length > 0}
+        >
+          {pending ? "Saving…" : uploading ? "Uploading…" : "Save"}
         </Button>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
+        {missing.length > 0 && (
+          <p className="text-xs text-text-muted">
+            Fill in {missing.join(", ")} to save.
+          </p>
+        )}
       </div>
     </div>
   );

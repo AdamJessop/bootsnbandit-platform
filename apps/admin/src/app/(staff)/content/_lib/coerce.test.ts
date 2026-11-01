@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { coerceFields, type FieldSpec } from "./coerce";
+import {
+  coerceFields,
+  isRequired,
+  requiredError,
+  type FieldSpec,
+} from "./coerce";
 
 const SPEC: FieldSpec[] = [
   { name: "title", kind: "string" },
@@ -65,6 +70,44 @@ describe("coerceFields", () => {
     expect(out.sortOrder).toBe(0);
     expect(out.featured).toBe(false);
     expect(out.styles).toEqual([]);
+  });
+});
+
+describe("required fields", () => {
+  it("defaults to required for non-nullable strings only", () => {
+    expect(isRequired({ name: "title", kind: "string" })).toBe(true);
+    expect(isRequired({ name: "bio", kind: "string", nullable: true })).toBe(
+      false,
+    );
+    expect(isRequired({ name: "sortOrder", kind: "int" })).toBe(false);
+    expect(
+      isRequired({
+        name: "image",
+        kind: "string",
+        nullable: true,
+        required: true,
+      }),
+    ).toBe(true);
+    expect(isRequired({ name: "x", kind: "string", required: false })).toBe(
+      false,
+    );
+  });
+
+  it("rejects a blank or whitespace-only title instead of saving ''", () => {
+    const out = coerceFields(fd({ title: "   ", sortOrder: "1" }), SPEC);
+    expect(requiredError(out, SPEC)).toBe("Title is required.");
+  });
+
+  it("uses the spec label in the message and passes when filled", () => {
+    const spec: FieldSpec[] = [
+      { name: "question", kind: "string", label: "question" },
+    ];
+    expect(requiredError(coerceFields(fd({}), spec), spec)).toBe(
+      "Question is required.",
+    );
+    expect(
+      requiredError(coerceFields(fd({ question: "Hurt?" }), spec), spec),
+    ).toBeNull();
   });
 });
 

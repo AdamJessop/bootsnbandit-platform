@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@bnb/core/utils";
+import type { ActionResult } from "../_lib/db-errors";
 import { formatPounds, penceToPounds } from "../_lib/money";
+import { focusFormStart } from "./focus-form";
 
 /**
  * Generic content-CMS editor (J1–J6): a table of existing rows + an inline
  * create/edit form built from declarative field definitions. CRUD is performed
  * via server actions passed by the section's server page (which revalidates).
- * `image` fields render the shared ImageUploader (POST /api/uploads).
+ * `image` fields render the shared ImageUploader (POST /api/uploads) and the
+ * first one also gets a thumbnail column so missing photos stand out.
  * `money` fields are stored as integer pence but presented/edited in pounds —
  * the draft holds the pounds string and the server spec (`kind: "pounds"`)
  * converts back. `select` fields show their option label in the table.
+ *
+ * Save stays disabled while a `required` field is blank or an image is still
+ * uploading; an action's `{ ok: false, error }` is shown beside Save (or above
+ * the table for deletes). Delete is two taps: the bin turns into "Confirm
+ * delete?". Opening the form scrolls it into view — on a phone it sits below
+ * the whole table.
  */
 
 export type CrudFieldType =
@@ -36,6 +45,8 @@ export interface CrudField {
   defaultValue?: string | number | boolean;
   options?: { value: string; label: string }[];
   placeholder?: string;
+  /** Short helper line under the input. */
+  hint?: string;
   required?: boolean;
   /** Hide from the row table (still editable in the form). */
   hideInTable?: boolean;
@@ -43,17 +54,21 @@ export interface CrudField {
 
 export type CrudRow = Record<string, unknown> & { id: string };
 type Draft = Record<string, string | number | boolean>;
+type CrudAction = (fd: FormData) => Promise<ActionResult>;
 
 export interface CrudSectionProps {
   fields: CrudField[];
   rows: CrudRow[];
-  createAction: (fd: FormData) => Promise<void>;
-  updateAction: (fd: FormData) => Promise<void>;
-  deleteAction: (fd: FormData) => Promise<void>;
+  createAction: CrudAction;
+  updateAction: CrudAction;
+  deleteAction: CrudAction;
   /** Column to show first in the table (defaults to first non-hidden field). */
   titleField?: string;
   emptyLabel?: string;
 }
+
+const NETWORK_ERROR =
+  "Couldn't reach the server — check your connection and try again.";
 
 /** Build an editable draft from field defaults, optionally seeded by a row. */
 export function buildDefaults(
@@ -79,6 +94,24 @@ export function buildDefaults(
   return draft;
 }
 
+/** Required fields the draft leaves blank (whitespace counts as blank). */
+export function missingRequired(
+  fields: CrudField[],
+  draft: Draft,
+): CrudField[] {
+  return fields.filter(
+    (f) =>
+      f.required &&
+      f.type !== "checkbox" &&
+      String(draft[f.name] ?? "").trim() === "",
+  );
+}
+
+/** The field whose image is shown as the table's thumbnail column, if any. */
+export function thumbnailField(fields: CrudField[]): CrudField | undefined {
+  return fields.find((f) => f.type === "image");
+}
+
 function cellText(value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -98,6 +131,25 @@ export function cellLabel(field: CrudField, value: unknown): string {
   return cellText(value);
 }
 
+function Thumbnail({ src }: { src: unknown }) {
+  if (typeof src === "string" && src !== "") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        className="h-10 w-10 rounded-md border border-border-default object-cover"
+      />
+    );
+  }
+  return (
+    <span className="grid h-10 w-10 place-items-center rounded-md border border-dashed border-bb-crimson/60 text-center text-[9px] font-bold uppercase leading-tight text-bb-crimson">
+      No image
+    </span>
+  );
+}
+
 export function CrudSection({
   fields,
   rows,
@@ -109,17 +161,40 @@ export function CrudSection({
 }: CrudSectionProps) {
   const [editing, setEditing] = useState<CrudRow | "new" | null>(null);
   const [draft, setDraft] = useState<Draft>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
+  const formRef = useRef<HTMLDivElement>(null);
 
   const tableFields = fields.filter((f) => !f.hideInTable).slice(0, 4);
   const primary = titleField ?? tableFields[0]?.name;
+  const thumb = thumbnailField(fields);
+  const columnCount = tableFields.length + (thumb ? 2 : 1);
+  const missing = editing === null ? [] : missingRequired(fields, draft);
+  const isUploading = Object.values(uploading).some(Boolean);
+
+  useEffect(() => {
+    if (editing !== null) focusFormStart(formRef.current);
+  }, [editing]);
 
   function open(row: CrudRow | "new") {
     setDraft(buildDefaults(fields, row === "new" ? undefined : row));
+    setFormError(null);
+    setUploading({});
+    setConfirmingId(null);
     setEditing(row);
   }
 
+  function close() {
+    setEditing(null);
+    setFormError(null);
+    setUploading({});
+  }
+
   function submit() {
+    if (missing.length > 0 || isUploading) return;
     const isNew = editing === "new";
     const fd = new FormData();
     if (!isNew && editing) fd.set("id", editing.id);
@@ -131,17 +206,32 @@ export function CrudSection({
         fd.set(f.name, String(v ?? ""));
       }
     }
+    setFormError(null);
     startTransition(async () => {
-      await (isNew ? createAction(fd) : updateAction(fd));
-      setEditing(null);
+      try {
+        const res = await (isNew ? createAction(fd) : updateAction(fd));
+        if (res.ok) setEditing(null);
+        else setFormError(res.error);
+      } catch {
+        setFormError(NETWORK_ERROR);
+      }
     });
   }
 
   function remove(id: string) {
     const fd = new FormData();
     fd.set("id", id);
+    setListError(null);
     startTransition(async () => {
-      await deleteAction(fd);
+      try {
+        const res = await deleteAction(fd);
+        if (!res.ok) setListError(res.error);
+        else if (editing !== null && editing !== "new" && editing.id === id)
+          setEditing(null);
+      } catch {
+        setListError(NETWORK_ERROR);
+      }
+      setConfirmingId(null);
     });
   }
 
@@ -159,10 +249,20 @@ export function CrudSection({
         </Button>
       </div>
 
+      {listError && (
+        <p
+          role="alert"
+          className="rounded-md border border-bb-crimson/40 bg-bb-crimson/10 px-3 py-2 text-sm text-text-primary"
+        >
+          {listError}
+        </p>
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-border-default">
         <table className="w-full text-sm">
           <thead className="bg-bg-raised text-left font-termina text-[11px] uppercase tracking-wide text-text-muted">
             <tr>
+              {thumb && <th className="w-14 px-4 py-2.5">{thumb.label}</th>}
               {tableFields.map((f) => (
                 <th key={f.name} className="px-4 py-2.5">
                   {f.label}
@@ -176,7 +276,7 @@ export function CrudSection({
               <tr>
                 <td
                   className="px-4 py-6 text-center text-text-muted"
-                  colSpan={tableFields.length + 1}
+                  colSpan={columnCount}
                 >
                   {emptyLabel}
                 </td>
@@ -187,6 +287,11 @@ export function CrudSection({
                 key={row.id}
                 className="border-t border-border-default hover:bg-bg-raised/50"
               >
+                {thumb && (
+                  <td className="px-4 py-2">
+                    <Thumbnail src={row[thumb.name]} />
+                  </td>
+                )}
                 {tableFields.map((f) => (
                   <td
                     key={f.name}
@@ -208,14 +313,35 @@ export function CrudSection({
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(row.id)}
-                      aria-label="Delete"
-                      className="grid h-8 w-8 place-items-center rounded-md border border-border-default text-text-secondary hover:text-bb-crimson"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {confirmingId === row.id ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => remove(row.id)}
+                          disabled={pending}
+                          className="h-8 whitespace-nowrap rounded-md border border-bb-crimson bg-bb-crimson px-2.5 text-xs font-medium text-white disabled:opacity-60"
+                        >
+                          {pending ? "Deleting…" : "Confirm delete?"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingId(null)}
+                          aria-label="Keep"
+                          className="grid h-8 w-8 place-items-center rounded-md border border-border-default text-text-secondary hover:text-text-primary"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(row.id)}
+                        aria-label="Delete"
+                        className="grid h-8 w-8 place-items-center rounded-md border border-border-default text-text-secondary hover:text-bb-crimson"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -225,14 +351,19 @@ export function CrudSection({
       </div>
 
       {editing !== null && (
-        <div className="rounded-lg border border-bb-crimson/30 bg-bg-card p-5">
+        <div
+          // Remount per row so an in-flight upload can't land in another draft.
+          key={editing === "new" ? "new" : editing.id}
+          ref={formRef}
+          className="scroll-mt-20 rounded-lg border border-bb-crimson/30 bg-bg-card p-5"
+        >
           <div className="mb-4 flex items-center justify-between">
             <h3 className="font-termina text-sm font-bold uppercase tracking-wide text-text-primary">
               {editing === "new" ? "New entry" : "Edit entry"}
             </h3>
             <button
               type="button"
-              onClick={() => setEditing(null)}
+              onClick={close}
               aria-label="Cancel"
               className="text-text-muted hover:text-text-primary"
             >
@@ -250,10 +381,16 @@ export function CrudSection({
               >
                 <Label htmlFor={`f-${f.name}`} className="mb-1.5 block">
                   {f.label}
+                  {f.required && (
+                    <span aria-hidden className="ml-0.5 text-bb-crimson">
+                      *
+                    </span>
+                  )}
                 </Label>
                 {f.type === "textarea" ? (
                   <Textarea
                     id={`f-${f.name}`}
+                    required={f.required}
                     value={String(draft[f.name] ?? "")}
                     placeholder={f.placeholder}
                     onChange={(e) =>
@@ -273,6 +410,7 @@ export function CrudSection({
                 ) : f.type === "select" ? (
                   <select
                     id={`f-${f.name}`}
+                    required={f.required}
                     value={String(draft[f.name] ?? "")}
                     onChange={(e) =>
                       setDraft((d) => ({ ...d, [f.name]: e.target.value }))
@@ -294,6 +432,9 @@ export function CrudSection({
                         [f.name]: Array.isArray(v) ? (v[0] ?? "") : v,
                       }))
                     }
+                    onUploadingChange={(busy) =>
+                      setUploading((u) => ({ ...u, [f.name]: busy }))
+                    }
                   />
                 ) : f.type === "money" ? (
                   <div className="relative">
@@ -310,6 +451,7 @@ export function CrudSection({
                       min="0"
                       inputMode="decimal"
                       className="pl-6"
+                      required={f.required}
                       value={String(draft[f.name] ?? "")}
                       placeholder={f.placeholder ?? "0.00"}
                       onChange={(e) =>
@@ -321,6 +463,7 @@ export function CrudSection({
                   <Input
                     id={`f-${f.name}`}
                     type={f.type === "number" ? "number" : "text"}
+                    required={f.required}
                     value={String(draft[f.name] ?? "")}
                     placeholder={f.placeholder}
                     onChange={(e) =>
@@ -334,20 +477,36 @@ export function CrudSection({
                     }
                   />
                 )}
+                {f.hint && (
+                  <p className="mt-1 text-xs text-text-muted">{f.hint}</p>
+                )}
               </div>
             ))}
           </div>
-          <div className="mt-5 flex gap-2">
-            <Button type="button" onClick={submit} disabled={pending}>
-              {pending ? "Saving…" : "Save"}
-            </Button>
+          {formError && (
+            <p
+              role="alert"
+              className="mt-5 rounded-md border border-bb-crimson/40 bg-bb-crimson/10 px-3 py-2 text-sm text-text-primary"
+            >
+              {formError}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => setEditing(null)}
+              onClick={submit}
+              disabled={pending || isUploading || missing.length > 0}
             >
+              {pending ? "Saving…" : isUploading ? "Uploading…" : "Save"}
+            </Button>
+            <Button type="button" variant="outline" onClick={close}>
               Cancel
             </Button>
+            {missing.length > 0 && (
+              <p className="text-xs text-text-muted">
+                Fill in {missing.map((f) => f.label).join(", ")} to save.
+              </p>
+            )}
           </div>
         </div>
       )}
