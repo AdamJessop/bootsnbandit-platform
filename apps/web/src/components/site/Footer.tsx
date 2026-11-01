@@ -12,7 +12,8 @@ import { LEGAL_NAV } from "@/lib/legal";
  * (address/hours/phone) and Studio address block, over a bottom strip with the
  * copyright and the legal links (privacy, data deletion). `studio` carries the CMS
  * SiteSettings merged over the hardcoded fallbacks (see mergeShellSettings);
- * omitting it renders the pure fallbacks.
+ * omitting it renders the pure fallbacks. Phone and social links render only
+ * when the CMS has them — there is no invented fallback.
  */
 export function Footer({
   studio = mergeShellSettings(null),
@@ -38,22 +39,28 @@ export function Footer({
               Heritage tattooing in Worksop. Custom work, flash drops and the
               Bandit Pass — proper brew included.
             </p>
-            <div className="social-row mt-4">
-              <a
-                href={studio.instagram}
-                className="icon-btn"
-                aria-label="Instagram"
-              >
-                <Camera className="ic" />
-              </a>
-              <a
-                href={studio.facebook}
-                className="icon-btn"
-                aria-label="Facebook"
-              >
-                <Globe className="ic" />
-              </a>
-            </div>
+            {(studio.instagram || studio.facebook) && (
+              <div className="social-row mt-4">
+                {studio.instagram && (
+                  <a
+                    href={studio.instagram}
+                    className="icon-btn"
+                    aria-label="Instagram"
+                  >
+                    <Camera className="ic" />
+                  </a>
+                )}
+                {studio.facebook && (
+                  <a
+                    href={studio.facebook}
+                    className="icon-btn"
+                    aria-label="Facebook"
+                  >
+                    <Globe className="ic" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -76,12 +83,14 @@ export function Footer({
               <span className="row gap-3">
                 <Clock className="ic text-bb-gold" /> {studio.hours}
               </span>
-              <a
-                href={`tel:${studio.phone.replace(/\s/g, "")}`}
-                className="row gap-3"
-              >
-                <Phone className="ic text-bb-gold" /> {studio.phone}
-              </a>
+              {studio.phone && (
+                <a
+                  href={`tel:${studio.phone.replace(/\s/g, "")}`}
+                  className="row gap-3"
+                >
+                  <Phone className="ic text-bb-gold" /> {studio.phone}
+                </a>
+              )}
             </div>
           </div>
 

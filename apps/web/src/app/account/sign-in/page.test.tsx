@@ -14,4 +14,9 @@ describe("SignInPage", () => {
     expect(html).toContain('name="password"');
     expect(html).toContain("card");
   });
+
+  it("renders per request so the CMS-driven shell is never frozen at build", async () => {
+    const { dynamic } = await import("./page");
+    expect(dynamic).toBe("force-dynamic");
+  });
 });

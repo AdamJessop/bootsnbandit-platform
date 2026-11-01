@@ -35,7 +35,15 @@ export function ArtistAvatar({
     >
       {artist.avatar ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="avatar-img" src={artist.avatar} alt={artist.name} />
+        <img
+          className="avatar-img"
+          src={artist.avatar}
+          alt={artist.name}
+          width={px}
+          height={px}
+          loading="lazy"
+          decoding="async"
+        />
       ) : (
         <span className="avatar-i" style={{ fontSize: px * 0.4 }}>
           {initials}

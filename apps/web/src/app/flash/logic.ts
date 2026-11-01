@@ -1,46 +1,95 @@
-/** Pure flash grouping + stock helpers (unit-tested), used by the flash page. */
+/** Pure flash expiry, grouping + stock helpers (unit-tested), used by the flash page and home band. */
 
-export interface DeadlineItem {
-  deadline?: string | null;
+export interface EndsAtItem {
+  endsAt?: Date | null;
 }
 
 export interface FlashGroup<T> {
-  deadline: string;
+  /** "Live until Sat 14 Nov, 6pm"; null for designs with no closing date. */
+  label: string | null;
   items: T[];
 }
 
-/**
- * Group flash items by their `deadline` label, preserving first-seen order of
- * both groups and items within them. Null deadlines bucket under "Coming soon".
- */
-export function groupByDeadline<T extends DeadlineItem>(
+/** True while a drop is still claimable by time (no end, or one ahead). */
+export function isLive(item: EndsAtItem, now: Date = new Date()): boolean {
+  return item.endsAt == null || item.endsAt.getTime() > now.getTime();
+}
+
+/** Drop expired designs; display order is preserved. */
+export function liveFlash<T extends EndsAtItem>(
   items: T[],
-): FlashGroup<T>[] {
-  const order: string[] = [];
-  const byKey = new Map<string, T[]>();
-  for (const item of items) {
-    const key = item.deadline ?? "Coming soon";
-    if (!byKey.has(key)) {
-      byKey.set(key, []);
-      order.push(key);
-    }
-    byKey.get(key)!.push(item);
-  }
-  return order.map((deadline) => ({ deadline, items: byKey.get(deadline)! }));
+  now: Date = new Date(),
+): T[] {
+  return items.filter((i) => isLive(i, now));
 }
 
 /**
- * The "next drop closes" banner label: the first non-null deadline in display
- * (sortOrder) order, or null when no live flash has a deadline — the banner
- * hides rather than showing a stale hardcoded date.
+ * Studio-time label for a drop's end: "Sat 14 Nov" when it runs to the end of
+ * the day (23:59, what a bare date in the CMS means), else with the time —
+ * "Sat 14 Nov, 6pm" / "Sat 14 Nov, 6:30pm".
  */
-export function nextDropDeadline<T extends DeadlineItem>(
+export function formatEndsAt(at: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hourCycle: "h23",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(at);
+  const v = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const date = `${v("weekday")} ${v("day")} ${v("month")}`;
+  const hour = Number(v("hour"));
+  const minute = Number(v("minute"));
+  if (hour === 23 && minute === 59) return date;
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  const mm = minute === 0 ? "" : `:${String(minute).padStart(2, "0")}`;
+  return `${date}, ${h12}${mm}${hour < 12 ? "am" : "pm"}`;
+}
+
+/**
+ * Group live flash by closing time, soonest first, preserving display order
+ * within a group. Open-ended designs (no endsAt) come last under a null label.
+ */
+export function groupByEndsAt<T extends EndsAtItem>(
   items: T[],
-): string | null {
+): FlashGroup<T>[] {
+  const dated = new Map<number, T[]>();
+  const open: T[] = [];
   for (const item of items) {
-    if (item.deadline) return item.deadline;
+    if (!item.endsAt) {
+      open.push(item);
+      continue;
+    }
+    const key = item.endsAt.getTime();
+    if (!dated.has(key)) dated.set(key, []);
+    dated.get(key)!.push(item);
   }
-  return null;
+  const groups: FlashGroup<T>[] = [...dated.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([key, groupItems]) => ({
+      label: `Live until ${formatEndsAt(new Date(key))}`,
+      items: groupItems,
+    }));
+  if (open.length) groups.push({ label: null, items: open });
+  return groups;
+}
+
+/**
+ * When the soonest still-open drop closes, or null when no live flash has an
+ * end date — the banner hides rather than showing a stale date.
+ */
+export function nextDropEnds<T extends EndsAtItem>(
+  items: T[],
+  now: Date = new Date(),
+): Date | null {
+  let next: Date | null = null;
+  for (const item of items) {
+    if (!item.endsAt || !isLive(item, now)) continue;
+    if (!next || item.endsAt < next) next = item.endsAt;
+  }
+  return next;
 }
 
 /** Stock state for a flash design: remaining count + gone/low flags. */

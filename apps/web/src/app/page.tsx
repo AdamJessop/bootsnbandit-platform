@@ -24,24 +24,34 @@ import {
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { pageMetadata } from "@/lib/seo";
 import {
   getArtists,
   getGallery,
   getFlash,
   getPublishedReviews,
+  getReviewStats,
+  getSiteSettings,
   getStyleShowcase,
-  type SiteReview,
 } from "./_data";
 import { formatPence } from "./_format";
+import { formatEndsAt, liveFlash, nextDropEnds } from "./flash/logic";
 import { PassportCard } from "./passport/PassportCard";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Boots 'n' Bandit · Heritage Tattoo Studio in Worksop",
   description:
-    "Seven resident artists, custom work from fine-line to blackwork, and a proper brew while you wait. Heritage tattooing in Worksop. Books open for Summer 2026.",
-};
+    "Resident artists, custom work from fine-line to blackwork, flash drops and a proper brew while you wait. Heritage tattooing on Newcastle Avenue, Worksop.",
+  path: "/",
+});
+
+/**
+ * Social proof only appears once it is real: the review band, the hero rating
+ * and the rating stat all wait for this many published reviews.
+ */
+const MIN_REVIEWS = 3;
 
 function toArtistProp(
   a: Awaited<ReturnType<typeof getArtists>>[number],
@@ -70,50 +80,39 @@ function toGalleryProp(
   };
 }
 
-/** Sample quotes shown until enough real reviews are published via the CMS. */
-const SAMPLE_REVIEWS: SiteReview[] = [
-  {
-    id: "sample-1",
-    name: "Hannah M.",
-    artist: "Amy",
-    rating: 5,
-    quote:
-      "My first tattoo and I was terrified — Amy completely put me at ease and the fine-line piece is more delicate than I dared hope.",
-  },
-  {
-    id: "sample-2",
-    name: "Dec R.",
-    artist: "Calum",
-    rating: 5,
-    quote:
-      "Calum mapped a full blackwork half-sleeve over two sessions. Calm, surgical, and it healed perfectly. Already planning the next one.",
-  },
-  {
-    id: "sample-3",
-    name: "Priya K.",
-    artist: "Sarah",
-    rating: 5,
-    quote:
-      "The colour is so saturated people think it's a sticker. Sarah listened to every note and made it ours. Worth every penny.",
-  },
-];
-
 export default async function HomePage() {
-  const [artists, gallery, flash, publishedReviews, styleShowcase] =
-    await Promise.all([
-      getArtists(),
-      getGallery(),
-      getFlash(),
-      getPublishedReviews(3),
-      getStyleShowcase(),
-    ]);
+  const [
+    artists,
+    gallery,
+    flash,
+    publishedReviews,
+    reviewStats,
+    settings,
+    styleShowcase,
+  ] = await Promise.all([
+    getArtists(),
+    getGallery(),
+    getFlash(),
+    getPublishedReviews(MIN_REVIEWS),
+    getReviewStats(),
+    getSiteSettings(),
+    getStyleShowcase(),
+  ]);
 
   const homeArtists = artists.slice(0, 4);
   const homeGallery = gallery.slice(0, 8);
-  const homeFlash = flash.slice(0, 3);
-  // Real published reviews once there are enough to fill the band.
+  // Expired drops never reach the home band.
+  const live = liveFlash(flash);
+  const homeFlash = live.slice(0, 3);
+  const flashEnds = nextDropEnds(live);
+  const booksOpen = settings?.enquiriesOpen ?? true;
+  // Real reviews only — the band stays hidden until enough are published.
   const reviews =
-    publishedReviews.length >= 3 ? publishedReviews : SAMPLE_REVIEWS;
+    publishedReviews.length >= MIN_REVIEWS ? publishedReviews : [];
+  const rating =
+    reviewStats.count >= MIN_REVIEWS && reviewStats.average != null
+      ? { average: reviewStats.average.toFixed(1), count: reviewStats.count }
+      : null;
 
   return (
     <div className="page">
@@ -123,17 +122,23 @@ export default async function HomePage() {
           <div className="hero-veil" />
         </div>
         <div className="hero-in">
-          <span className="hero-ribbon">
-            <span className="dot dot-open pulse" /> Books open · now taking
-            Summer 2026
-          </span>
+          {booksOpen ? (
+            <span className="hero-ribbon">
+              <span className="dot dot-open pulse" /> Books open · taking
+              enquiries
+            </span>
+          ) : (
+            <span className="hero-ribbon">
+              <span className="dot dot-closed" /> Books closed for now
+            </span>
+          )}
           <h1 className="display chrome hero-title">
             Boots &rsquo;n&rsquo; Bandit
           </h1>
           <Filigree />
           <p className="hero-sub">
-            Heritage tattooing in Worksop. Seven resident artists, custom work
-            from fine-line to blackwork, and a proper brew while you wait.
+            Heritage tattooing in Worksop. Resident artists, custom work from
+            fine-line to blackwork, and a proper brew while you wait.
           </p>
           <div className="hero-cta">
             <Link href="/enquire" className="btn btn-lg">
@@ -147,9 +152,12 @@ export default async function HomePage() {
             <span>
               <MapPin className="ic" /> 67 Newcastle Avenue, Worksop
             </span>
-            <span>
-              <Star className="ic" /> 4.9 from 380+ reviews
-            </span>
+            {rating && (
+              <span>
+                <Star className="ic" /> {rating.average} from {rating.count}{" "}
+                reviews
+              </span>
+            )}
             <span>
               <ShieldCheck className="ic" /> Fully licensed studio
             </span>
@@ -158,17 +166,38 @@ export default async function HomePage() {
         <ChevronDown className="hero-scroll ic" aria-hidden />
       </section>
 
-      {/* 2. STAT STRIP */}
-      <section className="section">
-        <div className="wrap">
-          <div className="stat-strip">
-            <StatTile num="7" label="Resident artists" tone="crimson" />
-            <StatTile num="10+" label="Years in Worksop" tone="gold" />
-            <StatTile num="4.9" label="Average rating" tone="teal" />
-            <StatTile num="12k+" label="Pieces & counting" />
+      {/* 2. STAT STRIP — only figures the database can back up. */}
+      {(artists.length > 0 || rating) && (
+        <section className="section">
+          <div className="wrap">
+            <div className="stat-strip">
+              {artists.length > 0 && (
+                <StatTile
+                  num={String(artists.length)}
+                  label={
+                    artists.length === 1 ? "Artist" : "Artists in the crew"
+                  }
+                  tone="crimson"
+                />
+              )}
+              {rating && (
+                <>
+                  <StatTile
+                    num={rating.average}
+                    label="Average rating"
+                    tone="teal"
+                  />
+                  <StatTile
+                    num={String(rating.count)}
+                    label="Published reviews"
+                    tone="gold"
+                  />
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 3. AI TEASER (Inkling) */}
       <section className="section">
@@ -259,48 +288,57 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 6. FLASH BAND */}
-      <section className="section">
-        <div className="wrap">
-          <div className="flash-band">
-            <div className="flash-band-head">
-              <SectionHead
-                eyebrow="Flash drop · this weekend"
-                title="Claim a one-off design"
-              />
-              <Link href="/flash" className="btn btn-sm btn-outline">
-                See all flash
-              </Link>
-            </div>
-            <div className="flash-row">
-              {homeFlash.map((f) => {
-                const left = Math.max(0, f.total - f.claimed);
-                const gone = left <= 0;
-                return (
-                  <Link key={f.id} href="/flash" className="flash-mini">
-                    <div className="flash-mini-art">
-                      <Plate
-                        paper
-                        src={f.image ?? undefined}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    </div>
-                    <div className="flash-mini-body">
-                      <b>{f.title}</b>
-                      <span className="muted" style={{ fontSize: 12 }}>
-                        {formatPence(f.pricePence)} · {f.size}
-                      </span>
-                      <span className={`flash-left${gone ? " gone" : ""}`}>
-                        {gone ? "Claimed" : `${left} of ${f.total} left`}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
+      {/* 6. FLASH BAND — hidden when nothing live is on the wall. */}
+      {homeFlash.length > 0 && (
+        <section className="section">
+          <div className="wrap">
+            <div className="flash-band">
+              <div className="flash-band-head">
+                <SectionHead
+                  eyebrow={
+                    flashEnds
+                      ? `Flash drop · live until ${formatEndsAt(flashEnds)}`
+                      : "Flash drops"
+                  }
+                  title="Claim a one-off design"
+                />
+                <Link href="/flash" className="btn btn-sm btn-outline">
+                  See all flash
+                </Link>
+              </div>
+              <div className="flash-row">
+                {homeFlash.map((f) => {
+                  const left = Math.max(0, f.total - f.claimed);
+                  const gone = left <= 0;
+                  return (
+                    <Link key={f.id} href="/flash" className="flash-mini">
+                      <div className="flash-mini-art">
+                        <Plate
+                          paper
+                          src={f.image ?? undefined}
+                          alt={f.title}
+                          style={{ width: "100%", height: "100%" }}
+                        />
+                      </div>
+                      <div className="flash-mini-body">
+                        <b>{f.title}</b>
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          {[formatPence(f.pricePence), f.size]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                        <span className={`flash-left${gone ? " gone" : ""}`}>
+                          {gone ? "Claimed" : `${left} of ${f.total} left`}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 7. PASSPORT BAND */}
       <section className="section" style={{ background: "var(--bg-base)" }}>
@@ -309,12 +347,20 @@ export default async function HomePage() {
             className="row gap-8"
             style={{ flexWrap: "wrap", justifyContent: "center" }}
           >
-            <PassportCard
-              holder="A. Collector"
-              level="Level 2 · Outlaw"
-              filled={4}
-              total={8}
-            />
+            <figure style={{ margin: 0 }}>
+              <PassportCard
+                holder="A. Collector"
+                level="Level 2 · Outlaw"
+                filled={4}
+                total={8}
+              />
+              <figcaption
+                className="muted"
+                style={{ fontSize: 12, marginTop: 8, textAlign: "center" }}
+              >
+                Example card — yours fills as you collect stamps.
+              </figcaption>
+            </figure>
             <div style={{ maxWidth: 440 }}>
               <SectionHead
                 eyebrow="Loyalty, reimagined"
@@ -329,34 +375,36 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 8. REVIEWS */}
-      <section className="section" style={{ background: "var(--bg-base)" }}>
-        <div className="wrap">
-          <SectionHead eyebrow="Kind words" title="What people say" center />
-          <div className="review-grid">
-            {reviews.map((r) => (
-              <figure key={r.id} className="card card-pad review-card">
-                <Stars value={r.rating} showValue={false} />
-                <blockquote>&ldquo;{r.quote}&rdquo;</blockquote>
-                <figcaption className="row gap-3">
-                  <ArtistAvatar artist={{ name: r.name }} size="sm" />
-                  <span>
-                    <b>{r.name}</b>
-                    {r.artist && (
-                      <span
-                        className="muted"
-                        style={{ display: "block", fontSize: 12 }}
-                      >
-                        with {r.artist}
-                      </span>
-                    )}
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
+      {/* 8. REVIEWS — real published reviews only, once there are enough. */}
+      {reviews.length > 0 && (
+        <section className="section" style={{ background: "var(--bg-base)" }}>
+          <div className="wrap">
+            <SectionHead eyebrow="Kind words" title="What people say" center />
+            <div className="review-grid">
+              {reviews.map((r) => (
+                <figure key={r.id} className="card card-pad review-card">
+                  <Stars value={r.rating} showValue={false} />
+                  <blockquote>&ldquo;{r.quote}&rdquo;</blockquote>
+                  <figcaption className="row gap-3">
+                    <ArtistAvatar artist={{ name: r.name }} size="sm" />
+                    <span>
+                      <b>{r.name}</b>
+                      {r.artist && (
+                        <span
+                          className="muted"
+                          style={{ display: "block", fontSize: 12 }}
+                        >
+                          with {r.artist}
+                        </span>
+                      )}
+                    </span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 9. CTA BAND */}
       <section className="cta-band">

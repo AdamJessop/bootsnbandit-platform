@@ -1,7 +1,17 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@bnb/core/db";
+import { siteOrigin } from "@/lib/site-origin";
 
-/** Static public routes served from the apex origin. */
+/**
+ * Rendered per request: a build-time prerender would bake in the build box's
+ * origin and an empty artist list (the DB is not reachable during the build).
+ */
+export const dynamic = "force-dynamic";
+
+/**
+ * Static public routes served from the apex origin. /passport is left out: it
+ * is behind the Bandit Pass sign-in, so crawlers only ever see a redirect.
+ */
 const PUBLIC_PATHS = [
   "",
   "/artists",
@@ -11,7 +21,7 @@ const PUBLIC_PATHS = [
   "/studio",
   "/enquire",
   "/inkling",
-  "/passport",
+  "/account/sign-in",
   "/privacy",
   "/data-deletion",
 ] as const;
@@ -32,11 +42,11 @@ async function getArtistSlugs(): Promise<string[]> {
 
 /**
  * Public sitemap for the marketing site: the static apex routes plus the
- * artist detail pages from the DB. Staff routes live on the admin subdomain
- * and are never exposed here.
+ * artist detail pages from the DB, under APP_ORIGIN. Staff routes live on the
+ * admin subdomain and are never exposed here.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const origin = process.env.APP_ORIGIN ?? "https://bootsnbandit.co.uk";
+  const origin = siteOrigin();
   const lastModified = new Date();
   const slugs = await getArtistSlugs();
   return [

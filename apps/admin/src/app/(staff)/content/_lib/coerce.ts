@@ -5,12 +5,20 @@
  */
 
 import { poundsToPence } from "./money";
+import { parseLondonDateTime } from "./london-date";
 
 /**
  * `pounds` reads a "£ pounds" string from the form ("45", "45.50") and stores
- * integer pence — the DB never sees a decimal.
+ * integer pence — the DB never sees a decimal. `date` reads "YYYY-MM-DD" or
+ * "YYYY-MM-DD HH:MM" in studio (London) time; blank or unparseable → null.
  */
-export type FieldKind = "string" | "int" | "bool" | "stringArray" | "pounds";
+export type FieldKind =
+  | "string"
+  | "int"
+  | "bool"
+  | "stringArray"
+  | "pounds"
+  | "date";
 
 export interface FieldSpec {
   name: string;
@@ -19,7 +27,7 @@ export interface FieldSpec {
   nullable?: boolean;
 }
 
-export type CoercedValue = string | number | boolean | string[] | null;
+export type CoercedValue = string | number | boolean | string[] | Date | null;
 
 export function coerceFields(
   fd: FormData,
@@ -51,6 +59,9 @@ export function coerceFields(
         out[f.name] = pence ?? (f.nullable ? null : 0);
         break;
       }
+      case "date":
+        out[f.name] = parseLondonDateTime(s);
+        break;
       case "bool":
         out[f.name] = s === "on" || s === "true";
         break;

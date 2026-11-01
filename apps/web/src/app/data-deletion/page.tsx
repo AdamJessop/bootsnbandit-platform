@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 import { ornDot } from "@/components/site";
 import { DELETION_DAYS, POLICY_UPDATED, PRIVACY_EMAIL } from "@/lib/legal";
 
 // Per-request so the CMS-driven shell (Ticker/Footer) matches the other pages.
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Data deletion · Boots 'n' Bandit",
   description:
     "How to ask Boots 'n' Bandit to delete your personal data, including Facebook Messenger and Instagram conversations, what we delete and how long it takes.",
-};
+  path: "/data-deletion",
+});
 
 const mail = `mailto:${PRIVACY_EMAIL}?subject=${encodeURIComponent("Delete my data")}`;
 

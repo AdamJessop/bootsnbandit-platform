@@ -79,3 +79,20 @@ describe("coerceFields pounds", () => {
     expect(out.b).toBeNull();
   });
 });
+
+describe("coerceFields date", () => {
+  it("parses studio-time dates and nulls blank or garbage", () => {
+    const spec: FieldSpec[] = [
+      { name: "a", kind: "date", nullable: true },
+      { name: "b", kind: "date", nullable: true },
+      { name: "c", kind: "date", nullable: true },
+    ];
+    const out = coerceFields(
+      fd({ a: "2026-11-14 18:00", b: "", c: "Sat 7 Jun" }),
+      spec,
+    );
+    expect(out.a).toEqual(new Date("2026-11-14T18:00:00Z"));
+    expect(out.b).toBeNull();
+    expect(out.c).toBeNull();
+  });
+});

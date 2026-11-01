@@ -40,6 +40,10 @@ services:
       # Reply-To: enq-<token>@<domain> so a customer replying to it threads.
       INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-}
       APP_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      # The one origin search engines may index. Empty (the default) keeps the
+      # site noindex + robots "Disallow: /"; it only takes effect when it equals
+      # WEB_ORIGIN, so staging stays hidden even with production's value set.
+      PRODUCTION_ORIGIN: ${PRODUCTION_ORIGIN:-}
       BRAVE_SEARCH_KEY: ${BRAVE_SEARCH_KEY:-}
       GOOGLE_CSE_KEY: ${GOOGLE_CSE_KEY:-}
       GOOGLE_CSE_CX: ${GOOGLE_CSE_CX:-}

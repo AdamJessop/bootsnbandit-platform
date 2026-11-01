@@ -62,6 +62,10 @@ describe("EnquirePage", () => {
       artistId: "cku2",
       pricePence: 13000,
       sizeCm: "~11cm",
+      endsAt: null,
+      status: "available",
+      total: 3,
+      claimed: 1,
     });
     const html = await render({ flash: "f1", artist: "sarah" });
     expect(prisma.flash.findUnique).toHaveBeenCalledWith(
@@ -84,6 +88,51 @@ describe("EnquirePage", () => {
     expect(html).toContain("Pick your artist");
     expect(html).toContain("No preference");
     expect(html).not.toContain("flash claim");
+  });
+
+  it("shows an ended-drop notice instead of the wizard for an expired flash", async () => {
+    seedDb();
+    prisma.flash.findUnique.mockResolvedValue({
+      id: "f1",
+      title: "Pearl Shell",
+      artistId: "cku2",
+      pricePence: 13000,
+      sizeCm: "~11cm",
+      endsAt: new Date(Date.now() - 60_000),
+      status: "available",
+      total: 3,
+      claimed: 0,
+    });
+    const html = await render({ flash: "f1" });
+    expect(html).toContain("This flash drop has ended");
+    expect(html).toContain("Pearl Shell");
+    expect(html).not.toContain("Your flash claim");
+    expect(html).toContain('href="/flash"');
+  });
+
+  it("shows a claimed notice for a sold-out flash", async () => {
+    seedDb();
+    prisma.flash.findUnique.mockResolvedValue({
+      id: "f1",
+      title: "Pearl Shell",
+      artistId: "cku2",
+      pricePence: 13000,
+      sizeCm: "~11cm",
+      endsAt: null,
+      status: "claimed",
+      total: 1,
+      claimed: 1,
+    });
+    const html = await render({ flash: "f1" });
+    expect(html).toContain("been claimed");
+    expect(html).not.toContain("Your flash claim");
+  });
+
+  it("declares its own title, description and canonical URL", async () => {
+    const { metadata } = await import("./page");
+    expect(metadata.title).toContain("Enquir");
+    expect(typeof metadata.description).toBe("string");
+    expect(metadata.alternates?.canonical).toBe("/enquire");
   });
 
   it("renders the books-closed notice instead of the wizard when the toggle is off", async () => {

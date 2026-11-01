@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from "vitest";
 const prisma = vi.hoisted(() => ({
   galleryItem: { findMany: vi.fn() },
   flash: { findMany: vi.fn() },
-  review: { findMany: vi.fn() },
+  review: { findMany: vi.fn(), aggregate: vi.fn() },
   tattooStyle: { findMany: vi.fn() },
 }));
 vi.mock("server-only", () => ({}));
@@ -23,6 +23,7 @@ describe("_data module surface", () => {
       "getArtistGallery",
       "getFlash",
       "getPublishedReviews",
+      "getReviewStats",
       "getStyles",
       "getStyleShowcase",
       "getAftercareStages",
@@ -83,7 +84,7 @@ describe("getFlash mapping", () => {
         pricePence: 13000,
         total: 3,
         claimed: 1,
-        deadline: "Sat 7 Jun",
+        endsAt: new Date("2026-11-14T18:00:00Z"),
         status: "available",
         artist: { name: "Amy" },
       },
@@ -94,6 +95,7 @@ describe("getFlash mapping", () => {
       image: "/uploads/flash/pearl.jpg",
       artistName: "Amy",
       size: "~11cm",
+      endsAt: new Date("2026-11-14T18:00:00Z"),
     });
   });
 });
@@ -142,6 +144,29 @@ describe("getPublishedReviews mapping", () => {
         take: 3,
       }),
     );
+  });
+});
+
+describe("getReviewStats", () => {
+  it("counts rated published reviews and rounds the average", async () => {
+    prisma.review.aggregate.mockResolvedValueOnce({
+      _count: { rating: 4 },
+      _avg: { rating: 4.75 },
+    });
+    expect(await data.getReviewStats()).toEqual({ count: 4, average: 4.8 });
+    expect(prisma.review.aggregate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { status: "published", rating: { not: null } },
+      }),
+    );
+  });
+
+  it("has no average with no rated reviews", async () => {
+    prisma.review.aggregate.mockResolvedValueOnce({
+      _count: { rating: 0 },
+      _avg: { rating: null },
+    });
+    expect(await data.getReviewStats()).toEqual({ count: 0, average: null });
   });
 });
 

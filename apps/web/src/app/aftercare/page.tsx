@@ -11,6 +11,7 @@ import {
   Shirt,
   ArrowRight,
 } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
 import { ornDot, SectionHead } from "@/components/site";
 import { getAftercareStages, getFaqs } from "../_data";
 import { HealingTracker } from "./HealingTracker";
@@ -19,11 +20,12 @@ import styles from "./aftercare.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Aftercare · Boots 'n' Bandit",
   description:
     "How to look after a new tattoo, day by day — our five healing stages, the dos and don'ts, and answers to the questions we hear most.",
-};
+  path: "/aftercare",
+});
 
 const DOS = [
   {

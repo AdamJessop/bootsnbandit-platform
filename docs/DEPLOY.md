@@ -20,6 +20,17 @@ comes from env vars.
      reception origins. **Changing it later invalidates all staff passkeys.**
    - `WEB_ORIGIN` / `ADMIN_ORIGIN` / `RECEPTION_ORIGIN` must exactly match
      the domains you assign in step 4 (https, no trailing slash).
+     `WEB_ORIGIN` is also the base of the public site's sitemap, robots,
+     canonical and Open Graph URLs.
+   - `PRODUCTION_ORIGIN` (optional, **web only**) — the one origin search
+     engines may index. Default empty = **not indexable**: every public page
+     carries `noindex` and `/robots.txt` answers `Disallow: /`. Indexing is
+     switched on only when it is set, equals `WEB_ORIGIN`, and the request
+     arrives on that host. So: on **staging** leave it empty (setting it to
+     the production origin is also safe — staging's `WEB_ORIGIN` differs); on
+     the **live** deploy set it to `https://bootsnbandit.com`. Check after
+     deploying: `curl https://<host>/robots.txt` should show `Allow: /` plus
+     the sitemap on production and `Disallow: /` everywhere else.
    - `BRAVE_SEARCH_KEY` (optional) — Brave Search API key for the Inkling
      mood-board image search: sign up at api-dashboard.search.brave.com,
      subscribe to the *Data for Search* plan (includes the images endpoint;
@@ -110,6 +121,16 @@ above and redeploy.
 The `20260909100000_meta_channels` migration is additive (a new
 `ChannelConnection` table and two nullable `EnquiryMessage` columns) and needs
 no data migration or downtime.
+
+## Deploying the flash end-date release (2026-11-02)
+
+The `20261102093000_flash_ends_at` migration replaces the free-text
+`Flash.deadline` column with a nullable `Flash.endsAt` timestamp. The old
+column only ever held stale demo labels, so it is dropped and every design
+starts with no end date (shown on the public site with no "Live until" line).
+After deploying, set real end dates in Content › Flash (UK time,
+`YYYY-MM-DD` or `YYYY-MM-DD HH:MM`; a bare date means the end of that day).
+Expired designs drop off the public site and refuse claims automatically.
 
 ## One-off operations
 

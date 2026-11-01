@@ -12,17 +12,19 @@ import {
 } from "lucide-react";
 import { ornDot, SectionHead, Plate } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { pageMetadata } from "@/lib/seo";
 import { getSiteSettings, getArtists } from "../_data";
 import { ContactForm } from "./ContactForm";
 import styles from "./studio.module.css";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "The Studio · Boots 'n' Bandit",
   description:
     "Boots 'n' Bandit — a fully-licensed heritage tattoo studio on Newcastle Avenue, Worksop. Meet the founders, our values, and how to find us.",
-};
+  path: "/studio",
+});
 
 const VALUES = [
   {

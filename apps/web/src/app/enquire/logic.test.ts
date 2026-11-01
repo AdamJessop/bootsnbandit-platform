@@ -14,10 +14,50 @@ import {
   moodboardRefLabel,
   parseBudgetPounds,
   resolveSeedArtist,
+  successCopy,
   toggleStyle,
   waitlistNote,
   type WizardState,
 } from "./logic";
+
+describe("enquire logic — success copy", () => {
+  const FLASH = {
+    id: "f1",
+    title: "Pearl Shell",
+    artistId: "a1",
+    pricePence: 13000,
+    size: "~11cm",
+  };
+  const withContact = (email: string, phone: string): WizardState => ({
+    ...emptyWizardState(),
+    name: "Jo Bloggs",
+    email,
+    phone,
+  });
+
+  it("tells a phone-only flash claimer this screen is the confirmation", () => {
+    const copy = successCopy(withContact("", "07123 456789"), FLASH);
+    expect(copy.heading).toBe("Flash claimed");
+    expect(copy.lead).toContain("Thanks Jo");
+    expect(copy.lead).toContain("Pearl Shell is held for you");
+    expect(copy.next).toContain("book your session");
+    expect(copy.next).toContain("no confirmation email");
+    expect(copy.next).toContain("call or text you on 07123 456789");
+  });
+
+  it("points an email claimer at their inbox", () => {
+    const copy = successCopy(withContact("jo@example.com", ""), FLASH);
+    expect(copy.next).toContain("on its way to jo@example.com");
+    expect(copy.next).not.toContain("call or text");
+  });
+
+  it("keeps the consult wording for a normal enquiry", () => {
+    const copy = successCopy(withContact("", "07123 456789"));
+    expect(copy.heading).toBe("Enquiry sent");
+    expect(copy.lead).toContain("free 15-minute consult");
+    expect(copy.next).toContain("call or text you on 07123 456789");
+  });
+});
 
 describe("enquire logic — working days & consult month", () => {
   it("treats Tue–Sat as working days, Sun/Mon as closed", () => {

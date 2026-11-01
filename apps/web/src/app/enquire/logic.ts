@@ -378,3 +378,45 @@ export function buildEnquiryPayload(state: WizardState): EnquiryPayload {
     source: "web",
   };
 }
+
+export interface SuccessCopy {
+  heading: string;
+  /** The lead line: thanks + what was sent/held. */
+  lead: string;
+  /** What happens next, and how we'll get hold of them. */
+  next: string;
+}
+
+/**
+ * The on-screen confirmation after a send. The acknowledgement email only
+ * goes out when we have an address, so a phone-only visitor is told plainly
+ * that this screen IS their confirmation and that we'll ring or text them.
+ */
+export function successCopy(
+  state: WizardState,
+  flash?: WizardFlash,
+): SuccessCopy {
+  const first = state.name.trim().split(" ")[0] || "—";
+  const email = state.email.trim();
+  const phone = state.phone.trim();
+  const contact = email
+    ? `A confirmation is on its way to ${email}.`
+    : `We don't have an email for you, so there's no confirmation email — this screen is your confirmation. We'll call or text you on ${phone}.`;
+
+  if (flash) {
+    return {
+      heading: "Flash claimed",
+      lead: `Thanks ${first}. ${flash.title} is held for you while the studio confirms.`,
+      next: `Next, we'll be in touch to book your session. ${contact}`,
+    };
+  }
+  const consult =
+    state.consultDate && state.consultTime
+      ? `${state.consultDate} at ${state.consultTime} (to be confirmed)`
+      : "We'll be in touch to arrange your free 15-minute consult.";
+  return {
+    heading: "Enquiry sent",
+    lead: `Thanks ${first}. ${consult}`,
+    next: contact,
+  };
+}

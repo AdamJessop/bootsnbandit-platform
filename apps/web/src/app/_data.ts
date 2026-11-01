@@ -59,7 +59,8 @@ export interface SiteFlash {
   pricePence: number | null;
   total: number;
   claimed: number;
-  deadline: string | null;
+  /** When the drop closes; null = no closing date. Expired ones are hidden. */
+  endsAt: Date | null;
   status: string;
 }
 
@@ -205,7 +206,7 @@ export async function getFlash(): Promise<SiteFlash[]> {
     pricePence: f.pricePence,
     total: f.total,
     claimed: f.claimed,
-    deadline: f.deadline,
+    endsAt: f.endsAt,
     status: f.status,
   }));
 }
@@ -243,6 +244,28 @@ export async function getPublishedReviews(take = 3): Promise<SiteReview[]> {
       quote: (r.body ?? "").trim(),
       rating: r.rating ?? 5,
     }));
+}
+
+export interface ReviewStats {
+  /** Published reviews that carry a star rating. */
+  count: number;
+  /** Mean star rating, one decimal place; null with no rated reviews. */
+  average: number | null;
+}
+
+/** Real published-review figures for the home page's social proof. */
+export async function getReviewStats(): Promise<ReviewStats> {
+  const agg = await prisma.review.aggregate({
+    where: { status: "published", rating: { not: null } },
+    _count: { rating: true },
+    _avg: { rating: true },
+  });
+  const count = agg._count.rating;
+  const avg = agg._avg.rating;
+  return {
+    count,
+    average: count > 0 && avg != null ? Math.round(avg * 10) / 10 : null,
+  };
 }
 
 /** Ordered list of style names (from the TattooStyle table). */
