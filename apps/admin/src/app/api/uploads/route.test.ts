@@ -1,22 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Tests for the owner-gated upload route. Auth + filesystem are mocked so the
- * validation logic (auth gate, file presence, size, mime type) is exercised
- * without writing to disk or needing a DB.
+ * Tests for the owner-gated upload route. Auth + the Postgres asset store are
+ * mocked so the validation logic (auth gate, file presence, size, mime type)
+ * is exercised without needing a DB.
  */
 
 const requireRole = vi.fn();
-const writeFile = vi.fn();
-const mkdir = vi.fn();
+const createMediaAsset = vi.fn();
 
 vi.mock("@bnb/core/auth", () => ({
   requireRole: (...args: unknown[]) => requireRole(...args),
 }));
 
-vi.mock("node:fs/promises", () => ({
-  writeFile: (...args: unknown[]) => writeFile(...args),
-  mkdir: (...args: unknown[]) => mkdir(...args),
+vi.mock("@bnb/core/services/media-assets", () => ({
+  createMediaAsset: (...args: unknown[]) => createMediaAsset(...args),
+  mediaUrl: (id: string) => `/media/${id}`,
 }));
 
 async function importRoute() {
@@ -41,11 +40,15 @@ const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 describe("POST /api/uploads", () => {
   beforeEach(() => {
     requireRole.mockReset();
-    writeFile.mockReset();
-    mkdir.mockReset();
+    createMediaAsset.mockReset();
     requireRole.mockResolvedValue({ id: "u1", role: "OWNER" });
-    writeFile.mockResolvedValue(undefined);
-    mkdir.mockResolvedValue(undefined);
+    createMediaAsset.mockImplementation(
+      async (input: { bytes: Uint8Array; mime: string }) => ({
+        id: "asset1",
+        mime: input.mime,
+        size: input.bytes.byteLength,
+      }),
+    );
   });
 
   afterEach(() => {
@@ -74,7 +77,7 @@ describe("POST /api/uploads", () => {
     });
     const res = await POST(formRequest(bad));
     expect(res.status).toBe(415);
-    expect(writeFile).not.toHaveBeenCalled();
+    expect(createMediaAsset).not.toHaveBeenCalled();
   });
 
   it("rejects an empty file (400)", async () => {
@@ -84,7 +87,17 @@ describe("POST /api/uploads", () => {
     expect(res.status).toBe(400);
   });
 
-  it("writes a png and returns a public /uploads URL (201)", async () => {
+  it("rejects a file over 8MB (413) without storing it", async () => {
+    const { POST } = await importRoute();
+    const big = new File([new Uint8Array(8 * 1024 * 1024 + 1)], "a.png", {
+      type: "image/png",
+    });
+    const res = await POST(formRequest(big));
+    expect(res.status).toBe(413);
+    expect(createMediaAsset).not.toHaveBeenCalled();
+  });
+
+  it("stores a png in Postgres and returns its public /media URL (201)", async () => {
     const { POST } = await importRoute();
     const png = new File([PNG_BYTES], "a.png", {
       type: "image/png",
@@ -92,18 +105,26 @@ describe("POST /api/uploads", () => {
     const res = await POST(formRequest(png));
     expect(res.status).toBe(201);
     const body = (await res.json()) as { url: string };
-    expect(body.url).toMatch(/^\/uploads\/\d+-[0-9a-f]+\.png$/);
-    expect(writeFile).toHaveBeenCalledOnce();
+    expect(body.url).toBe("/media/asset1");
+    expect(createMediaAsset).toHaveBeenCalledOnce();
+    const input = createMediaAsset.mock.calls[0][0] as {
+      bytes: Uint8Array;
+      mime: string;
+    };
+    expect(input.mime).toBe("image/png");
+    expect(Array.from(input.bytes)).toEqual(Array.from(PNG_BYTES));
   });
 
-  it("maps jpeg to a .jpg extension", async () => {
+  it("stores the sniffed jpeg mime", async () => {
     const { POST } = await importRoute();
     const jpg = new File([JPEG_BYTES], "a.jpg", {
       type: "image/jpeg",
     });
     const res = await POST(formRequest(jpg));
-    const body = (await res.json()) as { url: string };
-    expect(body.url).toMatch(/\.jpg$/);
+    expect(res.status).toBe(201);
+    expect(createMediaAsset).toHaveBeenCalledWith(
+      expect.objectContaining({ mime: "image/jpeg" }),
+    );
   });
 
   it("rejects an SVG upload (stored-XSS vector) with 415", async () => {
@@ -117,7 +138,7 @@ describe("POST /api/uploads", () => {
     );
     const res = await POST(formRequest(svg));
     expect(res.status).toBe(415);
-    expect(writeFile).not.toHaveBeenCalled();
+    expect(createMediaAsset).not.toHaveBeenCalled();
   });
 
   it("rejects an SVG payload spoofing image/png content-type (415)", async () => {
@@ -132,7 +153,7 @@ describe("POST /api/uploads", () => {
     );
     const res = await POST(formRequest(spoof));
     expect(res.status).toBe(415);
-    expect(writeFile).not.toHaveBeenCalled();
+    expect(createMediaAsset).not.toHaveBeenCalled();
   });
 
   it("rejects a PNG whose bytes are not actually a PNG (415)", async () => {
@@ -142,6 +163,6 @@ describe("POST /api/uploads", () => {
     });
     const res = await POST(formRequest(fake));
     expect(res.status).toBe(415);
-    expect(writeFile).not.toHaveBeenCalled();
+    expect(createMediaAsset).not.toHaveBeenCalled();
   });
 });

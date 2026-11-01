@@ -7,7 +7,8 @@ import { cn } from "@bnb/core/utils";
 /**
  * Shared admin image uploader for gallery / flash / artist headshots
  * (BACKOFHOUSE-IA J1/J2/J3). Uploads to the owner-gated `POST /api/uploads`
- * route, which stores under `public/uploads/` in dev and returns a public URL.
+ * route, which stores the bytes in Postgres and returns an origin-relative
+ * `/media/[id]` URL that both the admin and web apps serve.
  * The `value`/`onChange` prop contract is the stable interface the CMS forms use.
  */
 

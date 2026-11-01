@@ -1,15 +1,15 @@
-import { randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { requireRole } from "@bnb/core/auth";
 import { handleApiError, json, jsonError } from "@bnb/core/http";
+import { createMediaAsset, mediaUrl } from "@bnb/core/services/media-assets";
 import { IMAGE_EXT_BY_MIME, sniffImageMime } from "@bnb/core/uploads";
 
 /**
  * POST /api/uploads — owner-gated image upload for the content CMS
- * (gallery / flash / artist headshots). Dev storage: writes the file under
- * `public/uploads/` and returns its public URL. Pluggable: swap the write
- * sink for S3/Blob later without changing the ImageUploader contract.
+ * (gallery / flash / artist headshots). Bytes are sniffed (raster only, never
+ * SVG) and stored in Postgres, not on disk: web + admin are separate
+ * containers with ephemeral disks, and Next only serves `public/` files that
+ * existed at build time. The response URL (`/media/[id]`) is served by BOTH
+ * apps, so the same value renders in the CMS preview and on the public site.
  */
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
 
-    const bytes = Buffer.from(await file.arrayBuffer());
+    const bytes = new Uint8Array(await file.arrayBuffer());
 
     // Validate the actual file bytes. This blocks stored XSS via SVG/HTML
     // payloads and content-type spoofing (e.g. an SVG sent as image/png).
@@ -52,15 +52,9 @@ export async function POST(req: Request): Promise<Response> {
         "File content does not match a supported image format",
       );
     }
-    const ext = IMAGE_EXT_BY_MIME[sniffed];
 
-    const name = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
-    const dir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(dir, { recursive: true });
-    await writeFile(path.join(dir, name), bytes);
-
-    const url = `/uploads/${name}`;
-    return json({ url }, 201);
+    const asset = await createMediaAsset({ bytes, mime: sniffed });
+    return json({ url: mediaUrl(asset.id) }, 201);
   } catch (err) {
     return handleApiError(err);
   }

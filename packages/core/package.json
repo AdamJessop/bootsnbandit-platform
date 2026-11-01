@@ -22,7 +22,8 @@
     "./artist-status": "./src/artist-status.ts",
     "./utils": "./src/utils.ts",
     "./uploads": "./src/uploads.ts",
-    "./http": "./src/http/index.ts"
+    "./http": "./src/http/index.ts",
+    "./http/*": "./src/http/*.ts"
   },
   "scripts": {
     "postinstall": "prisma generate --schema=prisma/schema.prisma",

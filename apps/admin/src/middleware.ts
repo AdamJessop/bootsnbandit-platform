@@ -14,8 +14,10 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const SESSION_COOKIE = process.env.SESSION_COOKIE || "bb_session";
 
-// Routes reachable while signed out.
-const PUBLIC_PREFIXES = ["/sign-in"];
+// Routes reachable while signed out. `/media` serves CMS images (public-site
+// content behind unguessable ids); browsers fetch it as an <img>, so a
+// redirect to /sign-in would just break the image.
+const PUBLIC_PREFIXES = ["/sign-in", "/media"];
 
 export function middleware(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;

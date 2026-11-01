@@ -44,6 +44,19 @@ describe("admin middleware auth guard", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
+  it("lets CMS images under /media through while signed out", async () => {
+    const { middleware } = await import("./middleware");
+    const res = middleware(makeRequest("/media/clx123abc") as never);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("only opens the /media segment, not look-alike paths", async () => {
+    const { middleware } = await import("./middleware");
+    const res = middleware(makeRequest("/media-library") as never);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/sign-in");
+  });
+
   it("lets an authenticated visitor through", async () => {
     const { middleware } = await import("./middleware");
     const res = middleware(

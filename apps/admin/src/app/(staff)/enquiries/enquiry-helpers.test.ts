@@ -30,6 +30,12 @@ describe("looksLikeImageUrl", () => {
     expect(looksLikeImageUrl("/uploads/moodboard/a.png")).toBe(true);
   });
 
+  it("matches extensionless CMS images at /media/[id]", () => {
+    expect(looksLikeImageUrl("/media/clx123abc")).toBe(true);
+    expect(looksLikeImageUrl("https://site.test/media/clx123abc")).toBe(true);
+    expect(looksLikeImageUrl("https://site.test/media/a/b")).toBe(false);
+  });
+
   it("rejects non-image references", () => {
     expect(looksLikeImageUrl("https://pinterest.com/pin/123")).toBe(false);
     expect(looksLikeImageUrl("https://x.test/a.pdf")).toBe(false);

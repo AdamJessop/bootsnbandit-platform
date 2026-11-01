@@ -33,7 +33,7 @@ describe("uploadImage", () => {
   it("POSTs the file to /api/uploads and returns the url", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ url: "/uploads/x.png" }),
+      json: async () => ({ url: "/media/clx123" }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -41,7 +41,7 @@ describe("uploadImage", () => {
       type: "image/png",
     });
     const url = await uploadImage(file);
-    expect(url).toBe("/uploads/x.png");
+    expect(url).toBe("/media/clx123");
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/uploads",
       expect.objectContaining({ method: "POST" }),

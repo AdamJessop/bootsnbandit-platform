@@ -25,7 +25,10 @@ export function countByStatus(
   return counts;
 }
 
-/** True when a moodboard URL looks like a renderable image (by extension). */
+/**
+ * True when a moodboard URL looks like a renderable image: by extension, or a
+ * CMS image at `/media/[id]` (extensionless; studio gallery picks carry these).
+ */
 export function looksLikeImageUrl(url: string): boolean {
   let pathname = url;
   try {
@@ -33,7 +36,10 @@ export function looksLikeImageUrl(url: string): boolean {
   } catch {
     // Relative / malformed URL — test the raw string.
   }
-  return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(pathname);
+  return (
+    /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(pathname) ||
+    /^\/media\/[A-Za-z0-9_-]+$/.test(pathname)
+  );
 }
 
 export interface InboxFilter {

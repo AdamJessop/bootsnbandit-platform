@@ -348,6 +348,17 @@ model MoodboardAsset {
   @@index([createdAt])
 }
 
+// CMS images (gallery / flash / styles / artist headshots) uploaded through the
+// admin ImageUploader. Stored as bytea because web + admin are separate
+// containers with ephemeral disks; served publicly at /media/[id] by both.
+model MediaAsset {
+  id        String   @id @default(cuid())
+  mime      String
+  size      Int
+  bytes     Bytes
+  createdAt DateTime @default(now())
+}
+
 // ---------------------------------------------------------------------------
 // Enquiry threads (omnichannel inbox)
 // ---------------------------------------------------------------------------
