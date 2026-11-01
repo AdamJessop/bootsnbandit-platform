@@ -71,4 +71,61 @@ describe("ArtistDetailPage", () => {
       Page({ params: Promise.resolve({ slug: "nope" }) }),
     ).rejects.toThrow("notFound");
   });
+
+  it("renders each profile stat only when the owner has filled it in", async () => {
+    const data = await import("../../_data");
+    vi.mocked(data.getArtist).mockResolvedValueOnce({
+      ...ARTIST,
+      rating: null,
+      pieces: null,
+      experience: null,
+      hourlyRatePence: null,
+      dayRatePence: null,
+      insta: null,
+    });
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(
+      await Page({ params: Promise.resolve({ slug: "sarah" }) }),
+    );
+    expect(html).not.toContain("out of 5");
+    expect(html).not.toContain("pieces");
+    expect(html).not.toContain("experience");
+    expect(html).not.toContain("Rates");
+    expect(html).not.toContain("Find them");
+    expect(html).not.toContain("instagram.com");
+  });
+});
+
+describe("Artist metadata", () => {
+  it("gives each artist a canonical URL and their own share card", async () => {
+    const data = await import("../../_data");
+    vi.mocked(data.getArtist).mockResolvedValueOnce({
+      ...ARTIST,
+      headshot: "/media/abc",
+    });
+    const { generateMetadata } = await import("./page");
+    const m = await generateMetadata({
+      params: Promise.resolve({ slug: "sarah" }),
+    });
+    expect(m.title).toBe("Sarah · Co-owner · Boots 'n' Bandit");
+    expect(m.description).toBe("Sarah co-founded the studio in 2016.");
+    expect(m.alternates?.canonical).toBe("/artists/sarah");
+    expect(m.openGraph?.images).toEqual([
+      { url: "/media/abc", alt: "Sarah, Co-owner" },
+    ]);
+  });
+
+  it("falls back to the branded card and a built blurb without a headshot or bio", async () => {
+    const data = await import("../../_data");
+    vi.mocked(data.getArtist).mockResolvedValueOnce({ ...ARTIST, bio: null });
+    const { generateMetadata } = await import("./page");
+    const m = await generateMetadata({
+      params: Promise.resolve({ slug: "sarah" }),
+    });
+    expect(m.description).toContain("co-owner at Boots 'n' Bandit");
+    expect(m.description).toContain("Fine-line, Realism");
+    expect(m.openGraph?.images).toEqual([
+      expect.objectContaining({ url: "/opengraph-image" }),
+    ]);
+  });
 });

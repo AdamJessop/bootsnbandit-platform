@@ -9,6 +9,7 @@ import {
   emptyWizardState,
   resolveSeedArtist,
   STEPS,
+  successCopy,
   waitlistNote,
   type WizardFlash,
   type WizardState,
@@ -152,19 +153,15 @@ export function EnquireWizard({
   const waitNote = waitlistNote(selectedArtist);
 
   if (done) {
-    const consultLabel =
-      state.consultDate && state.consultTime
-        ? `${state.consultDate} at ${state.consultTime} (to be confirmed)`
-        : "We'll be in touch to arrange your free 15-minute consult.";
+    const copy = successCopy(state, flash);
     return (
-      <div className={styles.successWrap}>
+      <div className={styles.successWrap} role="status">
         <div className={styles.orb}>
           <Check />
         </div>
-        <h1 className="display page-title">Enquiry sent</h1>
-        <p className="lead">
-          Thanks {state.name.split(" ")[0] || "—"}. {consultLabel}
-        </p>
+        <h1 className="display page-title">{copy.heading}</h1>
+        <p className="lead">{copy.lead}</p>
+        <p className="meta">{copy.next}</p>
         {state.moodboard.length > 0 && (
           <p className="meta">
             {state.moodboard.length} reference

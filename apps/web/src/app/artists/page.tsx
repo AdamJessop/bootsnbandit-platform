@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { ornDot } from "@/components/site";
 import type { Artist as ArtistProp } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { pageMetadata } from "@/lib/seo";
 import { getArtists } from "../_data";
 import { ArtistFilter } from "./ArtistFilter";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Our Artists · Boots 'n' Bandit",
   description:
-    "Meet the Boots 'n' Bandit crew — seven resident artists across fine-line, realism, colour, blackwork and more. Filter by who's taking books.",
-};
+    "Meet the Boots 'n' Bandit crew — resident artists across fine-line, realism, colour, blackwork and more. Filter by who's taking books.",
+  path: "/artists",
+});
 
 export default async function ArtistsPage() {
   const artists = await getArtists();

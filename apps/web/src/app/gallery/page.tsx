@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { ornDot } from "@/components/site";
 import { getGallery, getStyles, getArtists } from "../_data";
 import { GalleryBrowser, type BrowserItem } from "./GalleryBrowser";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Gallery · Boots 'n' Bandit",
   description:
     "Recent work from the Boots 'n' Bandit crew — fine-line, realism, colour, blackwork and Japanese. Filter by style or artist.",
-};
+  path: "/gallery",
+});
 
 export default async function GalleryPage() {
   const [gallery, styles, artists] = await Promise.all([

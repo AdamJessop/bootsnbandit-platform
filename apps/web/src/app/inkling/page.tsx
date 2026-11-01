@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { prisma } from "@bnb/core/db";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { pageMetadata } from "@/lib/seo";
 import { InklingTabs, type InklingArtist } from "./InklingTabs";
 
 /**
@@ -11,6 +13,13 @@ import { InklingTabs, type InklingArtist } from "./InklingTabs";
  */
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Inkling · Find Your Artist · Boots 'n' Bandit",
+  description:
+    "Not sure what you want yet? Answer a few questions to be matched with the right Boots 'n' Bandit artist, or build a mood board of references to send with your enquiry.",
+  path: "/inkling",
+});
 
 async function loadArtists(): Promise<InklingArtist[]> {
   try {

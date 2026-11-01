@@ -8,8 +8,15 @@ describe("Footer", () => {
     const html = renderToStaticMarkup(<Footer />);
     expect(html).toContain(STUDIO.address);
     expect(html).toContain(STUDIO.hours);
-    expect(html).toContain(STUDIO.phone);
-    expect(html).toContain(STUDIO.instagram);
+  });
+
+  it("hides the phone and social links rather than inventing them", () => {
+    const html = renderToStaticMarkup(<Footer />);
+    expect(html).not.toContain("tel:");
+    expect(html).not.toContain("01909 000 000");
+    expect(html).not.toContain("instagram.com");
+    expect(html).not.toContain("facebook.com");
+    expect(html).not.toContain('aria-label="Instagram"');
   });
 
   it("renders CMS-driven studio details when provided", () => {
@@ -22,6 +29,8 @@ describe("Footer", () => {
       instagramUrl: "https://instagram.com/newhandle",
     });
     const html = renderToStaticMarkup(<Footer studio={studio} />);
+    expect(html).toContain('href="tel:01909111222"');
+    expect(html).not.toContain('aria-label="Facebook"');
     expect(html).toContain("1 New Row, Worksop, S80 9ZZ");
     expect(html).toContain("Wed–Sun 11–7");
     expect(html).toContain("01909 111 222");

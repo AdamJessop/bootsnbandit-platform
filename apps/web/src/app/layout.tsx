@@ -4,6 +4,8 @@ import "./globals.css";
 import "./site.css";
 import { prisma } from "@bnb/core/db";
 import { mergeShellSettings } from "@/lib/site-nav";
+import { siteIndexable, siteOrigin } from "@/lib/site-origin";
+import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/seo";
 import { Nav } from "@/components/site/Nav";
 import { Ticker } from "@/components/site/Ticker";
 import { Footer } from "@/components/site/Footer";
@@ -31,18 +33,51 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Boots 'n' Bandit — Tattoo Studio, Worksop",
-  description:
-    "Boots 'n' Bandit Tattoo Studio, Worksop. Heritage tattooing, custom work, flash and the Bandit Pass.",
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
-  },
-};
+const TITLE = "Boots 'n' Bandit — Tattoo Studio, Worksop";
+const DESCRIPTION =
+  "Boots 'n' Bandit Tattoo Studio, Worksop. Heritage tattooing, custom work, flash and the Bandit Pass.";
+
+/**
+ * Site-wide defaults, built per request: `metadataBase` makes every page's
+ * relative canonical/OG URL absolute under APP_ORIGIN, and `robots` is
+ * `noindex` everywhere except the production origin (see lib/site-origin).
+ * Pages add their own title, description, canonical and OG via pageMetadata;
+ * there is deliberately no canonical here, so a page without one never
+ * claims to be the home page.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const indexable = await siteIndexable();
+  return {
+    metadataBase: new URL(siteOrigin()),
+    title: TITLE,
+    description: DESCRIPTION,
+    applicationName: SITE_NAME,
+    robots: indexable
+      ? { index: true, follow: true }
+      : { index: false, follow: false },
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: "en_GB",
+      title: TITLE,
+      description: DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: TITLE,
+      description: DESCRIPTION,
+      images: [DEFAULT_OG_IMAGE.url],
+    },
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+        { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    },
+  };
+}
 
 /** CMS SiteSettings for the shell; null (→ fallbacks) when the DB is away. */
 async function loadShellSettings() {
@@ -72,10 +107,15 @@ export default async function RootLayout({
       className={`dark ${pirata.variable} ${cinzel.variable} ${inter.variable}`}
     >
       <body>
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         <div className="relative z-[1] min-h-dvh">
           <Ticker lines={shell.tickerLines} />
           <Nav />
-          <main>{children}</main>
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
           <Footer studio={shell} />
         </div>
       </body>

@@ -8,7 +8,12 @@ import { SetPasswordForm } from "./SetPasswordForm";
  * pointer back to sign-in instead of the form.
  */
 
-export const metadata: Metadata = { title: "Set your password" };
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Set your password · Boots 'n' Bandit",
+  robots: { index: false, follow: false },
+};
 
 export default async function SetPasswordPage({
   searchParams,

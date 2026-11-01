@@ -449,7 +449,6 @@ type FlashSeed = {
   pricePence: number;
   total: number;
   claimed: number;
-  deadline: string;
   sortOrder: number;
 };
 const FLASH: FlashSeed[] = [
@@ -462,7 +461,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 13000,
     total: 3,
     claimed: 1,
-    deadline: "Sat 7 Jun",
     sortOrder: 0,
   },
   {
@@ -474,7 +472,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 14000,
     total: 3,
     claimed: 2,
-    deadline: "Sat 7 Jun",
     sortOrder: 1,
   },
   {
@@ -486,7 +483,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 11000,
     total: 4,
     claimed: 1,
-    deadline: "Sat 7 Jun",
     sortOrder: 2,
   },
   {
@@ -498,7 +494,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 10000,
     total: 4,
     claimed: 0,
-    deadline: "Sun 8 Jun",
     sortOrder: 3,
   },
   {
@@ -510,7 +505,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 17000,
     total: 2,
     claimed: 1,
-    deadline: "Sun 8 Jun",
     sortOrder: 4,
   },
   {
@@ -522,7 +516,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 15000,
     total: 3,
     claimed: 0,
-    deadline: "Sun 8 Jun",
     sortOrder: 5,
   },
   {
@@ -534,7 +527,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 16000,
     total: 2,
     claimed: 1,
-    deadline: "Sat 14 Jun",
     sortOrder: 6,
   },
   {
@@ -546,7 +538,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 12000,
     total: 4,
     claimed: 2,
-    deadline: "Sat 14 Jun",
     sortOrder: 7,
   },
   {
@@ -558,7 +549,6 @@ const FLASH: FlashSeed[] = [
     pricePence: 20000,
     total: 2,
     claimed: 1,
-    deadline: "Sat 14 Jun",
     sortOrder: 8,
   },
 ];
@@ -769,14 +759,14 @@ async function main(): Promise<void> {
     const status = f.claimed >= f.total ? "claimed" : "available";
     await sql`
       INSERT INTO "Flash" (
-        "id", "artistId", "title", "hue", "sizeCm", "pricePence", "total", "claimed", "deadline", "status", "sortOrder", "updatedAt"
+        "id", "artistId", "title", "hue", "sizeCm", "pricePence", "total", "claimed", "status", "sortOrder", "updatedAt"
       ) VALUES (
-        ${createId()}, ${artistId}, ${f.title}, ${f.hue}, ${f.size}, ${f.pricePence}, ${f.total}, ${f.claimed}, ${f.deadline}, ${status}::"FlashStatus", ${f.sortOrder}, now()
+        ${createId()}, ${artistId}, ${f.title}, ${f.hue}, ${f.size}, ${f.pricePence}, ${f.total}, ${f.claimed}, ${status}::"FlashStatus", ${f.sortOrder}, now()
       )
       ON CONFLICT ("title") DO UPDATE SET
         "artistId" = EXCLUDED."artistId", "hue" = EXCLUDED."hue", "sizeCm" = EXCLUDED."sizeCm",
         "pricePence" = EXCLUDED."pricePence", "total" = EXCLUDED."total", "claimed" = EXCLUDED."claimed",
-        "deadline" = EXCLUDED."deadline", "status" = EXCLUDED."status", "sortOrder" = EXCLUDED."sortOrder", "updatedAt" = now()
+        "status" = EXCLUDED."status", "sortOrder" = EXCLUDED."sortOrder", "updatedAt" = now()
     `;
   }
 

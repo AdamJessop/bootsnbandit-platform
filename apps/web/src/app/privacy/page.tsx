@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 import { ornDot } from "@/components/site";
 import { DELETION_DAYS, POLICY_UPDATED, PRIVACY_EMAIL } from "@/lib/legal";
 
@@ -7,11 +8,12 @@ import { DELETION_DAYS, POLICY_UPDATED, PRIVACY_EMAIL } from "@/lib/legal";
 // rendering per request keeps it in step with every other page.
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Privacy policy · Boots 'n' Bandit",
   description:
     "What personal information Boots 'n' Bandit collects through enquiries, email, Messenger and Instagram, why, who helps us process it, how long we keep it and your rights.",
-};
+  path: "/privacy",
+});
 
 const mail = `mailto:${PRIVACY_EMAIL}`;
 

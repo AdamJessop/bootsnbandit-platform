@@ -43,6 +43,10 @@ services:
       # A new enquiry emails the owners a link into the admin app; APP_ORIGIN
       # here is the public site, so the admin origin is passed separately.
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:?ADMIN_ORIGIN is required}
+      # The one origin search engines may index. Empty (the default) keeps the
+      # site noindex + robots "Disallow: /"; it only takes effect when it equals
+      # WEB_ORIGIN, so staging stays hidden even with production's value set.
+      PRODUCTION_ORIGIN: ${PRODUCTION_ORIGIN:-}
       BRAVE_SEARCH_KEY: ${BRAVE_SEARCH_KEY:-}
       GOOGLE_CSE_KEY: ${GOOGLE_CSE_KEY:-}
       GOOGLE_CSE_CX: ${GOOGLE_CSE_CX:-}

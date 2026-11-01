@@ -12,6 +12,7 @@ import {
   type GalleryItem as GalleryItemProp,
 } from "@/components/site";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { pageMetadata } from "@/lib/seo";
 import { getArtist, getArtistGallery } from "../../_data";
 import { formatPence } from "../../_format";
 import styles from "../artists.module.css";
@@ -28,12 +29,28 @@ export async function generateMetadata({
   const { slug } = await params;
   const artist = await getArtist(slug);
   if (!artist) return { title: "Artist · Boots 'n' Bandit" };
-  return {
-    title: `${artist.name} · ${artistStatusLabel(artist.status)} · Boots 'n' Bandit`,
-    description:
-      artist.bio ??
-      `${artist.name} — ${artist.tag}. Tattoo artist at Boots 'n' Bandit, Worksop.`,
-  };
+  const role = artistStatusLabel(artist.status);
+  return pageMetadata({
+    title: `${artist.name} · ${role} · Boots 'n' Bandit`,
+    description: artistDescription(artist, role),
+    path: `/artists/${artist.slug}`,
+    image: artist.headshot
+      ? { url: artist.headshot, alt: `${artist.name}, ${role}` }
+      : undefined,
+  });
+}
+
+/** Share/search blurb: the bio's first ~155 chars, else name + tag + styles. */
+function artistDescription(
+  artist: { name: string; tag: string; bio: string | null; styles: string[] },
+  role: string,
+): string {
+  const bio = artist.bio?.trim();
+  if (bio) return bio.length > 155 ? `${bio.slice(0, 154).trimEnd()}…` : bio;
+  const what = [artist.tag, artist.styles.slice(0, 3).join(", ")]
+    .filter(Boolean)
+    .join(" — ");
+  return `${artist.name}, ${role.toLowerCase()} at Boots 'n' Bandit Tattoo Studio, Worksop.${what ? ` ${what}.` : ""}`;
 }
 
 export default async function ArtistDetailPage({ params }: PageProps) {
@@ -67,6 +84,7 @@ export default async function ArtistDetailPage({ params }: PageProps) {
               src={artist.headshot ?? undefined}
               face
               ratio="3/4"
+              eager
               className={styles.portrait}
               cap={[artist.name, artistStatusLabel(artist.status)]}
             />

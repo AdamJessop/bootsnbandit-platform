@@ -39,7 +39,12 @@ export function StyleShowcase({
       {styles.slice(0, 9).map((s) => (
         <span key={s.name} className="style-tile">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={s.image} alt={`${s.name} tattoo example`} loading="lazy" />
+          <img
+            src={s.image}
+            alt={`${s.name} tattoo example`}
+            loading="lazy"
+            decoding="async"
+          />
           <span className="style-tile-name">{s.name}</span>
         </span>
       ))}

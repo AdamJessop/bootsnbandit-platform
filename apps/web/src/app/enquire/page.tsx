@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@bnb/core/db";
 import { artistStatusLabel } from "@bnb/core/artist-status";
+import { isFlashLive } from "@bnb/core/services/flash";
+import { pageMetadata } from "@/lib/seo";
 import { resolveSeedArtist, type WizardFlash } from "./logic";
 import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
 
@@ -14,11 +17,23 @@ import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
  *   ?artist=<id|slug>  pre-selects the artist (artist-detail/gallery links pass slugs)
  *   ?wait=1            waitlist link for a closed-books artist (note shows in the wizard)
  *   ?flash=<id>        flips the wizard into a flash-claim (posts /api/flash);
- *                      the design's artist is pre-selected + locked
+ *                      the design's artist is pre-selected + locked. A design
+ *                      whose drop has ended (or is fully claimed) shows a
+ *                      notice instead — the API refuses those claims too.
  *   ?styles=a,b,c      pre-selects up to 3 styles
  */
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Make an Enquiry · Boots 'n' Bandit",
+  description:
+    "Tell us about the tattoo you want — pick an artist, share your idea and references, and we'll get you booked in for a free 15-minute consultation.",
+  path: "/enquire",
+});
+
+/** Why a linked flash design can't be claimed any more. */
+type FlashClosed = { title: string; reason: "ended" | "claimed" };
 
 interface SearchParams {
   artist?: string;
@@ -32,6 +47,7 @@ async function loadData(flashId?: string): Promise<{
   styleOptions: string[];
   enquiriesOpen: boolean;
   flash: WizardFlash | null;
+  flashClosed: FlashClosed | null;
 }> {
   try {
     const [artists, styles, settings, flash] = await Promise.all([
@@ -57,10 +73,21 @@ async function loadData(flashId?: string): Promise<{
               artistId: true,
               pricePence: true,
               sizeCm: true,
+              endsAt: true,
+              status: true,
+              total: true,
+              claimed: true,
             },
           })
         : null,
     ]);
+    const flashClosed: FlashClosed | null = !flash
+      ? null
+      : !isFlashLive(flash.endsAt)
+        ? { title: flash.title, reason: "ended" }
+        : flash.status !== "available" || flash.claimed >= flash.total
+          ? { title: flash.title, reason: "claimed" }
+          : null;
     return {
       artists: artists.map((a) => ({
         id: a.id,
@@ -71,19 +98,27 @@ async function loadData(flashId?: string): Promise<{
       })),
       styleOptions: styles.map((s) => s.name),
       enquiriesOpen: settings?.enquiriesOpen ?? true,
-      flash: flash
-        ? {
-            id: flash.id,
-            title: flash.title,
-            artistId: flash.artistId,
-            pricePence: flash.pricePence,
-            size: flash.sizeCm,
-          }
-        : null,
+      flashClosed,
+      flash:
+        flash && !flashClosed
+          ? {
+              id: flash.id,
+              title: flash.title,
+              artistId: flash.artistId,
+              pricePence: flash.pricePence,
+              size: flash.sizeCm,
+            }
+          : null,
     };
   } catch {
     // Keep the page renderable before the DB/adapter is wired in dev.
-    return { artists: [], styleOptions: [], enquiriesOpen: true, flash: null };
+    return {
+      artists: [],
+      styleOptions: [],
+      enquiriesOpen: true,
+      flash: null,
+      flashClosed: null,
+    };
   }
 }
 
@@ -93,9 +128,8 @@ export default async function EnquirePage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const { artists, styleOptions, enquiriesOpen, flash } = await loadData(
-    sp.flash,
-  );
+  const { artists, styleOptions, enquiriesOpen, flash, flashClosed } =
+    await loadData(sp.flash);
 
   const seedStyles = sp.styles
     ? sp.styles
@@ -125,7 +159,36 @@ export default async function EnquirePage({
       </header>
       <section className="section">
         <div className="wrap">
-          {enquiriesOpen ? (
+          {enquiriesOpen && flashClosed ? (
+            <div className="card card-pad" style={{ textAlign: "center" }}>
+              <h2 className="display chrome" style={{ margin: "0 0 10px" }}>
+                {flashClosed.reason === "ended"
+                  ? "This flash drop has ended"
+                  : "This one's been claimed"}
+              </h2>
+              <p
+                className="muted"
+                style={{ maxWidth: 480, margin: "0 auto 18px" }}
+              >
+                {flashClosed.reason === "ended"
+                  ? `${flashClosed.title} was part of a drop that's now closed, so it can't be claimed.`
+                  : `Someone got to ${flashClosed.title} first.`}{" "}
+                Have a look at what&rsquo;s on the wall now, or ask us to draw
+                something just for you.
+              </p>
+              <div
+                className="hero-cta"
+                style={{ justifyContent: "center", marginTop: 0 }}
+              >
+                <Link href="/flash" className="btn btn-sm">
+                  See the flash wall
+                </Link>
+                <Link href="/enquire" className="btn btn-sm btn-ghost">
+                  Make a custom enquiry
+                </Link>
+              </div>
+            </div>
+          ) : enquiriesOpen ? (
             <EnquireWizard
               artists={artists}
               styleOptions={styleOptions}

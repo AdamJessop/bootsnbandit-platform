@@ -104,4 +104,26 @@ describe("POST /api/flash (public claim)", () => {
     );
     expect(res.status).toBe(409);
   });
+
+  it("409s with a friendly message once the drop has ended", async () => {
+    if (!(await dbReachable())) return;
+    const flash = await db().flash.create({
+      data: {
+        title: `Ended ${uid()}`,
+        total: 2,
+        claimed: 0,
+        status: "available",
+        endsAt: new Date(Date.now() - 60_000),
+      },
+    });
+    flashes.push(flash.id);
+    const res = await POST(
+      new Request("http://x/api/flash", {
+        method: "POST",
+        body: JSON.stringify({ flashId: flash.id, contactName: "Late" }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/drop has ended/);
+  });
 });

@@ -18,10 +18,21 @@ describe("mergeShellSettings", () => {
     expect(shell.name).toBe(STUDIO.name);
     expect(shell.address).toBe(STUDIO.address);
     expect(shell.hours).toBe(STUDIO.hours);
-    expect(shell.phone).toBe(STUDIO.phone);
-    expect(shell.instagram).toBe(STUDIO.instagram);
-    expect(shell.facebook).toBe(STUDIO.facebook);
     expect(shell.tickerLines).toEqual(TICKER_LINES);
+  });
+
+  it("has no invented phone or social fallbacks (null until the CMS sets them)", () => {
+    const shell = mergeShellSettings(null);
+    expect(shell.phone).toBeNull();
+    expect(shell.instagram).toBeNull();
+    expect(shell.facebook).toBeNull();
+    expect(mergeShellSettings({ phone: "  ", instagramUrl: "" }).phone).toBe(
+      null,
+    );
+  });
+
+  it("keeps the fallback ticker season-neutral", () => {
+    expect(TICKER_LINES.join(" ")).not.toMatch(/20\d\d|Summer|Winter/);
   });
 
   it("prefers CMS values when present", () => {

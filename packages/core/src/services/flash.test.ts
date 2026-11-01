@@ -9,7 +9,8 @@ vi.mock("./enquiry-alerts", () => ({
   notifyOwnersOfNewEnquiry: vi.fn(() => Promise.resolve()),
 }));
 
-const { claimFlash, FlashUnavailableError } = await import("./flash");
+const { claimFlash, FlashEndedError, FlashUnavailableError } =
+  await import("./flash");
 
 describe("claimFlash (DB + mocked email)", () => {
   const flashes: string[] = [];
@@ -113,5 +114,21 @@ describe("claimFlash (DB + mocked email)", () => {
     await expect(
       claimFlash({ flashId: flash.id, contactName: "TooLate" }),
     ).rejects.toBeInstanceOf(FlashUnavailableError);
+  });
+
+  it("rejects a claim after the drop's endsAt and leaves the stock alone", async () => {
+    if (!(await dbReachable())) return;
+    const flash = await makeFlash(3, 0);
+    await db().flash.update({
+      where: { id: flash.id },
+      data: { endsAt: new Date(Date.now() - 60_000) },
+    });
+    await expect(
+      claimFlash({ flashId: flash.id, contactName: "Ended" }),
+    ).rejects.toBeInstanceOf(FlashEndedError);
+    const refreshed = await db().flash.findUniqueOrThrow({
+      where: { id: flash.id },
+    });
+    expect(refreshed.claimed).toBe(0);
   });
 });

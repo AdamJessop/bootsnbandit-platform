@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@bnb/core/db";
 import { ReviewForm } from "./ReviewForm";
 
@@ -9,6 +10,12 @@ import { ReviewForm } from "./ReviewForm";
  */
 
 export const dynamic = "force-dynamic";
+
+/** Personal, single-use links: never indexed. */
+export const metadata: Metadata = {
+  title: "Leave a review · Boots 'n' Bandit",
+  robots: { index: false, follow: false },
+};
 
 interface LoadedReview {
   state: "pending" | "done" | "invalid";

@@ -20,21 +20,25 @@ export const SITE_NAV: SiteNavItem[] = [
   { label: "Sign in", href: "/account/sign-in" },
 ];
 
+/**
+ * Confirmed studio facts used when the CMS is empty. There is deliberately no
+ * phone number or social link here: those only appear once the owner enters
+ * them in SiteSettings, so the site never shows an invented contact.
+ */
 export const STUDIO = {
   name: "Boots 'n' Bandit",
   tagline: "Tattoo Studio",
   address: "67 Newcastle Avenue, Worksop, S80 1LX",
   hours: "Tue–Sat 10am–6pm",
-  phone: "01909 000 000",
-  instagram: "https://instagram.com/bootsnbandit",
-  facebook: "https://facebook.com/bootsnbandit",
 } as const;
 
-/** Ticker marquee lines shown above the nav. */
+/**
+ * Ticker marquee lines shown above the nav when the CMS has none. Kept
+ * season-neutral: books status and drop dates belong in the CMS.
+ */
 export const TICKER_LINES: string[] = [
-  "Books open · now taking Summer 2026",
-  "New flash every Friday at 6pm",
   "Free 15-minute consultations every week",
+  "Flash drops · claim a one-off design",
   "Fully licensed · single-use needles · hospital-grade sterilisation",
 ];
 
@@ -56,9 +60,10 @@ export interface ShellSettings {
   name: string;
   address: string;
   hours: string;
-  phone: string;
-  instagram: string;
-  facebook: string;
+  /** Null until the owner sets one in the CMS — the shell hides the link. */
+  phone: string | null;
+  instagram: string | null;
+  facebook: string | null;
   tickerLines: string[];
 }
 
@@ -66,7 +71,8 @@ export interface ShellSettings {
  * Merge the CMS SiteSettings row over the hardcoded STUDIO/TICKER_LINES
  * constants. Empty/missing CMS fields fall back per-field, so a partially
  * filled settings row never blanks part of the shell. Null input (no DB row,
- * or the DB unreachable at build time) yields the pure fallbacks.
+ * or the DB unreachable) yields the pure fallbacks. Phone and social links
+ * have no fallback: empty stays null and the shell leaves them out.
  */
 export function mergeShellSettings(
   s: ShellSettingsInput | null | undefined,
@@ -80,9 +86,9 @@ export function mergeShellSettings(
     name: s?.studioName?.trim() || STUDIO.name,
     address: address || STUDIO.address,
     hours: s?.hoursText?.trim() || STUDIO.hours,
-    phone: s?.phone?.trim() || STUDIO.phone,
-    instagram: s?.instagramUrl?.trim() || STUDIO.instagram,
-    facebook: s?.facebookUrl?.trim() || STUDIO.facebook,
+    phone: s?.phone?.trim() || null,
+    instagram: s?.instagramUrl?.trim() || null,
+    facebook: s?.facebookUrl?.trim() || null,
     tickerLines: tickerLines.length > 0 ? tickerLines : TICKER_LINES,
   };
 }

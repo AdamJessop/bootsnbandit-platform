@@ -7,7 +7,7 @@ const prisma = vi.hoisted(() => ({
 }));
 vi.mock("@bnb/core/db", () => ({ prisma }));
 
-const { default: sitemap } = await import("./sitemap");
+const { default: sitemap, dynamic } = await import("./sitemap");
 
 const original = process.env.APP_ORIGIN;
 afterEach(() => {
@@ -16,6 +16,10 @@ afterEach(() => {
 });
 
 describe("public sitemap", () => {
+  it("is rendered per request, not prerendered at build", () => {
+    expect(dynamic).toBe("force-dynamic");
+  });
+
   it("lists the core public routes under APP_ORIGIN", async () => {
     process.env.APP_ORIGIN = "https://example.test";
     const urls = (await sitemap()).map((e) => e.url);
@@ -27,7 +31,7 @@ describe("public sitemap", () => {
     expect(urls).toContain("https://example.test/studio");
     expect(urls).toContain("https://example.test/enquire");
     expect(urls).toContain("https://example.test/inkling");
-    expect(urls).toContain("https://example.test/passport");
+    expect(urls).toContain("https://example.test/account/sign-in");
     expect(urls).toContain("https://example.test/privacy");
     expect(urls).toContain("https://example.test/data-deletion");
   });
@@ -45,6 +49,19 @@ describe("public sitemap", () => {
     const urls = (await sitemap()).map((e) => e.url);
     expect(urls).toContain("https://example.test/artists");
     expect(urls.some((u) => u.includes("/artists/"))).toBe(false);
+  });
+
+  it("leaves out the sign-in-gated passport", async () => {
+    process.env.APP_ORIGIN = "https://example.test";
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls).not.toContain("https://example.test/passport");
+  });
+
+  it("uses the local dev origin, not a guessed domain, when APP_ORIGIN is unset", async () => {
+    delete process.env.APP_ORIGIN;
+    const urls = (await sitemap()).map((e) => e.url);
+    expect(urls[0]).toBe("http://localhost:3000");
+    expect(urls.some((u) => u.includes("co.uk"))).toBe(false);
   });
 
   it("does not expose staff routes", async () => {

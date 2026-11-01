@@ -8,6 +8,35 @@
    the ported React primitives and the public (site) pages.
    ============================================================ */
 
+/* ---- skip link (keyboard users jump past the ticker + nav) ---- */
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 18px;
+  min-height: 44px;
+  background: var(--bb-crimson);
+  color: #fff;
+  font-family: var(--font-termina);
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  transform: translateY(-110%);
+  transition: transform 150ms;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+main:focus {
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}
+
 /* ---- buttons ---- */
 .btn {
   --bg: var(--bb-crimson);

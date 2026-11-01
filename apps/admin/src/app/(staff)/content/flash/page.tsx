@@ -4,6 +4,7 @@ import { CrudSection, type CrudField } from "../_components/CrudSection";
 import { createRow, deleteRow, updateRow, type CrudConfig } from "../_lib/crud";
 import type { FieldSpec } from "../_lib/coerce";
 import { artistField, loadArtistOptions } from "../_lib/artist-options";
+import { formatLondonDateTime } from "../_lib/london-date";
 
 /** Flash CMS (J2) — flash designs + claim tracking. Owner-only. */
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ const SPEC: FieldSpec[] = [
   { name: "pricePence", kind: "pounds", nullable: true },
   { name: "total", kind: "int" },
   { name: "claimed", kind: "int" },
-  { name: "deadline", kind: "string", nullable: true },
+  // Typed as UK time ("2026-11-14 18:00"; a bare date = end of that day).
+  { name: "endsAt", kind: "date", nullable: true },
   { name: "status", kind: "string" },
   { name: "sortOrder", kind: "int" },
 ];
@@ -29,9 +31,7 @@ const CFG: CrudConfig = {
 };
 
 /** Field definitions; the artist select is built from the live artist list. */
-function flashFields(
-  artists: { id: string; name: string }[],
-): CrudField[] {
+function flashFields(artists: { id: string; name: string }[]): CrudField[] {
   return [
     { name: "title", label: "Title", type: "text", required: true },
     artistField(artists),
@@ -52,7 +52,13 @@ function flashFields(
     { name: "hue", label: "Hue", type: "text", hideInTable: true },
     { name: "total", label: "Total", type: "number", hideInTable: true },
     { name: "claimed", label: "Claimed", type: "number", hideInTable: true },
-    { name: "deadline", label: "Deadline", type: "text", hideInTable: true },
+    {
+      name: "endsAt",
+      label: "Live until (UK time)",
+      type: "text",
+      placeholder: "YYYY-MM-DD or YYYY-MM-DD HH:MM — blank = no end",
+      hideInTable: true,
+    },
     { name: "sortOrder", label: "Order", type: "number", hideInTable: true },
   ];
 }
@@ -65,6 +71,11 @@ export default async function FlashContentPage() {
   const fields = flashFields(
     await loadArtistOptions(rows.map((r) => r.artistId)),
   );
+  // The form edits endsAt as the same UK-time text the coercer parses.
+  const formRows = rows.map((r) => ({
+    ...r,
+    endsAt: formatLondonDateTime(r.endsAt) || null,
+  }));
   return (
     <main className="mx-auto max-w-[1100px] px-7 py-10">
       <p className="kicker mb-2">Content</p>
@@ -74,7 +85,7 @@ export default async function FlashContentPage() {
       <p className="mt-2 mb-6 text-text-muted">Manage flash designs.</p>
       <CrudSection
         fields={fields}
-        rows={rows}
+        rows={formRows}
         createAction={createRow.bind(null, CFG)}
         updateAction={updateRow.bind(null, CFG)}
         deleteAction={deleteRow.bind(null, CFG)}

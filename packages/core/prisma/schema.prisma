@@ -647,7 +647,7 @@ model Flash {
   pricePence Int?
   total      Int         @default(1)
   claimed    Int         @default(0)
-  deadline   String?
+  endsAt     DateTime?
   status     FlashStatus @default(available)
   sortOrder  Int         @default(0)
   createdAt  DateTime    @default(now())

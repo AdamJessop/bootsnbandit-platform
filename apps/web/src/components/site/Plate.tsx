@@ -9,6 +9,9 @@ import { plateBg } from "./plate";
  * - `photo` → render real <img> at `src`
  * - `paper` → cream paper backdrop (flash designs)
  * `ratio` sets aspect-ratio (e.g. "3/4", "1/1"). `cap` adds a bottom caption.
+ * Photos lazy-load and decode off the main thread; the plate box (ratio or the
+ * surrounding grid) reserves the space, so nothing shifts as they arrive. Pass
+ * `eager` for an above-the-fold hero image.
  */
 export interface PlateProps {
   seed?: string;
@@ -22,6 +25,10 @@ export interface PlateProps {
   cap?: [string, string?];
   /** Show the "PHOTO"/"HEADSHOT" placeholder label. */
   placeholder?: boolean;
+  /** Alt text for the photo; defaults to the caption, then "Tattoo". */
+  alt?: string;
+  /** Load the photo immediately (above-the-fold hero). */
+  eager?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -36,6 +43,8 @@ export function Plate({
   paper = false,
   cap,
   placeholder = false,
+  alt,
+  eager = false,
   className,
   style,
 }: PlateProps) {
@@ -65,7 +74,13 @@ export function Plate({
       )}
       {showImg ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="plate-photo" src={src} alt={cap?.[0] ?? "Tattoo"} />
+        <img
+          className="plate-photo"
+          src={src}
+          alt={alt ?? cap?.[0] ?? "Tattoo"}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+        />
       ) : (
         <div className="plate-mark" aria-hidden>
           <Mark />
