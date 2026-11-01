@@ -166,8 +166,10 @@ export default async function HomePage() {
         <ChevronDown className="hero-scroll ic" aria-hidden />
       </section>
 
-      {/* 2. STAT STRIP — only figures the database can back up. */}
-      {(artists.length > 0 || rating) && (
+      {/* 2. STAT STRIP — only figures the database can back up. The artist
+          count alone is too thin to earn a band, so it waits for the review
+          figures. */}
+      {rating && (
         <section className="section">
           <div className="wrap">
             <div className="stat-strip">

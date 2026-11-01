@@ -1047,9 +1047,11 @@ main:focus {
 }
 
 /* ---- stat strip ---- */
+/* Flex, not a fixed grid: the tile count varies with the real data, and a
+   grid would show its 1px-gap background through the empty cells. */
 .stat-strip {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   background: var(--border-default);
   border: 1px solid var(--border-default);
@@ -1057,6 +1059,7 @@ main:focus {
   overflow: hidden;
 }
 .stat-tile {
+  flex: 1 1 160px;
   background: var(--bg-card);
   padding: 30px 24px;
   text-align: center;
@@ -1688,9 +1691,6 @@ main:focus {
     order: -1;
     max-width: 340px;
     margin: 0 auto;
-  }
-  .stat-strip {
-    grid-template-columns: repeat(2, 1fr);
   }
   .gallery-masonry {
     grid-template-columns: repeat(2, 1fr);

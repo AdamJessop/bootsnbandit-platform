@@ -109,8 +109,8 @@ describe("HomePage", () => {
     expect(html).not.toContain("Average rating");
     expect(html).not.toContain("Summer 2026");
     expect(html).not.toContain("this weekend");
-    // The one real figure: how many artists are on the site.
-    expect(html).toContain("Artist");
+    // The artist count alone doesn't earn a stat band.
+    expect(html).not.toContain("stat-strip");
   });
 
   it("shows the real review average and count once 3+ are published", async () => {
