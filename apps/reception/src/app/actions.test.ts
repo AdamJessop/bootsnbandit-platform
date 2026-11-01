@@ -42,7 +42,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: (...a: unknown[]) => revalidatePath(...a),
 }));
 
-import { CURRENT_CONSENT_FORM } from "@bnb/core/consent";
+import { CURRENT_CONSENT_FORM, readConsentSnapshot } from "@bnb/core/consent";
 import {
   artistShowcaseAction,
   checkoutAction,
@@ -58,15 +58,25 @@ const CLEAN = Object.fromEntries(
   CURRENT_CONSENT_FORM.questions.map((q) => [q.id, q.expect === "yes"]),
 );
 
-/** A complete, valid kiosk check-in payload. */
+/** A complete, valid kiosk check-in payload (both halves of the form). */
 function checkin(over: Record<string, unknown> = {}) {
   return {
     bookingId: "b1",
-    answers: CLEAN,
-    signature: "data:image/png;base64,AA",
     printedName: "Megan Wray",
+    address: "1 Bridge Street, Worksop",
+    postcode: "s80 1lx",
+    phone: "07700 900123",
+    email: "megan@example.com",
     dob: "1990-01-15",
-    idCheckedByArtistId: "a1",
+    answers: CLEAN,
+    medicalNotes: "",
+    agreed: true,
+    signature: "data:image/png;base64,AA",
+    idType: "passport",
+    idOther: "",
+    designPlacement: "Fine line · Forearm",
+    artistId: "a1",
+    artistSignature: "data:image/png;base64,BB",
     ...over,
   } as Parameters<typeof customerCheckinAction>[0];
 }
@@ -126,23 +136,47 @@ describe("toggleStaffAction", () => {
 });
 
 describe("customerCheckinAction", () => {
-  it("stores the form with its version/question snapshot, DOB and ID checker", async () => {
+  it("stores both halves of the paper form with the v3 snapshot", async () => {
     checkInCustomer.mockResolvedValue({});
     const res = await customerCheckinAction(
-      checkin({ medicalNotes: "Inhaler in bag", photoConsent: true }),
+      checkin({ medicalNotes: "  Inhaler in bag " }),
     );
     expect(res.ok).toBe(true);
     expect(checkInCustomer).toHaveBeenCalledWith(
       expect.objectContaining({
         bookingId: "b1",
         flagged: false,
-        formVersion: CURRENT_CONSENT_FORM.version,
-        questions: CURRENT_CONSENT_FORM.questions,
+        formVersion: 3,
         printedName: "Megan Wray",
+        address: "1 Bridge Street, Worksop",
+        postcode: "S80 1LX",
+        phone: "07700 900123",
+        email: "megan@example.com",
         dob: new Date(Date.UTC(1990, 0, 15)),
-        medicalNotes: "Inhaler in bag",
-        photoConsent: true,
-        idCheckedByArtistId: "a1",
+        medicalNotes: "  Inhaler in bag ",
+        signature: "data:image/png;base64,AA",
+        idProvided: "Passport",
+        designPlacement: "Fine line · Forearm",
+        artistId: "a1",
+        artistSignature: "data:image/png;base64,BB",
+      }),
+    );
+    const stored = checkInCustomer.mock.calls[0][0] as { questions: unknown };
+    const snap = readConsentSnapshot(stored.questions, 3);
+    expect(snap.questions).toEqual(CURRENT_CONSENT_FORM.questions);
+    expect(snap.statements).toEqual(CURRENT_CONSENT_FORM.statements);
+    expect(snap.agreed).toBe(true);
+  });
+
+  it("records an Other ID with what it was, and a blank email as none", async () => {
+    checkInCustomer.mockResolvedValue({});
+    await customerCheckinAction(
+      checkin({ idType: "other", idOther: "Military ID", email: " " }),
+    );
+    expect(checkInCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idProvided: "Other: Military ID",
+        email: null,
       }),
     );
   });
@@ -150,12 +184,75 @@ describe("customerCheckinAction", () => {
   it("derives the flag from the answers server-side", async () => {
     checkInCustomer.mockResolvedValue({});
     const res = await customerCheckinAction(
-      checkin({ answers: { ...CLEAN, age: false } }),
+      checkin({
+        answers: { ...CLEAN, diabetes: true },
+        medicalNotes: "Type 1",
+      }),
     );
     expect(res.ok).toBe(true);
     expect(checkInCustomer).toHaveBeenCalledWith(
       expect.objectContaining({ bookingId: "b1", flagged: true }),
     );
+  });
+
+  it("requires further details when any medical row is Yes", async () => {
+    const res = await customerCheckinAction(
+      checkin({ answers: { ...CLEAN, pregnant: true }, medicalNotes: "  " }),
+    );
+    expect(res).toEqual({
+      ok: false,
+      error: "Please give further details about your Yes answers",
+    });
+    expect(checkInCustomer).not.toHaveBeenCalled();
+  });
+
+  it("refuses a form the client didn't agree to", async () => {
+    const res = await customerCheckinAction(checkin({ agreed: false }));
+    expect(res).toEqual({
+      ok: false,
+      error: "Please read and agree to the consent statements",
+    });
+    expect(checkInCustomer).not.toHaveBeenCalled();
+  });
+
+  it("refuses a missing client or artist signature", async () => {
+    expect(await customerCheckinAction(checkin({ signature: "" }))).toEqual({
+      ok: false,
+      error: "The client signature is missing",
+    });
+    expect(
+      await customerCheckinAction(checkin({ artistSignature: "" })),
+    ).toEqual({ ok: false, error: "The artist signature is missing" });
+    expect(checkInCustomer).not.toHaveBeenCalled();
+  });
+
+  it("refuses check-in until ID has been checked", async () => {
+    for (const bad of [
+      { idType: "" },
+      { idType: "library_card" },
+      { idType: "other", idOther: " " },
+    ]) {
+      expect(await customerCheckinAction(checkin(bad))).toEqual({
+        ok: false,
+        error: "ID must be checked before the session",
+      });
+    }
+    expect(checkInCustomer).not.toHaveBeenCalled();
+  });
+
+  it("refuses missing or malformed client details", async () => {
+    for (const [bad, error] of [
+      [{ address: " " }, "Add your address"],
+      [{ postcode: "12345" }, "That doesn't look like a UK postcode"],
+      [{ phone: "" }, "Add a phone number"],
+      [{ email: "megan@" }, "That doesn't look like an email address"],
+    ] as const) {
+      expect(await customerCheckinAction(checkin(bad))).toEqual({
+        ok: false,
+        error,
+      });
+    }
+    expect(checkInCustomer).not.toHaveBeenCalled();
   });
 
   it("flags an under-18 date of birth even with clean answers", async () => {
@@ -184,7 +281,7 @@ describe("customerCheckinAction", () => {
 
   it("refuses a partly answered form", async () => {
     const res = await customerCheckinAction(
-      checkin({ answers: { age: true } }),
+      checkin({ answers: { skin: false } }),
     );
     expect(res).toEqual({
       ok: false,
@@ -193,12 +290,12 @@ describe("customerCheckinAction", () => {
     expect(checkInCustomer).not.toHaveBeenCalled();
   });
 
-  it("refuses a missing name, impossible DOB or no ID checker", async () => {
+  it("refuses a missing name, impossible DOB or no signing artist", async () => {
     for (const bad of [
       { printedName: "  " },
       { dob: "2008-02-30" },
       { dob: "2999-01-01" },
-      { idCheckedByArtistId: "" },
+      { artistId: "" },
     ]) {
       expect((await customerCheckinAction(checkin(bad))).ok).toBe(false);
     }

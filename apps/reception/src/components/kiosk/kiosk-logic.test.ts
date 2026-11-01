@@ -36,6 +36,9 @@ function sess(over: Partial<BoardSession> = {}): BoardSession {
     customerName: "Megan Wray",
     customerPhone: null,
     customerEmail: null,
+    customerDob: null,
+    style: null,
+    placement: null,
     artistId: "a1",
     start: new Date(2026, 6, 7, 10, 0).toISOString(),
     end: new Date(2026, 6, 7, 13, 0).toISOString(),
@@ -194,13 +197,13 @@ describe("consent questionnaire", () => {
     );
 
   it("flags only the concerning answers", () => {
-    const flags = flaggedQuestions({ age: false, eaten: true, sober: true });
-    expect(flags.map((q) => q.id)).toEqual(["age"]);
+    const flags = flaggedQuestions({ skin: true, heart: false, other: false });
+    expect(flags.map((q) => q.id)).toEqual(["skin"]);
   });
 
   // Every question on the kiosk form: its concerning answer flags it (and
-  // only it); its safe answer flags nothing. This is what used to be missing
-  // for skin, pregnancy and medical — answering No raised no flag at all.
+  // only it); its safe answer flags nothing. On the v3 paper form every
+  // medical row expects No, so a Yes anywhere flags.
   for (const q of CONSENT_QUESTIONS) {
     it(`"${q.id}" flags on ${q.expect === "yes" ? "No" : "Yes"}`, () => {
       const concerning = { ...clean(), [q.id]: q.expect !== "yes" };
@@ -209,18 +212,22 @@ describe("consent questionnaire", () => {
     });
   }
 
-  it("skin, pregnancy and medical concerns are flagged", () => {
+  it("skin, pregnancy and other-condition Yes answers are all flagged", () => {
     const flags = flaggedQuestions({
       ...clean(),
-      skin: false,
-      preg: true,
-      medical: true,
+      skin: true,
+      pregnant: true,
+      other: true,
     });
-    expect(flags.map((q) => q.id).sort()).toEqual(["medical", "preg", "skin"]);
+    expect(flags.map((q) => q.id).sort()).toEqual([
+      "other",
+      "pregnant",
+      "skin",
+    ]);
   });
 
   it("allAnswered requires every question", () => {
-    const partial: Record<string, boolean> = { age: true };
+    const partial: Record<string, boolean> = { skin: false };
     expect(allAnswered(partial)).toBe(false);
     expect(allAnswered(clean())).toBe(true);
   });

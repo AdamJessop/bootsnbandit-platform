@@ -7,11 +7,16 @@ import type { ArtistShowcase } from "@bnb/core/services/artist-showcase";
 import { loadArtistShowcase } from "@bnb/core/services/artist-showcase";
 import { BookingConflictError } from "@bnb/core/services/bookings";
 import {
+  CONSENT_FIELD_MAX,
   CURRENT_CONSENT_FORM,
   MEDICAL_NOTES_MAX,
-  ageOn,
   allAnswered,
+  consentDetailsErrors,
+  consentSnapshot,
+  furtherDetailsRequired,
+  idProvidedText,
   isFormFlagged,
+  normalisePostcode,
 } from "@bnb/core/consent";
 import {
   ReceptionCheckinError,
@@ -90,47 +95,104 @@ export async function toggleStaffAction(
 // Customer check-in (consent form)
 // ---------------------------------------------------------------------------
 
+// PNG data URL from a kiosk signature pad (~10–50 KB).
+const PNG_PREFIX = "data:image/png;base64,";
+const signatureField = z.string().max(1_000_000);
+const max = CONSENT_FIELD_MAX;
+
+// Shape only; the form's own rules (details, answers, further details,
+// agreement, ID, signatures) are checked below with messages for the kiosk.
 const checkinSchema = z.object({
   bookingId: z.string().min(1),
+  // The client's half — the yellow fields on the paper form.
+  printedName: z.string().max(max.printedName),
+  address: z.string().max(max.address),
+  postcode: z.string().max(max.postcode + 4),
+  phone: z.string().max(max.phone),
+  email: z.string().max(max.email).optional(),
+  // YYYY-MM-DD from the kiosk date input.
+  dob: z.string().max(10),
   answers: z.record(z.string(), z.boolean()),
-  // PNG data URL from the kiosk signature pad (~10–50 KB).
-  signature: z.string().startsWith("data:image/png;base64,").max(1_000_000),
-  printedName: z.string().trim().min(1).max(120),
-  // YYYY-MM-DD from the kiosk date input; must be a real past date.
-  dob: z.string().refine((v) => ageOn(v) != null, {
-    message: "Invalid date of birth",
-  }),
   medicalNotes: z.string().max(MEDICAL_NOTES_MAX).optional(),
-  photoConsent: z.boolean().nullable().optional(),
-  idCheckedByArtistId: z.string().min(1),
+  agreed: z.boolean(),
+  signature: signatureField,
+  // The artist's half, entered behind the staff gate.
+  idType: z.string().max(40),
+  idOther: z.string().max(max.idOther).optional(),
+  designPlacement: z.string().max(max.designPlacement).optional(),
+  artistId: z.string().min(1),
+  artistSignature: signatureField,
 });
 
+export type CheckinInput = z.infer<typeof checkinSchema>;
+
+/** Why a parsed check-in can't be stored yet, or null when it's complete. */
+function checkinProblem(input: CheckinInput): string | null {
+  const form = CURRENT_CONSENT_FORM;
+  const detailErrors = Object.values(
+    consentDetailsErrors({ ...input, email: input.email ?? "" }),
+  );
+  if (detailErrors.length > 0) return detailErrors[0];
+  if (!allAnswered(input.answers, form.questions)) {
+    return "Please answer every question on the form";
+  }
+  if (
+    furtherDetailsRequired(input.answers, form.questions) &&
+    !input.medicalNotes?.trim()
+  ) {
+    return "Please give further details about your Yes answers";
+  }
+  if (!input.agreed) {
+    return "Please read and agree to the consent statements";
+  }
+  if (!input.signature.startsWith(PNG_PREFIX)) {
+    return "The client signature is missing";
+  }
+  if (!idProvidedText(input.idType, input.idOther)) {
+    return "ID must be checked before the session";
+  }
+  if (!input.artistSignature.startsWith(PNG_PREFIX)) {
+    return "The artist signature is missing";
+  }
+  return null;
+}
+
+/**
+ * Store the v3 consent form (the studio's paper form, both halves) and check
+ * the customer in. Every rule the kiosk enforces is enforced again here; the
+ * flag is derived here from the answers and the date of birth, never trusted
+ * from the client.
+ */
 export async function customerCheckinAction(
-  input: z.infer<typeof checkinSchema>,
+  input: CheckinInput,
 ): Promise<ActionResult> {
   if (!(await kioskSignedIn())) return SIGNED_OUT;
   const parsed = checkinSchema.safeParse(input);
   if (!parsed.success) return GENERIC;
-  const { answers, dob, ...rest } = parsed.data;
+  const problem = checkinProblem(parsed.data);
+  if (problem) return { ok: false, error: problem };
+  const { answers, dob, agreed, idType, idOther, ...rest } = parsed.data;
   const form = CURRENT_CONSENT_FORM;
-  if (!allAnswered(answers, form.questions)) {
-    return { ok: false, error: "Please answer every question on the form" };
-  }
   try {
-    // The flag is derived server-side from the answers (and the date of
-    // birth), never trusted from the client. Only the current form's
-    // questions are stored, alongside a snapshot of exactly what they said.
+    // Only the current form's questions are stored, alongside a snapshot of
+    // exactly what was shown and agreed.
     const flagged = isFormFlagged(answers, dob, new Date(), form.questions);
     const [y, m, d] = dob.split("-").map(Number);
     await checkInCustomer({
       ...rest,
+      printedName: rest.printedName.trim(),
+      address: rest.address.trim(),
+      postcode: normalisePostcode(rest.postcode) ?? rest.postcode.trim(),
+      phone: rest.phone.trim(),
+      email: rest.email?.trim() || null,
       answers: Object.fromEntries(
         form.questions.map((q) => [q.id, answers[q.id]]),
       ),
       flagged,
       formVersion: form.version,
-      questions: form.questions,
+      questions: consentSnapshot(form, agreed),
       dob: new Date(Date.UTC(y, m - 1, d)),
+      idProvided: idProvidedText(idType, idOther)!,
     });
     revalidatePath("/");
     return { ok: true };

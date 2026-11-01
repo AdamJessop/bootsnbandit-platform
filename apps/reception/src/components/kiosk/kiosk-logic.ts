@@ -203,15 +203,21 @@ export const DURATIONS: ReadonlyArray<{
 // The versioned question set lives in core (client-safe) so the server action
 // and the admin consent viewer read exactly what the kiosk shows.
 export {
-  CONSENT_SECTIONS,
+  CONSENT_FIELD_MAX,
+  CONSENT_STUDIO_NAME,
   CURRENT_CONSENT_FORM,
+  ID_TYPES,
   MEDICAL_NOTES_MAX,
   MIN_TATTOO_AGE,
   ageOn,
   allAnswered,
+  consentDetailsErrors,
   flaggedQuestions,
+  furtherDetailsRequired,
+  idProvidedText,
   isFlaggedAnswer,
   isFormFlagged,
+  type ConsentDetails,
   type ConsentQuestion,
 } from "@bnb/core/consent";
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Check,
   ChevronRight,
   IdCard,
@@ -16,10 +17,16 @@ import {
   ageOn,
   allAnswered,
   awaitingCheckin,
+  CONSENT_FIELD_MAX,
   CONSENT_QUESTIONS,
-  CONSENT_SECTIONS,
+  CONSENT_STUDIO_NAME,
+  consentDetailsErrors,
+  CURRENT_CONSENT_FORM,
   flaggedQuestions,
+  furtherDetailsRequired,
   hhmm,
+  ID_TYPES,
+  idProvidedText,
   isFormFlagged,
   isoDate,
   MEDICAL_NOTES_MAX,
@@ -28,267 +35,130 @@ import {
   shortName,
   type BoardArtist,
   type BoardSession,
+  type ConsentDetails,
 } from "./kiosk-logic";
 
-/** Everything the customer fills in themselves. */
-export interface ConsentDraft {
+/**
+ * Everything the customer fills in themselves — the yellow fields on the
+ * studio's paper Client Consent Form, the medical table, the agreement and
+ * their signature.
+ */
+export interface ConsentDraft extends ConsentDetails {
   answers: Record<string, boolean>;
-  printedName: string;
-  /** YYYY-MM-DD from the date input. */
-  dob: string;
+  /** The paper form's "further details" — required after any Yes. */
   medicalNotes: string;
-  /** Portfolio/socials photo consent — optional, null = not answered. */
-  photoConsent: boolean | null;
+  /** "I have read and agree to all of the above" was ticked. */
+  agreed: boolean;
   signature: string;
 }
 
-export interface CheckinPayload extends ConsentDraft {
+/** The artist's half of the form, entered behind the staff gate. */
+export interface ArtistDraft {
+  idType: string;
+  idOther: string;
+  designPlacement: string;
+  /** The signing artist (the booking's, unless changed at the desk). */
+  artistId: string;
+  artistSignature: string;
+}
+
+export interface CheckinPayload extends ConsentDraft, ArtistDraft {
   bookingId: string;
-  /** The staff member who confirmed the customer's photo ID. */
-  idCheckedByArtistId: string;
 }
 
 type CheckinResult = { ok: true } | { ok: false; error: string };
 type PinResult = { ok: true } | { ok: false; error: string };
 
-/** What the finish button says (and why it is still disabled). */
-export function consentFootLabel(state: {
-  answered: boolean;
-  named: boolean;
-  dobValid: boolean;
-  signed: boolean;
-}): string {
-  if (!state.answered) return "Answer all questions to finish";
-  if (!state.named) return "Print your full name";
-  if (!state.dobValid) return "Add your date of birth";
-  if (!state.signed) return "Sign above to finish";
-  return "Done — hand to the front desk";
+// ---------------------------------------------------------------------------
+// Customer steps (paper order)
+// ---------------------------------------------------------------------------
+
+export type ConsentStep = "details" | "medical" | "consent" | "sign";
+
+export const CONSENT_STEPS: ReadonlyArray<{ id: ConsentStep; title: string }> =
+  [
+    { id: "details", title: "Your details" },
+    { id: "medical", title: "Medical" },
+    { id: "consent", title: "Your consent" },
+    { id: "sign", title: "Sign" },
+  ];
+
+/** "+447700900123" → "07700900123": UK numbers read the way people write them. */
+export function ukNational(phone: string | null): string {
+  if (!phone) return "";
+  return phone.startsWith("+44") ? `0${phone.slice(3)}` : phone;
 }
 
-/** Consent questionnaire + name, DOB and signature for one session. */
-export function ConsentScreen({
-  session,
-  artist,
-  onNext,
-  onBack,
-}: {
-  session: BoardSession;
-  artist: BoardArtist | undefined;
-  onNext: (draft: ConsentDraft) => void;
-  onBack: () => void;
-}) {
-  const [answers, setAnswers] = useState<Record<string, boolean>>({});
-  const [printedName, setPrintedName] = useState(session.customerName);
-  const [dob, setDob] = useState("");
-  const [medicalNotes, setMedicalNotes] = useState("");
-  const [photoConsent, setPhotoConsent] = useState<boolean | null>(null);
-  const [signed, setSigned] = useState(false);
-  const padApi = useRef<SignaturePadApi>({ getDataUrl: () => null }).current;
-
-  const set = (id: string, v: boolean) =>
-    setAnswers((a) => ({ ...a, [id]: v }));
-  const answered = allAnswered(answers);
-  const flags = flaggedQuestions(answers);
-  const age = dob ? ageOn(dob) : null;
-  const state = {
-    answered,
-    named: printedName.trim().length > 0,
-    dobValid: age != null,
-    signed,
+/** A fresh form, prefilled from what the booking already knows. */
+export function initialDraft(session: BoardSession): ConsentDraft {
+  return {
+    printedName: session.customerName,
+    address: "",
+    postcode: "",
+    phone: ukNational(session.customerPhone),
+    email: session.customerEmail ?? "",
+    dob: session.customerDob ?? "",
+    answers: {},
+    medicalNotes: "",
+    agreed: false,
+    signature: "",
   };
-  const ready = Object.values(state).every(Boolean);
+}
 
-  const next = () => {
-    const signature = padApi.getDataUrl();
-    if (!signature || !ready) return;
-    onNext({
-      answers,
-      printedName: printedName.trim(),
-      dob,
-      medicalNotes: medicalNotes.trim(),
-      photoConsent,
-      signature,
-    });
-  };
+/**
+ * What still stops the customer leaving `step`, or null when it's done. The
+ * finish button shows this text while it is disabled.
+ */
+export function stepProblem(
+  step: ConsentStep,
+  draft: Omit<ConsentDraft, "signature">,
+  signed: boolean,
+): string | null {
+  const questions = CURRENT_CONSENT_FORM.questions;
+  switch (step) {
+    case "details": {
+      const first = Object.values(consentDetailsErrors(draft))[0];
+      return first ?? null;
+    }
+    case "medical":
+      if (!allAnswered(draft.answers, questions)) {
+        return "Answer every question to carry on";
+      }
+      if (
+        furtherDetailsRequired(draft.answers, questions) &&
+        !draft.medicalNotes.trim()
+      ) {
+        return "Add further details to carry on";
+      }
+      return null;
+    case "consent":
+      return draft.agreed ? null : "Tick the box to agree and carry on";
+    case "sign":
+      return signed ? null : "Sign above to finish";
+  }
+}
 
-  return (
-    <div className="rk-screen">
-      <div className="rk-screen-head">
-        <button className="rk-back" onClick={onBack}>
-          <ArrowLeft className="ic" />
-          Back
-        </button>
-        <div>
-          <div className="rk-screen-title">
-            Quick check-in, {session.customerName.split(" ")[0]}
-          </div>
-          <div className="rk-screen-sub">
-            {session.type === "consult" ? "Consultation" : "Tattoo session"}
-            {artist ? ` with ${artist.name}` : ""} · {hhmm(session.start)}–
-            {hhmm(session.end)}. A few questions, then sign at the bottom.
-          </div>
-        </div>
-      </div>
-      <div className="rk-screen-body">
-        <div className="rk-consent">
-          <div className="rk-consent-intro">
-            <ShieldCheck className="ic" />
-            <p style={{ margin: 0, fontSize: 15 }}>
-              This is your consent form — it keeps you safe and it&rsquo;s
-              required before any needle comes out. Answer honestly; nothing
-              here is a problem, it just helps your artist look after you.
-            </p>
-          </div>
+/** The finish button's label once a step is complete. */
+export function stepNextLabel(step: ConsentStep): string {
+  switch (step) {
+    case "details":
+      return "Next — medical";
+    case "medical":
+      return "Next — your consent";
+    case "consent":
+      return "Next — sign";
+    case "sign":
+      return "Done — hand to your artist";
+  }
+}
 
-          {CONSENT_SECTIONS.map((section) => (
-            <div key={section.id} className="rk-consent-section">
-              <h3 className="rk-consent-h">{section.title}</h3>
-              {section.id === "health" && (
-                <p className="rk-consent-note">
-                  A &ldquo;Yes&rdquo; here doesn&rsquo;t mean we can&rsquo;t
-                  tattoo you — it just means your artist may want a quick chat
-                  first.
-                </p>
-              )}
-              {CONSENT_QUESTIONS.filter((q) => q.section === section.id).map(
-                (q) => (
-                  <div key={q.id} className="rk-q">
-                    <p>{q.q}</p>
-                    <div className="rk-yn">
-                      <button
-                        className={
-                          "yes " + (answers[q.id] === true ? "on" : "")
-                        }
-                        aria-pressed={answers[q.id] === true}
-                        onClick={() => set(q.id, true)}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        className={
-                          "no " + (answers[q.id] === false ? "on" : "")
-                        }
-                        aria-pressed={answers[q.id] === false}
-                        onClick={() => set(q.id, false)}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-                ),
-              )}
-              {section.id === "health" && (
-                <div className="rk-q rk-q-text">
-                  <label htmlFor="rk-medical">
-                    Anything else we should know? A condition, medication or
-                    allergy — or more about a &ldquo;Yes&rdquo; above.{" "}
-                    <span className="meta">(optional)</span>
-                  </label>
-                  <textarea
-                    id="rk-medical"
-                    className="input"
-                    rows={3}
-                    maxLength={MEDICAL_NOTES_MAX}
-                    value={medicalNotes}
-                    onChange={(e) => setMedicalNotes(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-
-          {flags.length > 0 && (
-            <div className="rk-flag">
-              <AlertTriangle className="ic" />
-              <span>
-                No problem — just have a quick word with the front desk about{" "}
-                {flags.length === 1 ? "that answer" : "those answers"} before
-                your session starts.
-              </span>
-            </div>
-          )}
-
-          <div className="rk-consent-section">
-            <h3 className="rk-consent-h">Photos</h3>
-            <div className="rk-q">
-              <p>
-                Happy for us to photograph your finished piece for our portfolio
-                and socials? <span className="meta">(optional)</span>
-              </p>
-              <div className="rk-yn">
-                <button
-                  className={"yes " + (photoConsent === true ? "on" : "")}
-                  aria-pressed={photoConsent === true}
-                  onClick={() => setPhotoConsent(true)}
-                >
-                  Yes
-                </button>
-                <button
-                  className={"no " + (photoConsent === false ? "on" : "")}
-                  aria-pressed={photoConsent === false}
-                  onClick={() => setPhotoConsent(false)}
-                >
-                  No
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="rk-consent-section">
-            <h3 className="rk-consent-h">About you</h3>
-            <div className="gen-two">
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="rk-printed">Your full name</label>
-                <input
-                  id="rk-printed"
-                  className="input"
-                  value={printedName}
-                  onChange={(e) => setPrintedName(e.target.value)}
-                  autoComplete="off"
-                  style={{ fontSize: 17, padding: 16 }}
-                />
-              </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label htmlFor="rk-dob">Date of birth</label>
-                <input
-                  id="rk-dob"
-                  className="input"
-                  type="date"
-                  value={dob}
-                  max={isoDate(new Date())}
-                  onChange={(e) => setDob(e.target.value)}
-                  style={{ fontSize: 17, padding: 16 }}
-                />
-              </div>
-            </div>
-            {age != null && age < MIN_TATTOO_AGE && (
-              <div className="rk-flag" style={{ marginTop: 12 }}>
-                <AlertTriangle className="ic" />
-                <span>
-                  You need to be {MIN_TATTOO_AGE} or over to be tattooed in the
-                  UK — have a word with the front desk.
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="rk-sign">
-            <span className="rk-sign-label">
-              Signature — {printedName.trim() || session.customerName}
-            </span>
-            <SignaturePad onChange={setSigned} api={padApi} />
-          </div>
-
-          <div className="rk-consent-foot">
-            <button className="btn btn-lg" disabled={!ready} onClick={next}>
-              <Check className="ic" />
-              {consentFootLabel(state)}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+/** "1 November 2026" — the date written next to a signature. */
+export function signedDate(on: Date = new Date()): string {
+  return on.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 /** "15 Jan 1990" for a YYYY-MM-DD date. */
@@ -301,13 +171,625 @@ function longDate(dob: string): string {
   });
 }
 
+function StepDots({ step }: { step: ConsentStep }) {
+  const at = CONSENT_STEPS.findIndex((s) => s.id === step);
+  return (
+    <ol className="rk-steps" aria-label={`Step ${at + 1} of 4`}>
+      {CONSENT_STEPS.map((s, i) => (
+        <li
+          key={s.id}
+          className={i < at ? "done" : i === at ? "on" : ""}
+          aria-current={i === at ? "step" : undefined}
+        >
+          <span className="rk-step-n">{i < at ? "✓" : i + 1}</span>
+          <span className="rk-step-t">{s.title}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Field({
+  id,
+  label,
+  error,
+  hint,
+  children,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="field rk-field">
+      <label htmlFor={id}>
+        {label}
+        {hint && <span className="meta"> {hint}</span>}
+      </label>
+      {children}
+      {error && (
+        <span className="rk-field-error" id={`${id}-error`} role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Step 1 — the client's half of the paper form's header table. */
+function DetailsStep({
+  draft,
+  set,
+}: {
+  draft: ConsentDraft;
+  set: (patch: Partial<ConsentDraft>) => void;
+}) {
+  // Only nag about a field once something has been typed into it; the
+  // finish button already names the first thing still missing.
+  const errors = consentDetailsErrors(draft);
+  const shown = (k: keyof ConsentDetails) =>
+    draft[k].trim() ? errors[k] : undefined;
+  const age = draft.dob ? ageOn(draft.dob) : null;
+  const max = CONSENT_FIELD_MAX;
+  const input = (
+    k: Exclude<keyof ConsentDetails, "dob">,
+    extra: React.InputHTMLAttributes<HTMLInputElement> = {},
+  ) => (
+    <input
+      id={`rk-${k}`}
+      className="input rk-input"
+      value={draft[k]}
+      maxLength={max[k]}
+      autoComplete="off"
+      aria-invalid={shown(k) ? true : undefined}
+      onChange={(e) => set({ [k]: e.target.value })}
+      {...extra}
+    />
+  );
+  return (
+    <div className="rk-consent-section">
+      <h3 className="rk-consent-h">Your details</h3>
+      <Field
+        id="rk-printedName"
+        label="Client name"
+        error={shown("printedName")}
+      >
+        {input("printedName", { autoCapitalize: "words" })}
+      </Field>
+      <Field id="rk-address" label="Address" error={shown("address")}>
+        <textarea
+          id="rk-address"
+          className="input rk-input"
+          rows={2}
+          value={draft.address}
+          maxLength={max.address}
+          autoComplete="off"
+          onChange={(e) => set({ address: e.target.value })}
+        />
+      </Field>
+      <div className="gen-two">
+        <Field id="rk-postcode" label="Postcode" error={shown("postcode")}>
+          {input("postcode", { autoCapitalize: "characters" })}
+        </Field>
+        <Field id="rk-phone" label="Telephone" error={shown("phone")}>
+          {input("phone", { type: "tel", inputMode: "tel" })}
+        </Field>
+      </div>
+      <div className="gen-two">
+        <Field
+          id="rk-email"
+          label="Email"
+          hint="(optional)"
+          error={shown("email")}
+        >
+          {input("email", {
+            type: "email",
+            inputMode: "email",
+            autoCapitalize: "none",
+          })}
+        </Field>
+        <Field id="rk-dob" label="Date of birth" error={shown("dob")}>
+          <input
+            id="rk-dob"
+            className="input rk-input"
+            type="date"
+            value={draft.dob}
+            max={isoDate(new Date())}
+            onChange={(e) => set({ dob: e.target.value })}
+          />
+        </Field>
+      </div>
+      {age != null && age < MIN_TATTOO_AGE && (
+        <div className="rk-flag">
+          <AlertTriangle className="ic" />
+          <span>
+            You need to be {MIN_TATTOO_AGE} or over to be tattooed in the UK —
+            have a word with the front desk.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Step 2 — the medical table: condition, why it matters, Yes / No. */
+function MedicalStep({
+  draft,
+  set,
+}: {
+  draft: ConsentDraft;
+  set: (patch: Partial<ConsentDraft>) => void;
+}) {
+  const answer = (id: string, v: boolean) =>
+    set({ answers: { ...draft.answers, [id]: v } });
+  const needsDetails = furtherDetailsRequired(draft.answers);
+  return (
+    <div className="rk-consent-section">
+      <h3 className="rk-consent-h">Medical condition</h3>
+      <p className="rk-consent-note">
+        Do any of these apply to you? A &ldquo;Yes&rdquo; doesn&rsquo;t mean we
+        can&rsquo;t tattoo you — it just means your artist may want a quick chat
+        first.
+      </p>
+      {CONSENT_QUESTIONS.map((q) => (
+        <div key={q.id} className="rk-q rk-q-med">
+          <p>
+            <b>{q.q}</b>
+            {q.explanation && (
+              <span className="rk-q-explain">{q.explanation}</span>
+            )}
+          </p>
+          <div className="rk-yn" role="group" aria-label={q.q}>
+            <button
+              className={"yes " + (draft.answers[q.id] === true ? "on" : "")}
+              aria-pressed={draft.answers[q.id] === true}
+              onClick={() => answer(q.id, true)}
+            >
+              Yes
+            </button>
+            <button
+              className={"no " + (draft.answers[q.id] === false ? "on" : "")}
+              aria-pressed={draft.answers[q.id] === false}
+              onClick={() => answer(q.id, false)}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      ))}
+      <div className="rk-q rk-q-text">
+        <label htmlFor="rk-medical">
+          {CURRENT_CONSENT_FORM.furtherDetailsPrompt}{" "}
+          <span className="meta">
+            {needsDetails ? "(required)" : "(only if you answered Yes)"}
+          </span>
+        </label>
+        <textarea
+          id="rk-medical"
+          className="input"
+          rows={3}
+          maxLength={MEDICAL_NOTES_MAX}
+          value={draft.medicalNotes}
+          aria-required={needsDetails}
+          onChange={(e) => set({ medicalNotes: e.target.value })}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Step 3 — client information and the individual consent statements. */
+function AgreementStep({
+  draft,
+  set,
+}: {
+  draft: ConsentDraft;
+  set: (patch: Partial<ConsentDraft>) => void;
+}) {
+  const form = CURRENT_CONSENT_FORM;
+  const info = form.clientInformation;
+  return (
+    <>
+      {info && (
+        <div className="rk-consent-section">
+          <h3 className="rk-consent-h">Client information</h3>
+          <div className="rk-legal">
+            <p>{info.intro}</p>
+            <ul className="rk-risks">
+              {info.risks.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      <div className="rk-consent-section">
+        <h3 className="rk-consent-h">Individual consent</h3>
+        <div className="rk-legal">
+          <ul className="rk-statements">
+            {(form.statements ?? []).map((s) => (
+              <li key={s.id}>{s.text}</li>
+            ))}
+          </ul>
+        </div>
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={draft.agreed}
+          className={"rk-agree" + (draft.agreed ? " on" : "")}
+          onClick={() => set({ agreed: !draft.agreed })}
+        >
+          <span className="rk-agree-box" aria-hidden="true">
+            {draft.agreed && <Check className="ic" />}
+          </span>
+          {form.agreeLabel}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /**
- * Staff step after the customer signs: the front desk checks their photo ID,
- * picks themselves and confirms with the staff unlock (PIN, or hold when no
- * PIN is set), which submits the check-in. The customer's form stays mounted
- * underneath, so Back returns to it untouched.
+ * The customer's side of the paper form, one step at a time in paper order:
+ * details → medical → client information + consent → signature. `initialStep`
+ * and `initialDraft` let the flow (and tests) open it part-way.
  */
-export function IdCheckScreen({
+export function ConsentScreen({
+  session,
+  artist,
+  onNext,
+  onBack,
+  initialStep = "details",
+  initialDraft: start,
+}: {
+  session: BoardSession;
+  artist: BoardArtist | undefined;
+  onNext: (draft: ConsentDraft) => void;
+  onBack: () => void;
+  initialStep?: ConsentStep;
+  initialDraft?: ConsentDraft;
+}) {
+  const [step, setStep] = useState<ConsentStep>(initialStep);
+  const [draft, setDraft] = useState<ConsentDraft>(
+    () => start ?? initialDraft(session),
+  );
+  const [signed, setSigned] = useState(false);
+  const padApi = useRef<SignaturePadApi>({ getDataUrl: () => null }).current;
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const set = (patch: Partial<ConsentDraft>) =>
+    setDraft((d) => ({ ...d, ...patch }));
+  const at = CONSENT_STEPS.findIndex((s) => s.id === step);
+  const problem = stepProblem(step, draft, signed);
+  const flags = flaggedQuestions(draft.answers);
+
+  const go = (to: ConsentStep) => {
+    if (to !== "sign") setSigned(false);
+    setStep(to);
+    bodyRef.current?.scrollTo?.({ top: 0 });
+  };
+  const back = () => (at === 0 ? onBack() : go(CONSENT_STEPS[at - 1].id));
+  const next = () => {
+    if (problem) return;
+    if (step !== "sign") return go(CONSENT_STEPS[at + 1].id);
+    const signature = padApi.getDataUrl();
+    if (!signature) return;
+    onNext({
+      ...draft,
+      printedName: draft.printedName.trim(),
+      address: draft.address.trim(),
+      postcode: draft.postcode.trim(),
+      phone: draft.phone.trim(),
+      email: draft.email.trim(),
+      medicalNotes: draft.medicalNotes.trim(),
+      signature,
+    });
+  };
+
+  return (
+    <div className="rk-screen">
+      <div className="rk-screen-head">
+        <button className="rk-back" onClick={back}>
+          <ArrowLeft className="ic" />
+          Back
+        </button>
+        <div>
+          <div className="rk-screen-title">
+            Client consent form, {session.customerName.split(" ")[0]}
+          </div>
+          <div className="rk-screen-sub">
+            {session.type === "consult" ? "Consultation" : "Tattoo session"}
+            {artist ? ` with ${artist.name}` : ""} · {hhmm(session.start)}–
+            {hhmm(session.end)}
+          </div>
+        </div>
+      </div>
+      <StepDots step={step} />
+      <div className="rk-screen-body" ref={bodyRef}>
+        <div className="rk-consent">
+          {step === "details" && (
+            <>
+              <div className="rk-consent-intro">
+                <ShieldCheck className="ic" />
+                <p style={{ margin: 0, fontSize: 16 }}>
+                  This is your consent form — it keeps you safe and it&rsquo;s
+                  required before any needle comes out. Answer honestly; nothing
+                  here is a problem, it just helps your artist look after you.
+                </p>
+              </div>
+              <DetailsStep draft={draft} set={set} />
+            </>
+          )}
+          {step === "medical" && <MedicalStep draft={draft} set={set} />}
+          {step === "medical" && flags.length > 0 && (
+            <div className="rk-flag">
+              <AlertTriangle className="ic" />
+              <span>
+                No problem — just have a quick word with your artist about{" "}
+                {flags.length === 1 ? "that answer" : "those answers"} before
+                your session starts.
+              </span>
+            </div>
+          )}
+          {step === "consent" && <AgreementStep draft={draft} set={set} />}
+          {step === "sign" && (
+            <div className="rk-sign">
+              <span className="rk-sign-label">
+                Client signature — {draft.printedName.trim()}
+              </span>
+              <SignaturePad onChange={setSigned} api={padApi} />
+              <p className="rk-sign-date">
+                Date: <b>{signedDate()}</b>
+              </p>
+            </div>
+          )}
+
+          <div className="rk-consent-foot">
+            <button
+              className="btn btn-lg"
+              disabled={problem != null}
+              onClick={next}
+            >
+              {step === "sign" ? (
+                <Check className="ic" />
+              ) : (
+                <ArrowRight className="ic" />
+              )}
+              {problem ?? stepNextLabel(step)}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Artist step
+// ---------------------------------------------------------------------------
+
+/** Booking style + placement as the design/placement prefill. */
+export function designPlacementFor(
+  session: Pick<BoardSession, "style" | "placement">,
+): string {
+  return [session.style, session.placement]
+    .map((v) => v?.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** What still stops the artist completing check-in, or null. */
+export function artistProblem(
+  d: Omit<ArtistDraft, "artistSignature">,
+  signed: boolean,
+): string | null {
+  if (!d.artistId) return "Pick the artist";
+  if (!d.idType) return "ID must be checked before the session";
+  if (!idProvidedText(d.idType, d.idOther)) return "Say what ID was provided";
+  if (!signed) return "Artist signature needed";
+  return null;
+}
+
+/**
+ * The artist's half of the paper form, shown once the staff gate is passed:
+ * studio (fixed), artist, ID provided, design/placement, then the artist's
+ * signature. Check-in completes when they sign.
+ */
+export function ArtistForm({
+  session,
+  draft,
+  artists,
+  onSubmit,
+}: {
+  session: BoardSession;
+  draft: ConsentDraft;
+  artists: BoardArtist[];
+  onSubmit: (artist: ArtistDraft) => Promise<CheckinResult>;
+}) {
+  const [artistId, setArtistId] = useState(session.artistId);
+  const [idType, setIdType] = useState("");
+  const [idOther, setIdOther] = useState("");
+  const [designPlacement, setDesignPlacement] = useState(() =>
+    designPlacementFor(session),
+  );
+  const [signed, setSigned] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const padApi = useRef<SignaturePadApi>({ getDataUrl: () => null }).current;
+
+  const age = ageOn(draft.dob);
+  const flags = flaggedQuestions(draft.answers);
+  const problem = artistProblem(
+    { artistId, idType, idOther, designPlacement },
+    signed,
+  );
+  // The booking's artist first, then whoever is on the floor.
+  const staff = [...artists].sort(
+    (a, b) =>
+      Number(b.id === session.artistId) - Number(a.id === session.artistId) ||
+      Number(b.checkedIn) - Number(a.checkedIn),
+  );
+  const signer = artists.find((a) => a.id === artistId);
+
+  const submit = async () => {
+    const artistSignature = padApi.getDataUrl();
+    if (problem || !artistSignature) return;
+    setBusy(true);
+    setError(null);
+    const res = await safeAction(() =>
+      onSubmit({
+        artistId,
+        idType,
+        idOther: idType === "other" ? idOther.trim() : "",
+        designPlacement: designPlacement.trim(),
+        artistSignature,
+      }),
+    );
+    if (!res.ok) {
+      setError(res.error);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rk-consent">
+      <div className="rk-consent-intro">
+        <IdCard className="ic" />
+        <p style={{ margin: 0, fontSize: 16 }}>
+          <b>{draft.printedName}</b> · born {longDate(draft.dob)}
+          {age != null ? ` (${age})` : ""}. Check their photo ID matches, then
+          complete the artist&rsquo;s half of the form.
+        </p>
+      </div>
+      {age != null && age < MIN_TATTOO_AGE && (
+        <div className="rk-flag" role="alert">
+          <AlertTriangle className="ic" />
+          <span>
+            Under {MIN_TATTOO_AGE} — no tattoo today. A consultation is fine.
+          </span>
+        </div>
+      )}
+      {flags.length > 0 && (
+        <div className="rk-flag">
+          <AlertTriangle className="ic" />
+          <span>
+            {flags.length} answer{flags.length === 1 ? "" : "s"} to talk
+            through: {flags.map((f) => f.q).join(" · ")}
+            {draft.medicalNotes ? ` — “${draft.medicalNotes}”` : ""}
+          </span>
+        </div>
+      )}
+
+      <dl className="rk-facts">
+        <div>
+          <dt>Tattoo studio</dt>
+          <dd>{CONSENT_STUDIO_NAME}</dd>
+        </div>
+      </dl>
+
+      <div className="rk-consent-section">
+        <h3 className="rk-consent-h">Artist</h3>
+        <div className="rk-artist-row">
+          {staff.map((a) => (
+            <button
+              key={a.id}
+              className={"rk-artist-pick " + (artistId === a.id ? "on" : "")}
+              aria-pressed={artistId === a.id}
+              disabled={busy}
+              onClick={() => setArtistId(a.id)}
+            >
+              <ArtistAvatar artist={a} size={32} />
+              {a.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rk-consent-section">
+        <h3 className="rk-consent-h">ID provided</h3>
+        <p className="rk-consent-note">
+          ID must be checked before the session.
+        </p>
+        <div className="rk-choice-row" role="group" aria-label="ID provided">
+          {ID_TYPES.map((t) => (
+            <button
+              key={t.id}
+              className={"rk-choice " + (idType === t.id ? "on" : "")}
+              aria-pressed={idType === t.id}
+              disabled={busy}
+              onClick={() => setIdType(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {idType === "other" && (
+          <Field id="rk-id-other" label="What ID was provided?">
+            <input
+              id="rk-id-other"
+              className="input rk-input"
+              value={idOther}
+              maxLength={CONSENT_FIELD_MAX.idOther}
+              autoComplete="off"
+              onChange={(e) => setIdOther(e.target.value)}
+            />
+          </Field>
+        )}
+      </div>
+
+      <div className="rk-consent-section">
+        <Field id="rk-design" label="Design/placement">
+          <input
+            id="rk-design"
+            className="input rk-input"
+            value={designPlacement}
+            maxLength={CONSENT_FIELD_MAX.designPlacement}
+            autoComplete="off"
+            onChange={(e) => setDesignPlacement(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="rk-sign">
+        <span className="rk-sign-label">
+          Artist signature{signer ? ` — ${signer.name}` : ""}
+        </span>
+        <SignaturePad onChange={setSigned} api={padApi} />
+        <p className="rk-sign-date">
+          Date: <b>{signedDate()}</b>
+        </p>
+      </div>
+
+      {error && (
+        <div className="rk-flag" role="alert">
+          <AlertTriangle className="ic" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="rk-consent-foot">
+        <button
+          className="btn btn-lg"
+          disabled={problem != null || busy}
+          onClick={submit}
+        >
+          <Check className="ic" />
+          {busy ? "Checking in…" : (problem ?? "Sign & check in")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Staff/artist step after the customer signs: the tablet goes to the artist,
+ * the staff unlock (PIN, or hold when no PIN is set) opens their half of the
+ * form, and signing it submits the check-in. The customer's form stays
+ * mounted underneath, so Back returns to it untouched.
+ */
+export function ArtistScreen({
   session,
   draft,
   artists,
@@ -321,133 +803,61 @@ export function IdCheckScreen({
   artists: BoardArtist[];
   pinConfigured: boolean;
   onVerifyPin: (pin: string) => Promise<PinResult>;
-  onSubmit: (idCheckedByArtistId: string) => Promise<CheckinResult>;
+  onSubmit: (artist: ArtistDraft) => Promise<CheckinResult>;
   onBack: () => void;
 }) {
-  const [checker, setChecker] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const age = ageOn(draft.dob);
-  const flags = flaggedQuestions(draft.answers);
-  // On the floor first — they're the ones likely holding the tablet.
-  const staff = [...artists].sort(
-    (a, b) => Number(b.checkedIn) - Number(a.checkedIn),
-  );
-
-  const submit = async (artistId: string) => {
-    setBusy(true);
-    setError(null);
-    const res = await safeAction(() => onSubmit(artistId));
-    if (!res.ok) {
-      setError(res.error);
-      setBusy(false);
-    }
-  };
-
+  const [unlocked, setUnlocked] = useState(false);
   return (
     <div className="rk-screen">
       <div className="rk-screen-head">
-        <button className="rk-back" onClick={onBack} disabled={busy}>
+        <button className="rk-back" onClick={onBack}>
           <ArrowLeft className="ic" />
           Back
         </button>
         <div>
-          <div className="rk-screen-title">Over to the front desk</div>
+          <div className="rk-screen-title">Over to your artist</div>
           <div className="rk-screen-sub">
-            Thanks {session.customerName.split(" ")[0]} — pass the tablet to a
-            member of the crew to check your photo ID.
+            Thanks {session.customerName.split(" ")[0]} — pass the tablet to
+            your artist to check your ID and sign their part of the form.
           </div>
         </div>
       </div>
       <div className="rk-screen-body">
-        <div className="rk-consent">
-          <div className="rk-consent-intro">
-            <IdCard className="ic" />
-            <p style={{ margin: 0, fontSize: 15 }}>
-              <b>{draft.printedName}</b> · born {longDate(draft.dob)}
-              {age != null ? ` (${age})` : ""}. Check their photo ID matches,
-              then tap your name.
-            </p>
-          </div>
-          {age != null && age < MIN_TATTOO_AGE && (
-            <div className="rk-flag" role="alert">
-              <AlertTriangle className="ic" />
-              <span>
-                Under {MIN_TATTOO_AGE} — no tattoo today. A consultation is
-                fine.
-              </span>
+        {unlocked ? (
+          <ArtistForm
+            session={session}
+            draft={draft}
+            artists={artists}
+            onSubmit={onSubmit}
+          />
+        ) : (
+          <div className="rk-consent">
+            <div className="rk-consent-intro">
+              <IdCard className="ic" />
+              <p style={{ margin: 0, fontSize: 16 }}>
+                Staff only — ID must be checked before the session.
+              </p>
             </div>
-          )}
-          {flags.length > 0 && (
-            <div className="rk-flag">
-              <AlertTriangle className="ic" />
-              <span>
-                {flags.length} answer{flags.length === 1 ? "" : "s"} to talk
-                through: {flags.map((f) => f.q).join(" · ")}
-              </span>
-            </div>
-          )}
-
-          <h3 className="rk-consent-h">Who checked the ID?</h3>
-          <div className="rk-artist-row">
-            {staff.map((a) => (
-              <button
-                key={a.id}
-                className={"rk-artist-pick " + (checker === a.id ? "on" : "")}
-                aria-pressed={checker === a.id}
-                disabled={busy || confirmed}
-                onClick={() => setChecker(a.id)}
-              >
-                <ArtistAvatar artist={a} size={32} />
-                {a.name}
-              </button>
-            ))}
-          </div>
-
-          {checker && !confirmed && (
             <div className="rk-idcheck-unlock">
               <StaffUnlock
                 pinConfigured={pinConfigured}
                 onVerifyPin={onVerifyPin}
-                holdLabel="Hold to confirm ID checked"
-                onUnlocked={() => {
-                  setConfirmed(true);
-                  void submit(checker);
-                }}
+                holdLabel="Hold to open the artist's part"
+                onUnlocked={() => setUnlocked(true)}
               />
             </div>
-          )}
-
-          {error && (
-            <div className="rk-flag" role="alert">
-              <AlertTriangle className="ic" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {confirmed && checker && (
-            <div className="rk-consent-foot">
-              <button
-                className="btn btn-lg"
-                disabled={busy}
-                onClick={() => submit(checker)}
-              >
-                <Check className="ic" />
-                {busy ? "Checking you in…" : "Try again"}
-              </button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 /**
- * Customer arrival flow: pick your session → consent form → staff ID check →
- * done. Auto-exits from the done screen so the kiosk returns to the board for
- * the next person.
+ * Customer arrival flow: pick your session → consent form (details, medical,
+ * consent, signature) → artist's half behind the staff gate → done.
+ * Auto-exits from the done screen so the kiosk returns to the board for the
+ * next person.
  */
 export function CustomerFlow({
   artists,
@@ -464,7 +874,7 @@ export function CustomerFlow({
   onCheckin: (payload: CheckinPayload) => Promise<CheckinResult>;
   onExit: () => void;
 }) {
-  const [stage, setStage] = useState<"pick" | "consent" | "idcheck" | "done">(
+  const [stage, setStage] = useState<"pick" | "consent" | "artist" | "done">(
     "pick",
   );
   const [picked, setPicked] = useState<BoardSession | null>(null);
@@ -480,7 +890,7 @@ export function CustomerFlow({
     return () => clearTimeout(t);
   }, [stage, onExit]);
 
-  if ((stage === "consent" || stage === "idcheck") && picked) {
+  if ((stage === "consent" || stage === "artist") && picked) {
     return (
       <>
         <ConsentScreen
@@ -489,22 +899,22 @@ export function CustomerFlow({
           onBack={() => setStage("pick")}
           onNext={(d) => {
             setDraft(d);
-            setStage("idcheck");
+            setStage("artist");
           }}
         />
-        {stage === "idcheck" && draft && (
-          <IdCheckScreen
+        {stage === "artist" && draft && (
+          <ArtistScreen
             session={picked}
             draft={draft}
             artists={artists}
             pinConfigured={pinConfigured}
             onVerifyPin={onVerifyPin}
             onBack={() => setStage("consent")}
-            onSubmit={async (idCheckedByArtistId) => {
+            onSubmit={async (artist) => {
               const result = await onCheckin({
                 ...draft,
+                ...artist,
                 bookingId: picked.id,
-                idCheckedByArtistId,
               });
               if (result.ok) {
                 setFlagged(isFormFlagged(draft.answers, draft.dob));
@@ -534,7 +944,7 @@ export function CustomerFlow({
               : "your artist knows you're here"}
             . Grab a seat and a brew
             {flagged
-              ? ", and the front desk will have a quick word before you start"
+              ? ", and your artist will have a quick word before you start"
               : ""}
             .
           </p>
