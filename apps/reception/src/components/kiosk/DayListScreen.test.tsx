@@ -31,6 +31,7 @@ function sess(over: Partial<BoardSession> = {}): BoardSession {
     status: "confirmed",
     checkedInAt: null,
     consentFlagged: null,
+    idCheckedBy: null,
     completed: false,
     amountChargedPence: null,
     ...over,
@@ -80,5 +81,20 @@ describe("DayListScreen", () => {
     // no daily takings (the front desk screen is customer-visible).
     expect(html).not.toContain("£");
     expect(html).not.toContain("Takings");
+  });
+
+  it("shows a friendly empty state with a New session shortcut", () => {
+    const html = renderToStaticMarkup(
+      <DayListScreen
+        artists={[artist]}
+        sessions={[]}
+        now={new Date()}
+        onCheckout={() => {}}
+        onNew={() => {}}
+        onExit={() => {}}
+      />,
+    );
+    expect(html).toContain("Nothing booked in for today yet.");
+    expect(html).toContain("New session");
   });
 });

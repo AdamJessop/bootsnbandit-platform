@@ -1,5 +1,6 @@
 import { prisma } from "@bnb/core/db";
 import { sendEmail } from "@bnb/core/email";
+import { parsePerks, tierLabel } from "@bnb/core/services/loyalty";
 import type { CronJobResult } from "./reminders";
 
 /**
@@ -67,7 +68,11 @@ export async function runLoyaltyRewards(): Promise<CronJobResult> {
         customerName: c.name,
         rewardLabel: config.rewardDesc ?? "a Bandit Pass reward",
         stamps: c.loyaltyStamps,
-        tierLabel: `Tier ${c.loyaltyTier}`,
+        tierLabel: tierLabel(
+          c.loyaltyTier,
+          parsePerks(config.perks),
+          config.name,
+        ),
       },
     });
     sent += 1;

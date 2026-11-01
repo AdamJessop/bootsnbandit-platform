@@ -18,11 +18,13 @@ export interface AwardStampResult {
   customerId: string;
   loyaltyStamps: number;
   loyaltyTier: number;
+  /** Human tier name for emails, e.g. "Level 2 · Early flash access". */
+  tierLabel: string;
   /** Perk thresholds newly reached by this award (for reward emails). */
   unlockedPerks: LoyaltyPerk[];
 }
 
-function parsePerks(raw: unknown): LoyaltyPerk[] {
+export function parsePerks(raw: unknown): LoyaltyPerk[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter(
@@ -42,6 +44,21 @@ function parsePerks(raw: unknown): LoyaltyPerk[] {
 /** Tier = number of perk thresholds the stamp count has reached. */
 export function tierForStamps(stamps: number, perks: LoyaltyPerk[]): number {
   return perks.filter((p) => stamps >= p.stamps).length;
+}
+
+/**
+ * The configured name of a tier, for customer-facing copy. Tier N is named
+ * after the Nth perk on the ladder ("Level 2 · Early flash access"), never a
+ * bare "Tier 2"; below the first perk it is just the scheme name.
+ */
+export function tierLabel(
+  tier: number,
+  perks: LoyaltyPerk[],
+  schemeName = "Bandit Pass",
+): string {
+  if (tier <= 0) return schemeName;
+  const perk = perks[Math.min(tier, perks.length) - 1];
+  return perk?.title ? `Level ${tier} · ${perk.title}` : `Level ${tier}`;
 }
 
 /**
@@ -80,6 +97,7 @@ export async function awardStamp(
     customerId,
     loyaltyStamps: after,
     loyaltyTier: tier,
+    tierLabel: tierLabel(tier, perks, config?.name),
     unlockedPerks,
   };
 }

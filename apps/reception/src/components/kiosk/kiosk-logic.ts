@@ -1,4 +1,5 @@
 import type { BoardArtist, BoardSession } from "@bnb/core/services/reception";
+import { CURRENT_CONSENT_FORM } from "@bnb/core/consent";
 
 /**
  * Client-safe kiosk board logic — pure helpers shared by the kiosk screens.
@@ -199,57 +200,135 @@ export const DURATIONS: ReadonlyArray<{
 // Consent questionnaire
 // ---------------------------------------------------------------------------
 
-export interface ConsentQuestion {
-  id: string;
-  q: string;
-  /** "yes" = a No answer needs a word with the front desk (flag). */
-  needs: "yes" | null;
-}
+// The versioned question set lives in core (client-safe) so the server action
+// and the admin consent viewer read exactly what the kiosk shows.
+export {
+  CONSENT_SECTIONS,
+  CURRENT_CONSENT_FORM,
+  MEDICAL_NOTES_MAX,
+  MIN_TATTOO_AGE,
+  ageOn,
+  allAnswered,
+  flaggedQuestions,
+  isFlaggedAnswer,
+  isFormFlagged,
+  type ConsentQuestion,
+} from "@bnb/core/consent";
 
-export const CONSENT_QUESTIONS: ReadonlyArray<ConsentQuestion> = [
-  {
-    id: "age",
-    q: "I am 18 or over and have photo ID with me today.",
-    needs: "yes",
-  },
-  { id: "eaten", q: "I have eaten within the last 4 hours.", needs: null },
-  {
-    id: "sober",
-    q: "I am not under the influence of alcohol or drugs.",
-    needs: "yes",
-  },
-  {
-    id: "skin",
-    q: "The skin at the tattoo area is free of cuts, rashes and sunburn.",
-    needs: null,
-  },
-  { id: "preg", q: "I am not pregnant or breastfeeding.", needs: null },
-  {
-    id: "medical",
-    q: "I have no medical condition affecting healing (or I have already discussed it with my artist).",
-    needs: null,
-  },
-  {
-    id: "consent",
-    q: "I understand a tattoo is permanent and I consent to the procedure.",
-    needs: "yes",
-  },
-  {
-    id: "aftercare",
-    q: "I agree to follow the aftercare guidance I am given.",
-    needs: "yes",
-  },
-];
+/** The questions on the current form, in display order. */
+export const CONSENT_QUESTIONS = CURRENT_CONSENT_FORM.questions;
 
-/** Questions whose answer needs reviewing (needs-yes answered No). */
-export function flaggedQuestions(
-  answers: Record<string, boolean>,
-): ConsentQuestion[] {
-  return CONSENT_QUESTIONS.filter(
-    (q) => q.needs === "yes" && answers[q.id] === false,
+/** "YYYY-MM-DD" for a local date — the value/max of a date input. */
+export function isoDate(d: Date): string {
+  return (
+    d.getFullYear() +
+    "-" +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(d.getDate()).padStart(2, "0")
   );
 }
 
-export function allAnswered(answers: Record<string, boolean>): boolean {
-  return CONSENT_QUESTIONS.every((q) => answers[q.id] !== undefined);
+// ---------------------------------------------------------------------------
+// Privacy on a customer-facing screen
+// ---------------------------------------------------------------------------
+
+/**
+ * "Megan W." — first name + last initial. The kiosk faces the waiting area,
+ * so anything a customer can see shows no more of another customer's name
+ * than they need to recognise their own booking.
+ */
+export function shortName(full: string): string {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
+
+/** "••• 789" — only the last three digits of a phone number. */
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length <= 3) return "•••";
+  return `••• ${digits.slice(-3)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Checkout consent acknowledgement
+// ---------------------------------------------------------------------------
+
+/**
+ * Why checkout needs a staff acknowledgement first, or null when it doesn't:
+ * there is no consent form on file, or the one on file has flagged answers.
+ * Mirrors `consentNeedsAck` in the core reception service, which the server
+ * action enforces.
+ */
+export function consentAckReason(
+  sess: Pick<BoardSession, "consentFlagged">,
+): "missing" | "flagged" | null {
+  if (sess.consentFlagged == null) return "missing";
+  if (sess.consentFlagged) return "flagged";
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Network failures
+// ---------------------------------------------------------------------------
+
+export const OFFLINE_MSG = "No connection — try again";
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Run a server action and turn a thrown failure (the tablet lost wifi, the
+ * server is redeploying) into a normal error result, so every button that
+ * awaits one is re-enabled with a message instead of hanging on "…ing".
+ */
+export async function safeAction<R extends ActionResult>(
+  run: () => Promise<R>,
+): Promise<R | { ok: false; error: string }> {
+  try {
+    return await run();
+  } catch {
+    return { ok: false, error: OFFLINE_MSG };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Idle reset
+// ---------------------------------------------------------------------------
+
+/** Inactivity before the "Still there?" prompt on a customer/staff screen. */
+export const IDLE_TIMEOUT_MS = 90_000;
+/** How long "Still there?" counts down before the kiosk resets. */
+export const IDLE_COUNTDOWN_MS = 10_000;
+
+/**
+ * Where an inactive kiosk is in its reset cycle after `idleMs` without a
+ * touch: still active, showing the countdown (with whole seconds left), or
+ * due to reset to the home board.
+ */
+export function idleStage(
+  idleMs: number,
+):
+  | { stage: "active" }
+  | { stage: "warning"; secondsLeft: number }
+  | { stage: "reset" } {
+  if (idleMs < IDLE_TIMEOUT_MS) return { stage: "active" };
+  const left = IDLE_TIMEOUT_MS + IDLE_COUNTDOWN_MS - idleMs;
+  if (left <= 0) return { stage: "reset" };
+  return { stage: "warning", secondsLeft: Math.ceil(left / 1000) };
+}
+
+// ---------------------------------------------------------------------------
+// Staff gate
+// ---------------------------------------------------------------------------
+
+/** Mirrors core `KIOSK_PIN_PATTERN` (that module is server-only). */
+export const KIOSK_PIN_LENGTH = { min: 4, max: 6 } as const;
+
+export function isPinShaped(pin: string): boolean {
+  return /^\d{4,6}$/.test(pin);
+}
+
+/** Press-and-hold duration for the no-PIN fallback staff gate. */
+export const HOLD_TO_UNLOCK_MS = 2000;

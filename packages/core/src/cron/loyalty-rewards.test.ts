@@ -31,8 +31,15 @@ beforeEach(() => {
   sendEmail.mockReset();
   sendEmail.mockResolvedValue({ id: "m1", status: "sent" });
   configFindFirst.mockResolvedValue({
+    name: "Bandit Pass",
     rewardThreshold: 8,
     rewardDesc: "Free small tattoo",
+    perks: [
+      { stamps: 2, title: "Birthday treat", desc: "" },
+      { stamps: 4, title: "Early flash access", desc: "" },
+      { stamps: 6, title: "Priority booking", desc: "" },
+      { stamps: 8, title: "Free small tattoo", desc: "" },
+    ],
     active: true,
   });
 });
@@ -53,11 +60,13 @@ describe("runLoyaltyRewards", () => {
     expect(sendEmail).toHaveBeenCalledOnce();
     const arg = sendEmail.mock.calls[0][0] as {
       type: string;
-      data: { rewardLabel: string; stamps: number };
+      data: { rewardLabel: string; stamps: number; tierLabel: string };
     };
     expect(arg.type).toBe("loyalty_reward");
     expect(arg.data.rewardLabel).toBe("Free small tattoo");
     expect(arg.data.stamps).toBe(8);
+    // The configured tier name, never a bare "Tier 4".
+    expect(arg.data.tierLabel).toBe("Level 4 · Free small tattoo");
     expect(res.sent).toBe(1);
   });
 

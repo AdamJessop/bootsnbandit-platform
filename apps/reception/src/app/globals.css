@@ -1466,6 +1466,266 @@ textarea {
   margin: 0;
 }
 
+/* ---- consent form sections (v2 question set) ---- */
+.rk-consent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rk-consent-h {
+  font-family: var(--font-termina);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--bb-gold);
+  margin: 8px 0 0;
+}
+.rk-consent-note {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--text-muted);
+}
+.rk-q-text {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.rk-q-text label {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+.rk-q-text textarea {
+  resize: vertical;
+  min-height: 84px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ---- staff gate (PIN pad / hold-to-unlock) ---- */
+.rk-gate {
+  z-index: 60;
+}
+.rk-gate-body {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+.rk-pin {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.rk-pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding: 6px 0;
+}
+.rk-pin-dots span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  transition: background var(--dur-fast);
+}
+.rk-pin-dots span.on {
+  background: var(--bb-gold);
+  border-color: var(--bb-gold);
+}
+.rk-pin-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.rk-pin-key {
+  min-height: 64px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-termina);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  transition: transform var(--dur-fast);
+}
+.rk-pin-key:active {
+  transform: scale(0.96);
+}
+.rk-pin-key .ic {
+  width: 24px;
+  height: 24px;
+}
+.rk-hold {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+  min-height: 76px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-gold);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-termina);
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+.rk-hold-fill {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--bb-gold-tint);
+  border-right: 2px solid var(--bb-gold);
+}
+.rk-hold.holding .rk-hold-fill {
+  transform: scaleX(1);
+  transition: transform var(--hold-ms, 2000ms) linear;
+}
+.rk-hold-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.rk-hold-label .ic {
+  width: 20px;
+  height: 20px;
+  color: var(--bb-gold);
+}
+.rk-idcheck-unlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* ---- staff tray (top bar) ---- */
+.rk-staff-tray {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.rk-staff-tray + .rk-clock {
+  margin-left: 12px;
+}
+.rk-staff-tray .rk-mini-btn {
+  min-height: 44px;
+}
+
+/* ---- idle "Still there?" ---- */
+.rk-idle {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 7, 6, 0.82);
+}
+.rk-idle-card {
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius);
+  padding: 30px;
+  box-shadow: var(--shadow-xl);
+}
+.rk-idle-card .ic {
+  width: 40px;
+  height: 40px;
+  color: var(--bb-gold);
+}
+.rk-idle-card h2 {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: var(--text-primary);
+  margin: 0;
+}
+.rk-idle-card p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.rk-idle-card p b {
+  color: var(--bb-gold-soft);
+}
+
+/* ---- empty states ---- */
+.rk-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 34px 20px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.rk-empty > .ic {
+  width: 36px;
+  height: 36px;
+  color: var(--text-disabled);
+}
+.rk-empty p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+.rk-empty p b {
+  color: var(--text-secondary);
+}
+.rk-empty-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+/* ---- checkout: phone reveal + consent acknowledgement ---- */
+.rk-reveal {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rk-ack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rk-ack-btns {
+  display: flex;
+  gap: 10px;
+}
+.rk-ack-btns .btn {
+  flex: 1;
+}
+
 /* ---- responsive ---- */
 @media (max-width: 980px) {
   .rk-checkout {

@@ -533,17 +533,35 @@ model Booking {
 // Reception kiosk: digital consent form signed by the customer at check-in.
 // Answers are the yes/no medical-history questionnaire (question id → boolean);
 // `flagged` marks any needs-review answer so the front desk can have a word
-// before the session starts. Signature is a data-URL PNG from the kiosk pad.
+// before the session starts. Signature is a data-URL PNG from the kiosk pad
+// (black ink on white).
+//
+// It is a licensing record, so it must outlive edits to the question set and
+// can never vanish with its booking: each form snapshots the exact questions
+// and version shown (`@bnb/core/consent`), the customer's printed name and
+// date of birth, and which member of staff checked their photo ID. The
+// snapshot columns are nullable only because forms signed before they existed
+// have none (those were all v1). `onDelete: Restrict` blocks deleting a booking
+// (or, through the cascade, an artist or customer) that has a signed form.
 model ConsentForm {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  answers   Json
-  flagged   Boolean  @default(false)
-  signature String
-  signedAt  DateTime @default(now())
-  createdAt DateTime @default(now())
+  id                  String    @id @default(cuid())
+  bookingId           String    @unique
+  answers             Json
+  flagged             Boolean   @default(false)
+  signature           String
+  formVersion         Int?
+  questions           Json? // [{ id, q, expect, section }] as shown
+  printedName         String?
+  dob                 DateTime? @db.Date
+  medicalNotes        String?
+  photoConsent        Boolean?
+  idCheckedBy         String? // staff display name at the time
+  idCheckedByArtistId String?
+  idCheckedAt         DateTime?
+  signedAt            DateTime  @default(now())
+  createdAt           DateTime  @default(now())
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
 }
 
 model Session {
@@ -730,6 +748,9 @@ model SiteSettings {
   tickerLines     String[] @default([])
   enquiriesOpen   Boolean  @default(true)
   visualDirection String   @default("heritage")
+  // Front-desk kiosk staff PIN (4–6 digits), scrypt-hashed. Null = no PIN set:
+  // the kiosk falls back to a hold-to-unlock staff gate.
+  kioskPinHash    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

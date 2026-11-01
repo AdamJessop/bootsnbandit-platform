@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Check, CheckCircle2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CalendarPlus,
+  Check,
+  CheckCircle2,
+} from "lucide-react";
 import { ArtistAvatar } from "./ArtistAvatar";
 import {
   hhmm,
@@ -30,18 +36,25 @@ function rowStatus(s: BoardSession, now: Date) {
   return <span className="rk-pill out">Booked</span>;
 }
 
-/** Every session today — status, consent and running takings. */
+/**
+ * Every session today — status and consent. Staff-only (behind the gate).
+ * Checking out a booking with no form, or a flagged one, asks for an explicit
+ * acknowledgement on the checkout screen.
+ */
 export function DayListScreen({
   artists,
   sessions,
   now,
   onCheckout,
+  onNew,
   onExit,
 }: {
   artists: BoardArtist[];
   sessions: BoardSession[];
   now: Date;
   onCheckout: (bookingId: string) => void;
+  /** Shortcut to the walk-in form from the empty state. */
+  onNew?: () => void;
   onExit: () => void;
 }) {
   const sorted = [...sessions].sort((a, b) => a.start.localeCompare(b.start));
@@ -68,6 +81,18 @@ export function DayListScreen({
         </div>
       </div>
       <div className="rk-screen-body">
+        {sorted.length === 0 && (
+          <div className="rk-empty">
+            <CalendarPlus className="ic" />
+            <p>Nothing booked in for today yet.</p>
+            {onNew && (
+              <button className="rk-mini-btn gold" onClick={onNew}>
+                <CalendarPlus className="ic" />
+                New session
+              </button>
+            )}
+          </div>
+        )}
         <div className="rk-day-list">
           {sorted.map((s) => {
             const a = artists.find((x) => x.id === s.artistId);

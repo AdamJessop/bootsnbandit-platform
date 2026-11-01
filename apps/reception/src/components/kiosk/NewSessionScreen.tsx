@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, CalendarDays } from "lucide-react";
 import { ArtistAvatar } from "./ArtistAvatar";
-import { DURATIONS, hhmm, startSlots, type BoardArtist } from "./kiosk-logic";
+import {
+  DURATIONS,
+  hhmm,
+  safeAction,
+  startSlots,
+  type BoardArtist,
+} from "./kiosk-logic";
 
 export interface WalkInPayload {
   customerName: string;
@@ -46,15 +52,17 @@ export function NewSessionScreen({
     const { minutes, type } = DURATIONS[durIdx];
     setBusy(true);
     setError(null);
-    const result = await onCreate({
-      customerName: name.trim(),
-      phone: phone.trim() || undefined,
-      email: email.trim() || undefined,
-      artistId,
-      startIso: start.toISOString(),
-      durationMin: minutes,
-      type,
-    });
+    const result = await safeAction(() =>
+      onCreate({
+        customerName: name.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        artistId,
+        startIso: start.toISOString(),
+        durationMin: minutes,
+        type,
+      }),
+    );
     if (!result.ok) {
       setError(result.error);
       setBusy(false);

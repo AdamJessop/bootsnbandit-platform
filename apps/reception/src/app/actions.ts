@@ -7,16 +7,26 @@ import type { ArtistShowcase } from "@bnb/core/services/artist-showcase";
 import { loadArtistShowcase } from "@bnb/core/services/artist-showcase";
 import { BookingConflictError } from "@bnb/core/services/bookings";
 import {
+  CURRENT_CONSENT_FORM,
+  MEDICAL_NOTES_MAX,
+  ageOn,
+  allAnswered,
+  isFormFlagged,
+} from "@bnb/core/consent";
+import {
   ReceptionCheckinError,
   checkInCustomer,
+  consentNeedsAck,
   createWalkInBooking,
+  kioskPinConfigured,
   setStaffCheckin,
+  verifyKioskPin,
 } from "@bnb/core/services/reception";
 import {
   SessionCompletionError,
   completeSession,
 } from "@bnb/core/services/sessions";
-import { flaggedQuestions } from "@/components/kiosk/kiosk-logic";
+import { pinThrottle } from "./pin-throttle";
 
 /**
  * Kiosk server actions. Every mutation requires the kiosk to be signed in
@@ -85,6 +95,14 @@ const checkinSchema = z.object({
   answers: z.record(z.string(), z.boolean()),
   // PNG data URL from the kiosk signature pad (~10–50 KB).
   signature: z.string().startsWith("data:image/png;base64,").max(1_000_000),
+  printedName: z.string().trim().min(1).max(120),
+  // YYYY-MM-DD from the kiosk date input; must be a real past date.
+  dob: z.string().refine((v) => ageOn(v) != null, {
+    message: "Invalid date of birth",
+  }),
+  medicalNotes: z.string().max(MEDICAL_NOTES_MAX).optional(),
+  photoConsent: z.boolean().nullable().optional(),
+  idCheckedByArtistId: z.string().min(1),
 });
 
 export async function customerCheckinAction(
@@ -93,13 +111,65 @@ export async function customerCheckinAction(
   if (!(await kioskSignedIn())) return SIGNED_OUT;
   const parsed = checkinSchema.safeParse(input);
   if (!parsed.success) return GENERIC;
+  const { answers, dob, ...rest } = parsed.data;
+  const form = CURRENT_CONSENT_FORM;
+  if (!allAnswered(answers, form.questions)) {
+    return { ok: false, error: "Please answer every question on the form" };
+  }
   try {
-    // The flag is derived server-side from the answers, never trusted from
-    // the client.
-    const flagged = flaggedQuestions(parsed.data.answers).length > 0;
-    await checkInCustomer({ ...parsed.data, flagged });
+    // The flag is derived server-side from the answers (and the date of
+    // birth), never trusted from the client. Only the current form's
+    // questions are stored, alongside a snapshot of exactly what they said.
+    const flagged = isFormFlagged(answers, dob, new Date(), form.questions);
+    const [y, m, d] = dob.split("-").map(Number);
+    await checkInCustomer({
+      ...rest,
+      answers: Object.fromEntries(
+        form.questions.map((q) => [q.id, answers[q.id]]),
+      ),
+      flagged,
+      formVersion: form.version,
+      questions: form.questions,
+      dob: new Date(Date.UTC(y, m - 1, d)),
+    });
     revalidatePath("/");
     return { ok: true };
+  } catch (err) {
+    return friendly(err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Staff gate (kiosk PIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * Check a staff PIN attempt for the kiosk's staff gate. The PIN is verified
+ * here against the scrypt hash (never sent to or compared on the client), and
+ * repeated wrong guesses lock attempts out for a minute. When no PIN is
+ * configured the kiosk shows the hold-to-unlock fallback instead and never
+ * calls this.
+ */
+export async function verifyStaffPinAction(pin: string): Promise<ActionResult> {
+  if (!(await kioskSignedIn())) return SIGNED_OUT;
+  if (typeof pin !== "string") return GENERIC;
+  const wait = pinThrottle.lockedFor();
+  if (wait > 0) {
+    return {
+      ok: false,
+      error: `Too many tries — wait ${wait} seconds and try again`,
+    };
+  }
+  try {
+    if (await verifyKioskPin(pin)) {
+      pinThrottle.reset();
+      return { ok: true };
+    }
+    if (!(await kioskPinConfigured())) {
+      return { ok: false, error: "No staff PIN is set for this kiosk" };
+    }
+    pinThrottle.recordFailure();
+    return { ok: false, error: "That PIN isn't right — try again" };
   } catch (err) {
     return friendly(err);
   }
@@ -158,16 +228,36 @@ export async function walkInAction(
 const checkoutSchema = z.object({
   bookingId: z.string().min(1),
   amountPence: z.number().int().min(0).max(10_000_000),
+  consentAcknowledged: z.boolean(),
 });
 
+/**
+ * Complete a session. A booking with no consent form, or a flagged one, is
+ * refused unless the front desk explicitly acknowledged it on the checkout
+ * screen — checkout must never pass over a missing form silently.
+ */
 export async function checkoutAction(
   bookingId: string,
   amountPence: number,
+  consentAcknowledged = false,
 ): Promise<ActionResult> {
   if (!(await kioskSignedIn())) return SIGNED_OUT;
-  const parsed = checkoutSchema.safeParse({ bookingId, amountPence });
+  const parsed = checkoutSchema.safeParse({
+    bookingId,
+    amountPence,
+    consentAcknowledged,
+  });
   if (!parsed.success) return GENERIC;
   try {
+    if (
+      !parsed.data.consentAcknowledged &&
+      (await consentNeedsAck(parsed.data.bookingId))
+    ) {
+      return {
+        ok: false,
+        error: "Check the consent form warning before completing the session",
+      };
+    }
     await completeSession({
       bookingId: parsed.data.bookingId,
       amountChargedPence: parsed.data.amountPence,

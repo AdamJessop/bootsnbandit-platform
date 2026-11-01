@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, AtSign, Star } from "lucide-react";
+import { ArrowLeft, AtSign, Images } from "lucide-react";
 import { artistStatusLabel, type ArtistStatus } from "@bnb/core/artist-status";
 import { ArtistAvatar } from "./ArtistAvatar";
 import type {
@@ -92,15 +92,14 @@ export function ArtistShowcaseScreen({
                   <p className="rk-showcase-bio">{showcase.artist.bio}</p>
                 ) : null}
                 <div className="rk-showcase-meta">
-                  {showcase.artist.rating != null ? (
+                  {/* Real numbers only: the count of uploaded portfolio
+                      photos, never a seeded rating or piece tally. */}
+                  {showcase.gallery.length > 0 ? (
                     <span className="rk-showcase-meta-item">
-                      <Star className="ic" />
-                      {showcase.artist.rating}
-                    </span>
-                  ) : null}
-                  {showcase.artist.pieces != null ? (
-                    <span className="rk-showcase-meta-item">
-                      {showcase.artist.pieces} pieces
+                      <Images className="ic" />
+                      {showcase.gallery.length} piece
+                      {showcase.gallery.length === 1 ? "" : "s"} in the
+                      portfolio
                     </span>
                   ) : null}
                   {showcase.artist.insta ? (
@@ -141,7 +140,10 @@ export function ArtistShowcaseScreen({
 
             <div className="rk-showcase-gallery-label">Portfolio</div>
             {showcase.gallery.length === 0 ? (
-              <p className="rk-showcase-empty">Portfolio photos coming soon.</p>
+              <p className="rk-showcase-empty">
+                No photos uploaded here yet — ask{" "}
+                {showcase.artist.name.split(" ")[0]} to show you their book.
+              </p>
             ) : (
               <div className="rk-showcase-gallery">
                 {showcase.gallery.map((g) => (
