@@ -13,8 +13,10 @@ import {
   toggleStyle,
   type DayChoice,
   type SizeChoice,
+  type WizardFlash,
   type WizardState,
 } from "./logic";
+import { formatPence } from "../_format";
 import { MoodboardRefs } from "./MoodboardRefs";
 import styles from "./enquire.module.css";
 
@@ -31,11 +33,33 @@ export function ArtistStep({
   artists,
   value,
   onPick,
+  lockedTo,
 }: {
   artists: WizardArtist[];
   value: string | null;
   onPick: (id: string | null) => void;
+  /** Flash claims lock the step to the design's artist. */
+  lockedTo?: WizardArtist | null;
 }) {
+  if (lockedTo) {
+    return (
+      <div>
+        <h2 className={styles.panelTitle}>Your artist</h2>
+        <p className={styles.panelSub}>
+          Flash designs are tattooed by the artist who drew them, so this one is
+          with {lockedTo.name.split(" ")[0]}.
+        </p>
+        <div className={styles.choiceGrid}>
+          <div className={`${styles.choice} ${styles.on}`} aria-current="true">
+            <span className={styles.choiceName}>{lockedTo.name}</span>
+            <span className={styles.choiceMeta}>
+              {lockedTo.role} · books {lockedTo.booksStatus}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div>
       <h2 className={styles.panelTitle}>Pick your artist</h2>
@@ -73,11 +97,51 @@ export function IdeaStep({
   styleOptions,
   state,
   set,
+  flash,
 }: {
   styleOptions: string[];
   state: WizardState;
   set: Set;
+  /** On a flash claim the design is drawn: only placement (+ notes) is asked. */
+  flash?: WizardFlash;
 }) {
+  if (flash) {
+    return (
+      <div>
+        <h2 className={styles.panelTitle}>Where&rsquo;s it going?</h2>
+        <p className={styles.panelSub}>
+          {flash.title} is already drawn
+          {flash.size ? ` at ${flash.size}` : ""} — just tell us where you want
+          it and anything we should know. Both optional.
+        </p>
+        <Field label="Placement" htmlFor="placement">
+          <select
+            id="placement"
+            className="select"
+            value={state.placement}
+            onChange={(e) => set({ placement: e.target.value })}
+          >
+            <option value="">Choose a placement</option>
+            {PLACEMENTS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Notes (optional)" htmlFor="subject">
+          <textarea
+            id="subject"
+            className="textarea"
+            rows={3}
+            placeholder="Any tweaks, colour preferences or questions…"
+            value={state.subject}
+            onChange={(e) => set({ subject: e.target.value })}
+          />
+        </Field>
+      </div>
+    );
+  }
   return (
     <div>
       <h2 className={styles.panelTitle}>Your idea</h2>
@@ -354,21 +418,26 @@ export function DetailsStep({ state, set }: { state: WizardState; set: Set }) {
 export function Summary({
   state,
   artists,
-  flashId,
+  flash,
 }: {
   state: WizardState;
   artists: WizardArtist[];
-  flashId?: string;
+  flash?: WizardFlash;
 }) {
   const artist = artists.find((a) => a.id === state.artistId);
   return (
     <aside className={styles.aside}>
-      <strong>Your enquiry</strong>
+      <strong>{flash ? "Your flash claim" : "Your enquiry"}</strong>
       <dl>
-        {flashId && (
+        {flash && (
           <>
             <dt>Flash</dt>
-            <dd>Claiming a flash design</dd>
+            <dd>
+              {flash.title}
+              {flash.pricePence != null &&
+                ` · ${formatPence(flash.pricePence)}`}
+              {flash.size && ` · ${flash.size}`}
+            </dd>
           </>
         )}
         <dt>Artist</dt>

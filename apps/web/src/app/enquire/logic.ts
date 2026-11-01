@@ -191,6 +191,19 @@ export function parseBudgetPounds(raw: string): number | null {
   return Math.round(pounds * 100);
 }
 
+/**
+ * The flash design a visitor is claiming (`?flash=<id>`). The wizard locks the
+ * Artist step to `artistId` when set — flash is tattooed by whoever drew it —
+ * and the summary shows the title/price so the visitor knows what they got.
+ */
+export interface WizardFlash {
+  id: string;
+  title: string;
+  artistId: string | null;
+  pricePence: number | null;
+  size: string | null;
+}
+
 export interface SeedArtistLike {
   id: string;
   slug?: string | null;
@@ -281,14 +294,21 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Whether the visitor can advance from the given step. The Artist step always
- * allows progress ("match me" is a valid choice = null artist). The final
- * Details step requires a name and at least one contact method.
+ * allows progress ("match me" is a valid choice = null artist). The Idea step
+ * needs a style or subject — except on a flash claim, where the design is
+ * already drawn and the step only collects placement. The final Details step
+ * requires a name and at least one contact method.
  */
-export function canAdvance(step: StepName, state: WizardState): boolean {
+export function canAdvance(
+  step: StepName,
+  state: WizardState,
+  opts: { flash?: boolean } = {},
+): boolean {
   switch (step) {
     case "Artist":
       return true;
     case "Idea":
+      if (opts.flash) return true;
       return state.styles.length > 0 || state.subject.trim().length > 0;
     case "Mood board":
       return true; // optional

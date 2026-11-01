@@ -8,12 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@bnb/core/utils";
+import { formatPounds, penceToPounds } from "../_lib/money";
 
 /**
  * Generic content-CMS editor (J1–J6): a table of existing rows + an inline
  * create/edit form built from declarative field definitions. CRUD is performed
  * via server actions passed by the section's server page (which revalidates).
  * `image` fields render the shared ImageUploader (POST /api/uploads).
+ * `money` fields are stored as integer pence but presented/edited in pounds —
+ * the draft holds the pounds string and the server spec (`kind: "pounds"`)
+ * converts back. `select` fields show their option label in the table.
  */
 
 export type CrudFieldType =
@@ -22,7 +26,8 @@ export type CrudFieldType =
   | "textarea"
   | "checkbox"
   | "image"
-  | "select";
+  | "select"
+  | "money";
 
 export interface CrudField {
   name: string;
@@ -61,6 +66,8 @@ export function buildDefaults(
     if (fromRow !== undefined && fromRow !== null) {
       if (f.type === "checkbox") draft[f.name] = Boolean(fromRow);
       else if (f.type === "number") draft[f.name] = Number(fromRow);
+      else if (f.type === "money")
+        draft[f.name] = penceToPounds(Number(fromRow));
       else draft[f.name] = String(fromRow);
       continue;
     }
@@ -77,6 +84,18 @@ function cellText(value: unknown): string {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (Array.isArray(value)) return value.join(", ") || "—";
   return String(value);
+}
+
+/** Table cell text for a field: pence → £, select value → option label. */
+export function cellLabel(field: CrudField, value: unknown): string {
+  if (field.type === "money") {
+    return formatPounds(typeof value === "number" ? value : null);
+  }
+  if (field.type === "select" && value !== null && value !== undefined) {
+    const opt = field.options?.find((o) => o.value === String(value));
+    if (opt) return opt.label;
+  }
+  return cellText(value);
 }
 
 export function CrudSection({
@@ -176,7 +195,7 @@ export function CrudSection({
                       f.name === primary && "font-medium text-text-primary",
                     )}
                   >
-                    {cellText(row[f.name])}
+                    {cellLabel(f, row[f.name])}
                   </td>
                 ))}
                 <td className="px-4 py-2.5">
@@ -276,6 +295,28 @@ export function CrudSection({
                       }))
                     }
                   />
+                ) : f.type === "money" ? (
+                  <div className="relative">
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-text-muted"
+                    >
+                      £
+                    </span>
+                    <Input
+                      id={`f-${f.name}`}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      className="pl-6"
+                      value={String(draft[f.name] ?? "")}
+                      placeholder={f.placeholder ?? "0.00"}
+                      onChange={(e) =>
+                        setDraft((d) => ({ ...d, [f.name]: e.target.value }))
+                      }
+                    />
+                  </div>
                 ) : (
                   <Input
                     id={`f-${f.name}`}

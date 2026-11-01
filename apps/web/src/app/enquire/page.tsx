@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@bnb/core/db";
 import { artistStatusLabel } from "@bnb/core/artist-status";
-import { resolveSeedArtist } from "./logic";
+import { resolveSeedArtist, type WizardFlash } from "./logic";
 import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
 
 /**
@@ -13,7 +13,8 @@ import { EnquireWizard, type WizardArtist } from "./EnquireWizard";
  * Query seeds (all optional):
  *   ?artist=<id|slug>  pre-selects the artist (artist-detail/gallery links pass slugs)
  *   ?wait=1            waitlist link for a closed-books artist (note shows in the wizard)
- *   ?flash=<id>        flips the wizard into a flash-claim (posts /api/flash)
+ *   ?flash=<id>        flips the wizard into a flash-claim (posts /api/flash);
+ *                      the design's artist is pre-selected + locked
  *   ?styles=a,b,c      pre-selects up to 3 styles
  */
 
@@ -26,13 +27,14 @@ interface SearchParams {
   styles?: string;
 }
 
-async function loadData(): Promise<{
+async function loadData(flashId?: string): Promise<{
   artists: (WizardArtist & { slug: string })[];
   styleOptions: string[];
   enquiriesOpen: boolean;
+  flash: WizardFlash | null;
 }> {
   try {
-    const [artists, styles, settings] = await Promise.all([
+    const [artists, styles, settings, flash] = await Promise.all([
       prisma.artist.findMany({
         where: { active: true },
         orderBy: { sortOrder: "asc" },
@@ -46,6 +48,18 @@ async function loadData(): Promise<{
       }),
       prisma.tattooStyle.findMany({ orderBy: { sortOrder: "asc" } }),
       prisma.siteSettings.findFirst({ select: { enquiriesOpen: true } }),
+      flashId
+        ? prisma.flash.findUnique({
+            where: { id: flashId },
+            select: {
+              id: true,
+              title: true,
+              artistId: true,
+              pricePence: true,
+              sizeCm: true,
+            },
+          })
+        : null,
     ]);
     return {
       artists: artists.map((a) => ({
@@ -57,10 +71,19 @@ async function loadData(): Promise<{
       })),
       styleOptions: styles.map((s) => s.name),
       enquiriesOpen: settings?.enquiriesOpen ?? true,
+      flash: flash
+        ? {
+            id: flash.id,
+            title: flash.title,
+            artistId: flash.artistId,
+            pricePence: flash.pricePence,
+            size: flash.sizeCm,
+          }
+        : null,
     };
   } catch {
     // Keep the page renderable before the DB/adapter is wired in dev.
-    return { artists: [], styleOptions: [], enquiriesOpen: true };
+    return { artists: [], styleOptions: [], enquiriesOpen: true, flash: null };
   }
 }
 
@@ -70,7 +93,9 @@ export default async function EnquirePage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const { artists, styleOptions, enquiriesOpen } = await loadData();
+  const { artists, styleOptions, enquiriesOpen, flash } = await loadData(
+    sp.flash,
+  );
 
   const seedStyles = sp.styles
     ? sp.styles
@@ -79,8 +104,12 @@ export default async function EnquirePage({
         .filter((s) => styleOptions.includes(s))
         .slice(0, 3)
     : undefined;
-  // Artist links pass slugs, internal links may pass ids — accept either.
-  const seedArtistId = resolveSeedArtist(artists, sp.artist)?.id;
+  // A flash claim is always with the design's artist; otherwise artist links
+  // pass slugs and internal links may pass ids — accept either.
+  const seedArtistId = resolveSeedArtist(
+    artists,
+    flash?.artistId ?? sp.artist,
+  )?.id;
 
   return (
     <>
@@ -102,7 +131,7 @@ export default async function EnquirePage({
               styleOptions={styleOptions}
               seedArtistId={seedArtistId}
               seedStyles={seedStyles}
-              flashId={sp.flash}
+              flash={flash ?? undefined}
             />
           ) : (
             <div className="card card-pad" style={{ textAlign: "center" }}>

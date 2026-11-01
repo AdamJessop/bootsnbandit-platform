@@ -6,6 +6,11 @@
  */
 
 import type { ArtistStatus } from "@bnb/core/artist-status";
+import { poundsToPence } from "../../_lib/money";
+
+// Re-exported so existing importers/tests of the artist form keep working;
+// the helpers now live in the shared content money module.
+export { poundsToPence, penceToPounds } from "../../_lib/money";
 
 export type AccessRole = "OWNER" | "ARTIST";
 export type BooksStatus = "open" | "limited" | "closed";
@@ -16,24 +21,6 @@ const STATUSES: ReadonlyArray<ArtistStatus> = [
   "APPRENTICE",
 ];
 const BOOKS: ReadonlyArray<BooksStatus> = ["open", "limited", "closed"];
-
-/** £ string ("90", "90.50") → integer pence, or null for blank/invalid. */
-export function poundsToPence(raw: string | null | undefined): number | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.trim();
-  if (t === "") return null;
-  const n = Number(t);
-  if (!Number.isFinite(n)) return null;
-  return Math.round(n * 100);
-}
-
-/** Integer pence → a £ string suitable for a number input (no symbol). */
-export function penceToPounds(pence: number | null | undefined): string {
-  if (pence == null) return "";
-  return (pence / 100) % 1 === 0
-    ? String(pence / 100)
-    : (pence / 100).toFixed(2);
-}
 
 export interface ArtistProfilePayload {
   slug: string;

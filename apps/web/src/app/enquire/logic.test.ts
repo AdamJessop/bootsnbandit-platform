@@ -70,6 +70,12 @@ describe("enquire logic — step gating", () => {
     expect(canAdvance("Idea", s)).toBe(true);
   });
 
+  it("does not require an idea on the Idea step for a flash claim", () => {
+    const s = emptyWizardState();
+    expect(canAdvance("Idea", s, { flash: true })).toBe(true);
+    expect(canAdvance("Idea", s, { flash: false })).toBe(false);
+  });
+
   it("requires general availability on the Consultation step", () => {
     const s = emptyWizardState();
     expect(canAdvance("Consultation", s)).toBe(false);

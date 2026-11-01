@@ -3,6 +3,7 @@ import { prisma } from "@bnb/core/db";
 import { CrudSection, type CrudField } from "../_components/CrudSection";
 import { createRow, deleteRow, updateRow, type CrudConfig } from "../_lib/crud";
 import type { FieldSpec } from "../_lib/coerce";
+import { artistField, loadArtistOptions } from "../_lib/artist-options";
 
 /** Gallery CMS (J1) — portfolio pieces. Owner-only. */
 export const dynamic = "force-dynamic";
@@ -22,22 +23,30 @@ const CFG: CrudConfig = {
   spec: SPEC,
   revalidate: "/content/gallery",
 };
-const FIELDS: CrudField[] = [
-  { name: "title", label: "Title", type: "text", required: true },
-  { name: "style", label: "Style", type: "text" },
-  { name: "placement", label: "Placement", type: "text" },
-  { name: "artistId", label: "Artist ID", type: "text", hideInTable: true },
-  { name: "image", label: "Image", type: "image", hideInTable: true },
-  { name: "hue", label: "Hue", type: "text", hideInTable: true },
-  { name: "featured", label: "Featured", type: "checkbox" },
-  { name: "sortOrder", label: "Order", type: "number" },
-];
+/** Field definitions; the artist select is built from the live artist list. */
+function galleryFields(
+  artists: { id: string; name: string }[],
+): CrudField[] {
+  return [
+    { name: "title", label: "Title", type: "text", required: true },
+    artistField(artists),
+    { name: "style", label: "Style", type: "text" },
+    { name: "featured", label: "Featured", type: "checkbox" },
+    { name: "placement", label: "Placement", type: "text", hideInTable: true },
+    { name: "image", label: "Image", type: "image", hideInTable: true },
+    { name: "hue", label: "Hue", type: "text", hideInTable: true },
+    { name: "sortOrder", label: "Order", type: "number", hideInTable: true },
+  ];
+}
 
 export default async function GalleryContentPage() {
   await requireRole("OWNER");
   const rows = await prisma.galleryItem.findMany({
     orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
   });
+  const fields = galleryFields(
+    await loadArtistOptions(rows.map((r) => r.artistId)),
+  );
   return (
     <main className="mx-auto max-w-[1100px] px-7 py-10">
       <p className="kicker mb-2">Content</p>
@@ -46,7 +55,7 @@ export default async function GalleryContentPage() {
       </h1>
       <p className="mt-2 mb-6 text-text-muted">Manage portfolio pieces.</p>
       <CrudSection
-        fields={FIELDS}
+        fields={fields}
         rows={rows}
         createAction={createRow.bind(null, CFG)}
         updateAction={updateRow.bind(null, CFG)}

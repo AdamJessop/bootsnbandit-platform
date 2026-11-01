@@ -16,6 +16,7 @@ const schema = z.object({
   contactEmail: z.string().email().nullish(),
   contactPhone: z.string().nullish(),
   placement: z.string().nullish(),
+  preferredArtistId: z.string().nullish(),
   marketingConsent: z.boolean().optional(),
 });
 

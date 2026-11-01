@@ -4,7 +4,45 @@ import { emptyWizardState } from "./logic";
 
 vi.mock("./enquire.module.css", () => ({ default: {} }));
 
-const { DetailsStep, MoodStep } = await import("./steps");
+const { DetailsStep, IdeaStep, MoodStep } = await import("./steps");
+
+describe("IdeaStep", () => {
+  it("asks for styles, subject, placement and size on a normal enquiry", () => {
+    const html = renderToStaticMarkup(
+      <IdeaStep
+        styleOptions={["Fine-line"]}
+        state={emptyWizardState()}
+        set={() => {}}
+      />,
+    );
+    expect(html).toContain("Your idea");
+    expect(html).toContain("Fine-line");
+    expect(html).toContain("Rough size");
+    expect(html).toContain('id="placement"');
+  });
+
+  it("collapses to placement + optional notes on a flash claim", () => {
+    const html = renderToStaticMarkup(
+      <IdeaStep
+        styleOptions={["Fine-line"]}
+        state={emptyWizardState()}
+        set={() => {}}
+        flash={{
+          id: "f1",
+          title: "Pearl Shell",
+          artistId: "a1",
+          pricePence: 13000,
+          size: "~11cm",
+        }}
+      />,
+    );
+    expect(html).toContain("Pearl Shell is already drawn at ~11cm");
+    expect(html).toContain('id="placement"');
+    expect(html).toContain("Notes (optional)");
+    expect(html).not.toContain("Fine-line");
+    expect(html).not.toContain("Rough size");
+  });
+});
 
 describe("DetailsStep", () => {
   it("renders the optional budget input with preset chips", () => {

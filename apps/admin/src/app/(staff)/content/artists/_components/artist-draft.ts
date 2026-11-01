@@ -3,7 +3,7 @@
  * ArtistEditor to keep each module under the size limit. Pure (client-safe).
  */
 
-import { penceToPounds } from "../_lib/artist-form";
+import { penceToPounds } from "../../_lib/money";
 import type { ArtistStatus } from "@bnb/core/artist-status";
 
 export interface StyleOption {

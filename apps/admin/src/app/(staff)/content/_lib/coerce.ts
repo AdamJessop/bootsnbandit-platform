@@ -4,7 +4,13 @@
  * server-only imports so it is unit testable.
  */
 
-export type FieldKind = "string" | "int" | "bool" | "stringArray";
+import { poundsToPence } from "./money";
+
+/**
+ * `pounds` reads a "£ pounds" string from the form ("45", "45.50") and stores
+ * integer pence — the DB never sees a decimal.
+ */
+export type FieldKind = "string" | "int" | "bool" | "stringArray" | "pounds";
 
 export interface FieldSpec {
   name: string;
@@ -38,6 +44,11 @@ export function coerceFields(
               ? null
               : 0;
         }
+        break;
+      }
+      case "pounds": {
+        const pence = poundsToPence(s);
+        out[f.name] = pence ?? (f.nullable ? null : 0);
         break;
       }
       case "bool":

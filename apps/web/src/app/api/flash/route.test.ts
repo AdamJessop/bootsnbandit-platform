@@ -61,6 +61,35 @@ describe("POST /api/flash (public claim)", () => {
     if (body.enquiry.customerId) customers.push(body.enquiry.customerId);
   });
 
+  it("honours the visitor's artist pick only when the flash has no artist", async () => {
+    if (!(await dbReachable())) return;
+    const artist = await db().artist.findFirstOrThrow();
+    const flash = await db().flash.create({
+      data: {
+        title: `Unassigned ${uid()}`,
+        total: 2,
+        claimed: 0,
+        status: "available",
+      },
+    });
+    flashes.push(flash.id);
+    const res = await POST(
+      new Request("http://x/api/flash", {
+        method: "POST",
+        body: JSON.stringify({
+          flashId: flash.id,
+          contactName: "Picky Claimer",
+          preferredArtistId: artist.id,
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.enquiry.preferredArtistId).toBe(artist.id);
+    enquiries.push(body.enquiry.id);
+    if (body.enquiry.customerId) customers.push(body.enquiry.customerId);
+  });
+
   it("409s when the flash is sold out", async () => {
     if (!(await dbReachable())) return;
     const flash = await db().flash.create({

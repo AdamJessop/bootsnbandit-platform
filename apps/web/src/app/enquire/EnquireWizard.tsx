@@ -7,8 +7,10 @@ import {
   buildEnquiryPayload,
   canAdvance,
   emptyWizardState,
+  resolveSeedArtist,
   STEPS,
   waitlistNote,
+  type WizardFlash,
   type WizardState,
 } from "./logic";
 import {
@@ -30,7 +32,8 @@ interface Props {
   /** Query seeds. */
   seedArtistId?: string;
   seedStyles?: string[];
-  flashId?: string;
+  /** Set when claiming a flash design: locks the artist + posts /api/flash. */
+  flash?: WizardFlash;
 }
 
 const MONTHS = [
@@ -53,12 +56,17 @@ export function EnquireWizard({
   styleOptions,
   seedArtistId,
   seedStyles,
-  flashId,
+  flash,
 }: Props) {
+  // A flash design is tattooed by whoever drew it, so the artist step is
+  // locked to that artist (when they're still on the roster).
+  const lockedArtist = flash
+    ? resolveSeedArtist(artists, flash.artistId)
+    : null;
   const [stepIdx, setStepIdx] = useState(0);
   const [state, setState] = useState<WizardState>(() => ({
     ...emptyWizardState(),
-    artistId: seedArtistId ?? null,
+    artistId: lockedArtist?.id ?? seedArtistId ?? null,
     styles: seedStyles ?? [],
   }));
   const [submitting, setSubmitting] = useState(false);
@@ -76,9 +84,10 @@ export function EnquireWizard({
   const step = STEPS[stepIdx];
   const set = (patch: Partial<WizardState>) =>
     setState((s) => ({ ...s, ...patch }));
+  const advanceOk = canAdvance(step, state, { flash: !!flash });
 
   function next() {
-    if (!canAdvance(step, state)) return;
+    if (!advanceOk) return;
     if (stepIdx < STEPS.length - 1) setStepIdx(stepIdx + 1);
   }
   function back() {
@@ -106,14 +115,16 @@ export function EnquireWizard({
       const payload = buildEnquiryPayload(state);
       // If this enquiry came from a flash claim, route through /api/flash so
       // availability is decremented + the enquiry is tagged source=flash.
-      const url = flashId ? "/api/flash" : "/api/enquiries";
-      const body = flashId
+      const url = flash ? "/api/flash" : "/api/enquiries";
+      const body = flash
         ? {
-            flashId,
+            flashId: flash.id,
             contactName: payload.contactName,
             contactEmail: payload.contactEmail,
             contactPhone: payload.contactPhone,
             placement: payload.placement,
+            // Only honoured server-side when the design has no artist.
+            preferredArtistId: payload.preferredArtistId,
           }
         : payload;
       const res = await fetch(url, {
@@ -190,6 +201,7 @@ export function EnquireWizard({
                 artists={artists}
                 value={state.artistId}
                 onPick={(id) => set({ artistId: id })}
+                lockedTo={lockedArtist}
               />
               {waitNote && (
                 <p className="meta" role="status" style={{ marginTop: 12 }}>
@@ -199,7 +211,12 @@ export function EnquireWizard({
             </>
           )}
           {step === "Idea" && (
-            <IdeaStep styleOptions={styleOptions} state={state} set={set} />
+            <IdeaStep
+              styleOptions={styleOptions}
+              state={state}
+              set={set}
+              flash={flash}
+            />
           )}
           {step === "Mood board" && (
             <MoodStep
@@ -234,7 +251,7 @@ export function EnquireWizard({
                 type="button"
                 className="btn"
                 onClick={submit}
-                disabled={submitting || !canAdvance(step, state)}
+                disabled={submitting || !advanceOk}
               >
                 {submitting ? "Sending…" : "Send enquiry"}
               </button>
@@ -243,7 +260,7 @@ export function EnquireWizard({
                 type="button"
                 className="btn"
                 onClick={next}
-                disabled={!canAdvance(step, state)}
+                disabled={!advanceOk}
               >
                 Continue <ArrowRight className="ic" />
               </button>
@@ -251,7 +268,7 @@ export function EnquireWizard({
           </div>
         </div>
 
-        <Summary state={state} artists={artists} flashId={flashId} />
+        <Summary state={state} artists={artists} flash={flash} />
       </div>
     </div>
   );

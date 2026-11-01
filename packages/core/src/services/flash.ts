@@ -9,6 +9,10 @@ import { createEnquiry } from "./enquiries";
  * `claimed`, retire when sold out) and creates an Enquiry with source=flash so
  * the studio can lock it in. The conditional update (`claimed < total`)
  * prevents over-claiming under concurrency.
+ *
+ * The enquiry's preferred artist is the flash design's artist — a flash piece
+ * is tattooed by whoever drew it. Only when the design has no artist does the
+ * visitor's own pick (`preferredArtistId`) apply.
  */
 
 export class FlashUnavailableError extends Error {
@@ -24,6 +28,8 @@ export interface ClaimFlashInput {
   contactEmail?: string | null;
   contactPhone?: string | null;
   placement?: string | null;
+  /** Visitor's artist pick; used only when the flash has no artist of its own. */
+  preferredArtistId?: string | null;
   marketingConsent?: boolean;
 }
 
@@ -66,7 +72,7 @@ export async function claimFlash(
     contactName: input.contactName,
     contactEmail: input.contactEmail ?? null,
     contactPhone: input.contactPhone ?? null,
-    preferredArtistId: flash.artistId ?? null,
+    preferredArtistId: flash.artistId ?? input.preferredArtistId ?? null,
     placement: input.placement ?? null,
     description: `Flash claim: ${flash.title}`,
     budgetPence: flash.pricePence ?? null,
