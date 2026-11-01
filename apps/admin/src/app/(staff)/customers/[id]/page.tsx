@@ -178,7 +178,7 @@ export default async function CustomerDetailPage({
           <h2 className="mt-10 mb-4 font-termina text-xs uppercase tracking-wide text-text-muted">
             Consent forms
           </h2>
-          <ConsentForms records={consentRecords} />
+          <ConsentForms records={consentRecords} customerId={customer.id} />
         </section>
         <aside>
           <CustomerActions

@@ -1,22 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { CURRENT_CONSENT_FORM } from "@bnb/core/consent";
+import {
+  CURRENT_CONSENT_FORM,
+  consentFormFor,
+  consentSnapshot,
+} from "@bnb/core/consent";
 import {
   buildConsentRecords,
+  canViewConsent,
   type ConsentBookingRow,
   type ConsentFormRow,
 } from "./consent-records";
 
+const V2 = consentFormFor(2);
+
+/** A v2 form (the kiosk form before the paper form was adopted). */
 function form(over: Partial<ConsentFormRow> = {}): ConsentFormRow {
   return {
     id: "f1",
     signedAt: new Date("2026-11-01T10:00:00.000Z"),
     flagged: false,
     answers: Object.fromEntries(
-      CURRENT_CONSENT_FORM.questions.map((q) => [q.id, q.expect === "yes"]),
+      V2.questions.map((q) => [q.id, q.expect === "yes"]),
     ),
     signature: "data:image/png;base64,AA",
     formVersion: 2,
-    questions: CURRENT_CONSENT_FORM.questions,
+    questions: V2.questions,
     printedName: "Megan Wray",
     dob: new Date(Date.UTC(1990, 0, 15)),
     medicalNotes: null,
@@ -56,8 +64,94 @@ describe("buildConsentRecords", () => {
       signature: "data:image/png;base64,AA",
       lightInkSignature: false,
     });
-    expect(r.answers).toHaveLength(CURRENT_CONSENT_FORM.questions.length);
+    expect(r.answers).toHaveLength(V2.questions.length);
     expect(r.answers.every((a) => !a.flagged)).toBe(true);
+  });
+
+  it("reads back a v3 paper form: both halves, the statements, both signatures", () => {
+    const v3 = CURRENT_CONSENT_FORM;
+    const [r] = buildConsentRecords(
+      [
+        booking({
+          consentForm: form({
+            formVersion: 3,
+            questions: JSON.parse(JSON.stringify(consentSnapshot(v3, true))),
+            answers: Object.fromEntries(
+              v3.questions.map((q) => [q.id, q.id === "allergies"]),
+            ),
+            flagged: true,
+            medicalNotes: "Nickel allergy",
+            photoConsent: null,
+            idCheckedBy: null,
+            idCheckedAt: null,
+            address: "1 Bridge Street, Worksop",
+            postcode: "S80 1LX",
+            phone: "07700 900123",
+            email: "megan@example.com",
+            idProvided: "Driving licence",
+            designPlacement: "Rose · forearm",
+            artistName: "Cal",
+            artistSignature: "data:image/png;base64,ART",
+            artistSignedAt: new Date("2026-11-01T10:05:00.000Z"),
+          }),
+        }),
+      ],
+      OWNER,
+    );
+    expect(r).toMatchObject({
+      version: 3,
+      paperForm: true,
+      address: "1 Bridge Street, Worksop",
+      postcode: "S80 1LX",
+      phone: "07700 900123",
+      email: "megan@example.com",
+      idProvided: "Driving licence",
+      designPlacement: "Rose · forearm",
+      studioName: "Boots 'n' Bandit",
+      signingArtist: "Cal",
+      artistSignature: "data:image/png;base64,ART",
+      artistSignedAt: "2026-11-01T10:05:00.000Z",
+      medicalNotes: "Nickel allergy",
+      agreed: true,
+      agreeLabel: "I have read and agree to all of the above",
+    });
+    expect(r.answers).toHaveLength(12);
+    expect(r.answers.filter((a) => a.flagged)).toEqual([
+      {
+        id: "allergies",
+        q: "Allergies especially nickel allergy",
+        explanation:
+          "may result in serious skin reactions present on products used. I.e ink, jewellery",
+        answer: "Yes",
+        flagged: true,
+      },
+    ]);
+    expect(r.statements).toEqual(v3.statements);
+    expect(r.clientInformation).toEqual(v3.clientInformation);
+  });
+
+  it("v2 forms have no paper-form fields, statements or artist signature", () => {
+    const [r] = buildConsentRecords([booking()], OWNER);
+    expect(r).toMatchObject({
+      paperForm: false,
+      address: null,
+      idProvided: null,
+      signingArtist: null,
+      artistSignature: null,
+      statements: [],
+      clientInformation: null,
+      agreed: null,
+    });
+  });
+
+  it("canViewConsent: owners always, artists only on their own bookings", () => {
+    expect(canViewConsent({ artistId: "x" }, OWNER)).toBe(true);
+    expect(
+      canViewConsent({ artistId: "x" }, { role: "ARTIST", artistId: "x" }),
+    ).toBe(true);
+    expect(
+      canViewConsent({ artistId: "x" }, { role: "ARTIST", artistId: "y" }),
+    ).toBe(false);
   });
 
   it("highlights the flagged answers", () => {
@@ -92,7 +186,13 @@ describe("buildConsentRecords", () => {
       OWNER,
     );
     expect(r.answers).toEqual([
-      { id: "age", q: "Old wording", answer: "Yes", flagged: false },
+      {
+        id: "age",
+        q: "Old wording",
+        explanation: null,
+        answer: "Yes",
+        flagged: false,
+      },
     ]);
   });
 
