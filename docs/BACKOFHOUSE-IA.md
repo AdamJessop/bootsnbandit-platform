@@ -19,7 +19,7 @@
 7. **Sessions & Receipts** — complete sessions, confirm amount, receipts.
 8. **Availability & Leave** — working hours + annual leave/unavailability.
 9. **Reports** — bookings, capacity, revenue (owner: all; artist: self).
-10. **Content** (owner) — Gallery, Flash, Artists, Styles, Aftercare stages, FAQ, Loyalty (Bandit Pass), Site settings.
+10. **Content** (owner) — Gallery, Flash, Artists, Styles, Aftercare stages, FAQ, Reviews, Loyalty (Bandit Pass), Site settings.
 11. **Studio** (owner) — staff/users, chairs/resources, opening hours, email templates, integrations (iCal/Google).
 12. **My Profile** — own artist profile + portfolio, passkeys, calendar feed URL.
 
@@ -75,6 +75,7 @@
 - **J6 FAQ** — CRUD Q&A, order.
 - **J7 Loyalty (Bandit Pass)** — configure scheme: stamps per visit/spend, reward thresholds, expiry, messaging.
 - **J8 Site settings** — studio details, hours, ticker lines, social links, opening-enquiries toggle, visual direction.
+- **J9 Reviews** — moderate what customers wrote from the review-request link: tabs Awaiting (submitted) / Published / Hidden; Publish, Unpublish (back to Awaiting) and Hide, the last two with an inline confirm. Only published reviews reach the homepage. The awaiting count badges the Content hub card and raises a Today alert.
 
 ### K. Studio admin (owner)
 - **K1 Staff/users** — invite staff, set role (artist/owner), enable/disable, manage their passkeys.
@@ -89,7 +90,7 @@
 
 ## CRM automation lifecycle (the "every step" relationship)
 
-enquiry received → auto-ack email · booking confirmed → **confirmation** email · T-48h/T-24h → **reminder** email (implemented as one idempotent reminder covering the ≤48h window) · session completed → **receipt** + **aftercare** email (aftercare-stage link) · T+3–5d → **review request** email · loyalty thresholds → reward email. All automations: scheduled jobs (cron) reading booking/session state; every send logged to the customer timeline (F2); per-customer marketing consent respected.
+enquiry received → auto-ack email + new-enquiry alert to the owners' own addresses (new threads only, never replies) · booking confirmed → **confirmation** email · T-48h/T-24h → **reminder** email (implemented as one idempotent reminder covering the ≤48h window) · session completed → **receipt** + **aftercare** email (aftercare-stage link) · T+3–5d → **review request** email · loyalty thresholds → reward email. All automations: scheduled jobs (cron) reading booking/session state; every send logged to the customer timeline (F2); per-customer marketing consent respected.
 
 ## Component kit (shadcn + heritage tokens)
 

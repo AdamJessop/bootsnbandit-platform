@@ -8,9 +8,11 @@ import {
   HelpCircle,
   Stamp,
   Settings,
+  Star,
   ArrowRight,
 } from "lucide-react";
 import { requireRole } from "@bnb/core/auth";
+import { countReviewsAwaitingModeration } from "@bnb/core/services/reviews";
 
 /**
  * Content CMS hub (BACKOFHOUSE-IA J). Owner-only. Links to each manageable
@@ -57,6 +59,12 @@ const SECTIONS = [
     icon: HelpCircle,
   },
   {
+    href: "/content/reviews",
+    label: "Reviews",
+    desc: "Publish or hide what customers wrote after their session.",
+    icon: Star,
+  },
+  {
     href: "/content/loyalty",
     label: "Loyalty (Bandit Pass)",
     desc: "Stamps, thresholds, perks ladder and messaging.",
@@ -72,6 +80,11 @@ const SECTIONS = [
 
 export default async function ContentHubPage() {
   await requireRole("OWNER");
+  const reviewsAwaiting = await countReviewsAwaitingModeration();
+  // Sections with something waiting on the owner, badged like the inbox.
+  const waiting: Record<string, number> = {
+    "/content/reviews": reviewsAwaiting,
+  };
   return (
     <main className="mx-auto max-w-[1100px] px-7 py-10">
       <p className="kicker mb-2">Back of house</p>
@@ -85,6 +98,7 @@ export default async function ContentHubPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         {SECTIONS.map((s) => {
           const Icon = s.icon;
+          const n = waiting[s.href] ?? 0;
           return (
             <Link
               key={s.href}
@@ -97,6 +111,12 @@ export default async function ContentHubPage() {
               <span className="flex-1">
                 <span className="flex items-center gap-2 font-termina text-sm font-bold uppercase tracking-wide text-text-primary">
                   {s.label}
+                  {n > 0 ? (
+                    <span className="grid min-w-5 place-items-center rounded-full bg-bb-crimson px-1.5 py-0.5 text-[10px] font-bold tabular-nums tracking-normal text-white">
+                      {n > 99 ? "99+" : n}
+                      <span className="sr-only"> awaiting</span>
+                    </span>
+                  ) : null}
                   <ArrowRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
                 </span>
                 <span className="mt-1 block text-sm text-text-muted">
