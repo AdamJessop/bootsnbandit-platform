@@ -112,8 +112,8 @@ export default async function IntegrationsPage() {
         </h2>
         <p className="text-sm text-text-muted">
           Not available yet. Planned: two-way sync — studio bookings pushed to
-          Google, and outside busy times pulled back into availability. The
-          iCal feeds above already put bookings on any phone calendar.
+          Google, and outside busy times pulled back into availability. The iCal
+          feeds above already put bookings on any phone calendar.
         </p>
         {GOOGLE_CALENDAR_READY && (
           <a

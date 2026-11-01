@@ -28,7 +28,9 @@ export interface SentInvite extends MintedInvite {
   emailed: boolean;
 }
 
-export async function inviteStaff(input: InviteStaffInput): Promise<SentInvite> {
+export async function inviteStaff(
+  input: InviteStaffInput,
+): Promise<SentInvite> {
   const invite = await mintStaffInvite({
     email: input.email,
     role: input.role,

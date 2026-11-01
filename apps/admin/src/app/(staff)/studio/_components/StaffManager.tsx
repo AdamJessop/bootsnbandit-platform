@@ -438,7 +438,10 @@ export function PendingInvites({
                 </div>
                 {res &&
                   (res.ok ? (
-                    <p role="status" className="mt-2 text-xs text-text-secondary">
+                    <p
+                      role="status"
+                      className="mt-2 text-xs text-text-secondary"
+                    >
                       {res.emailed
                         ? `Re-sent to ${res.email}.`
                         : `The email didn't send — copy the link and send it by WhatsApp or text.`}
@@ -731,8 +734,8 @@ export function StaffManager({
           Mints a single-use invite link (valid 7 days) and emails it to the
           invitee to enrol a passkey. Use their personal email — mail to the
           studio&rsquo;s own domain lands in the enquiry inbox. Every staff
-          member is an artist — create their public profile in Content ›
-          Artists (it links to this account 1:1).
+          member is an artist — create their public profile in Content › Artists
+          (it links to this account 1:1).
         </p>
       </section>
 

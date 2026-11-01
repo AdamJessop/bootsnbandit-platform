@@ -191,7 +191,10 @@ describe("studio staff actions", () => {
       findPendingInvite.mockResolvedValue(null);
       const { resendInviteAction } = await import("./actions");
       const res = await resendInviteAction(fd({ id: "i1" }));
-      expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/expired/) });
+      expect(res).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/expired/),
+      });
       expect(sendInviteEmail).not.toHaveBeenCalled();
     });
   });
@@ -400,7 +403,10 @@ describe("studio staff actions", () => {
       const res = await updateStaffDetailsAction(
         fd({ id: "u1", email: "calum@example.com", displayName: "Calum" }),
       );
-      expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/already uses/) });
+      expect(res).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/already uses/),
+      });
     });
 
     it("validates format, our own domain and a non-empty name", async () => {
@@ -412,9 +418,16 @@ describe("studio staff actions", () => {
       ).toMatchObject({ ok: false, error: expect.stringMatching(/look like/) });
       expect(
         await updateStaffDetailsAction(
-          fd({ id: "u1", email: "calum@bootsnbandit.com", displayName: "Calum" }),
+          fd({
+            id: "u1",
+            email: "calum@bootsnbandit.com",
+            displayName: "Calum",
+          }),
         ),
-      ).toMatchObject({ ok: false, error: expect.stringMatching(/enquiry inbox/) });
+      ).toMatchObject({
+        ok: false,
+        error: expect.stringMatching(/enquiry inbox/),
+      });
       expect(
         await updateStaffDetailsAction(
           fd({ id: "u1", email: "calum@example.com", displayName: "  " }),

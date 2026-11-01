@@ -135,7 +135,9 @@ export async function setRoleAction(fd: FormData): Promise<StaffActionResult> {
   return { ok: true };
 }
 
-export async function setActiveAction(fd: FormData): Promise<StaffActionResult> {
+export async function setActiveAction(
+  fd: FormData,
+): Promise<StaffActionResult> {
   const me = await requireRole("OWNER");
   const id = String(fd.get("id") ?? "");
   if (!id) return fail("Missing id");
@@ -180,11 +182,7 @@ export async function removePasskeyAction(
   });
   if (remaining <= 1) {
     const { role: ownerRole, active } = passkey.user;
-    if (
-      ownerRole === "OWNER" &&
-      active &&
-      (await activeOwnerCount()) <= 1
-    ) {
+    if (ownerRole === "OWNER" && active && (await activeOwnerCount()) <= 1) {
       return fail(
         "That's the last owner's only passkey — removing it would lock everyone out of Studio settings. Add another device first.",
       );
