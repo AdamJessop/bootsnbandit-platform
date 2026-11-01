@@ -11,9 +11,14 @@ import { prisma } from "@bnb/core/db";
 /**
  * Studio › Integrations (K4). Owner-only. Shows per-artist iCal feed status
  * (the feed endpoint itself ships in P12) and the Resend email status derived
- * from env configuration. Google Calendar connect is a later stub.
+ * from env configuration. Google Calendar sync isn't built yet: it is shown as
+ * "Planned" with no Connect button, so nobody clicks into a dead end. The
+ * connect link (and /api/integrations/google) stay in place behind
+ * `GOOGLE_CALENDAR_READY` for when it ships.
  */
 export const dynamic = "force-dynamic";
+
+const GOOGLE_CALENDAR_READY = false;
 
 export default async function IntegrationsPage() {
   await requireRole("OWNER");
@@ -98,24 +103,26 @@ export default async function IntegrationsPage() {
         </p>
       </section>
 
-      <section className="mt-8 rounded-lg border border-border-default bg-bg-card p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-termina text-sm font-bold uppercase tracking-wide text-text-primary">
+      <section className="mt-8 rounded-lg border border-dashed border-border-default p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-termina text-sm font-bold uppercase tracking-wide text-text-muted">
           <Calendar className="h-4 w-4" /> Google Calendar
-        </h2>
-        <p className="mb-3 flex items-center gap-2 text-sm">
-          <XCircle className="h-4 w-4 text-bb-gold" />
-          <span className="text-text-secondary">
-            Coming soon — two-way OAuth sync (push studio bookings to Google and
-            pull external busy times back into availability).
+          <span className="rounded bg-bg-raised px-1.5 py-0.5 text-[10px] font-normal tracking-wide text-text-muted">
+            Planned
           </span>
+        </h2>
+        <p className="text-sm text-text-muted">
+          Not available yet. Planned: two-way sync — studio bookings pushed to
+          Google, and outside busy times pulled back into availability. The
+          iCal feeds above already put bookings on any phone calendar.
         </p>
-        <a
-          href="/api/integrations/google"
-          className="inline-flex h-9 items-center gap-2 rounded-md border border-border-default px-3 text-sm text-text-muted opacity-70"
-          aria-disabled="true"
-        >
-          <Calendar className="h-4 w-4" /> Connect Google Calendar
-        </a>
+        {GOOGLE_CALENDAR_READY && (
+          <a
+            href="/api/integrations/google"
+            className="mt-3 inline-flex h-9 items-center gap-2 rounded-md border border-border-default px-3 text-sm text-text-secondary"
+          >
+            <Calendar className="h-4 w-4" /> Connect Google Calendar
+          </a>
+        )}
       </section>
     </main>
   );
