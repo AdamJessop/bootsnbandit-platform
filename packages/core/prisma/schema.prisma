@@ -543,6 +543,14 @@ model Booking {
 // snapshot columns are nullable only because forms signed before they existed
 // have none (those were all v1). `onDelete: Restrict` blocks deleting a booking
 // (or, through the cascade, an artist or customer) that has a signed form.
+//
+// v3 replicates the studio's paper form: the client's address, postcode,
+// phone and email exactly as given on the form (snapshots — the customer
+// record is only backfilled where empty), and the artist's half: ID provided,
+// design/placement, the signing artist and their signature. `medicalNotes` is
+// the paper's "further details"; `questions` holds the full v3 snapshot
+// (medical rows, risks text, statements agreed). The idCheckedBy* columns are
+// v2 only and stay for those forms.
 model ConsentForm {
   id                  String    @id @default(cuid())
   bookingId           String    @unique
@@ -550,14 +558,24 @@ model ConsentForm {
   flagged             Boolean   @default(false)
   signature           String
   formVersion         Int?
-  questions           Json? // [{ id, q, expect, section }] as shown
+  questions           Json? // v1/v2: [{ id, q, expect, section }]; v3: ConsentSnapshot
   printedName         String?
   dob                 DateTime? @db.Date
+  address             String?
+  postcode            String?
+  phone               String?
+  email               String?
   medicalNotes        String?
   photoConsent        Boolean?
   idCheckedBy         String? // staff display name at the time
   idCheckedByArtistId String?
   idCheckedAt         DateTime?
+  idProvided          String? // v3: "Passport", "Other: …"
+  designPlacement     String?
+  artistName          String? // v3: signing artist's display name at the time
+  artistId            String?
+  artistSignature     String? // v3: PNG data URL, like `signature`
+  artistSignedAt      DateTime?
   signedAt            DateTime  @default(now())
   createdAt           DateTime  @default(now())
 

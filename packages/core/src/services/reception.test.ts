@@ -1,5 +1,9 @@
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { CURRENT_CONSENT_FORM } from "@bnb/core/consent";
+import {
+  CURRENT_CONSENT_FORM,
+  consentSnapshot,
+  readConsentSnapshot,
+} from "@bnb/core/consent";
 import {
   KIOSK_PIN_PATTERN,
   KioskPinError,
@@ -18,22 +22,29 @@ import {
 } from "./reception";
 import { closeTestDb, dbReachable, testDb, uid } from "./testdb";
 
-/** A complete v2 check-in payload; tests override what they care about. */
+/** A complete v3 check-in payload; tests override what they care about. */
 function checkin(
   bookingId: string,
-  idCheckedByArtistId: string,
+  artistId: string,
   over: Partial<CheckInCustomerInput> = {},
 ): CheckInCustomerInput {
   return {
     bookingId,
-    answers: { age: true, sober: true, consent: true },
+    answers: { skin: false, heart: false, other: false },
     flagged: false,
     signature: "data:image/png;base64,AAAA",
     formVersion: CURRENT_CONSENT_FORM.version,
-    questions: CURRENT_CONSENT_FORM.questions,
+    questions: consentSnapshot(CURRENT_CONSENT_FORM, true),
     printedName: "Kiosk Customer",
     dob: new Date(Date.UTC(1990, 0, 15)),
-    idCheckedByArtistId,
+    address: "1 Bridge Street, Worksop",
+    postcode: "S80 1LX",
+    phone: "",
+    email: null,
+    idProvided: "Passport",
+    designPlacement: "Fine line rose · forearm",
+    artistId,
+    artistSignature: "data:image/png;base64,BBBB",
     ...over,
   };
 }
@@ -153,32 +164,44 @@ describe("reception service (DB)", () => {
     if (!(await dbReachable())) return;
     const { artist, booking, customer } = await fixtureBooking();
 
-    const answers = { age: true, sober: true, consent: true };
+    const answers = { skin: false, heart: true, other: false };
     const result = await checkInCustomer(
       checkin(booking.id, artist.id, {
         answers,
+        flagged: true,
         printedName: "Megan Wray",
+        email: "  ",
         medicalNotes: "  Mild asthma, inhaler in bag  ",
-        photoConsent: true,
+        designPlacement: "  ",
       }),
     );
 
     expect(result.booking.checkedInAt).not.toBeNull();
     const form = result.consentForm;
-    expect(form.flagged).toBe(false);
+    expect(form.flagged).toBe(true);
     expect(form.answers).toEqual(answers);
-    // The snapshot: exactly what was shown, who signed, who checked ID.
+    // The snapshot: exactly what was shown and agreed, both halves, both
+    // signatures.
     expect(form.formVersion).toBe(CURRENT_CONSENT_FORM.version);
-    expect(form.questions).toEqual(
-      CURRENT_CONSENT_FORM.questions.map((q) => ({ ...q })),
-    );
+    const snap = readConsentSnapshot(form.questions, form.formVersion);
+    expect(snap.questions).toEqual(CURRENT_CONSENT_FORM.questions);
+    expect(snap.statements).toEqual(CURRENT_CONSENT_FORM.statements);
+    expect(snap.agreed).toBe(true);
     expect(form.printedName).toBe("Megan Wray");
     expect(form.dob?.toISOString().slice(0, 10)).toBe("1990-01-15");
+    expect(form.address).toBe("1 Bridge Street, Worksop");
+    expect(form.postcode).toBe("S80 1LX");
+    expect(form.email).toBeNull();
     expect(form.medicalNotes).toBe("Mild asthma, inhaler in bag");
-    expect(form.photoConsent).toBe(true);
-    expect(form.idCheckedBy).toBe(artist.name);
-    expect(form.idCheckedByArtistId).toBe(artist.id);
-    expect(form.idCheckedAt).not.toBeNull();
+    expect(form.photoConsent).toBeNull();
+    expect(form.idProvided).toBe("Passport");
+    expect(form.designPlacement).toBeNull();
+    expect(form.artistName).toBe(artist.name);
+    expect(form.artistId).toBe(artist.id);
+    expect(form.artistSignature).toBe("data:image/png;base64,BBBB");
+    expect(form.artistSignedAt).not.toBeNull();
+    // v2's separate ID-checker columns stay unused on v3.
+    expect(form.idCheckedBy).toBeNull();
 
     // A customer record with no DOB picks it up from the form.
     const updated = await db().customer.findUniqueOrThrow({
@@ -192,12 +215,79 @@ describe("reception service (DB)", () => {
     ).rejects.toBeInstanceOf(ReceptionCheckinError);
   });
 
-  it("writes nothing when the ID checker is unknown (one transaction)", async () => {
+  it("fills an empty phone and email on the customer record from the form", async () => {
+    if (!(await dbReachable())) return;
+    const { artist, booking, customer } = await fixtureBooking();
+    const email = `Form.${uid()}@Example.com`;
+    await checkInCustomer(
+      checkin(booking.id, artist.id, { phone: "07700 900461", email }),
+    );
+    const updated = await db().customer.findUniqueOrThrow({
+      where: { id: customer.id },
+    });
+    // Normalised like every other write to the unique columns.
+    expect(updated.phone).toBe("+447700900461");
+    expect(updated.email).toBe(email.toLowerCase());
+  });
+
+  it("never overwrites a phone, email or DOB the customer record already has", async () => {
+    if (!(await dbReachable())) return;
+    const { artist, booking, customer } = await fixtureBooking();
+    const keep = {
+      phone: `+4477009${String(Date.now()).slice(-5)}`,
+      email: `keep.${uid()}@example.com`,
+      dob: new Date(Date.UTC(1985, 5, 1)),
+    };
+    await db().customer.update({ where: { id: customer.id }, data: keep });
+    await checkInCustomer(
+      checkin(booking.id, artist.id, {
+        phone: "07700 900462",
+        email: `new.${uid()}@example.com`,
+      }),
+    );
+    const after = await db().customer.findUniqueOrThrow({
+      where: { id: customer.id },
+    });
+    expect(after.phone).toBe(keep.phone);
+    expect(after.email).toBe(keep.email);
+    expect(after.dob?.toISOString().slice(0, 10)).toBe("1985-06-01");
+  });
+
+  it("skips a phone or email that already belongs to another customer", async () => {
+    if (!(await dbReachable())) return;
+    const { artist, booking, customer } = await fixtureBooking();
+    const other = await db().customer.create({
+      data: {
+        name: `Other ${uid()}`,
+        phone: "+447700900463",
+        email: `taken.${uid()}@example.com`,
+      },
+    });
+    customerIds.push(other.id);
+    const result = await checkInCustomer(
+      checkin(booking.id, artist.id, {
+        phone: "07700 900463",
+        email: other.email,
+      }),
+    );
+    // Check-in still completes and the form keeps what was written on it.
+    expect(result.consentForm.phone).toBe("07700 900463");
+    expect(result.consentForm.email).toBe(other.email);
+    const after = await db().customer.findUniqueOrThrow({
+      where: { id: customer.id },
+    });
+    expect(after.phone).toBeNull();
+    expect(after.email).toBeNull();
+    // DOB was empty, so that one still fills.
+    expect(after.dob?.toISOString().slice(0, 10)).toBe("1990-01-15");
+  });
+
+  it("writes nothing when the signing artist is unknown (one transaction)", async () => {
     if (!(await dbReachable())) return;
     const { booking } = await fixtureBooking();
     await expect(
       checkInCustomer(checkin(booking.id, "no-such-artist")),
-    ).rejects.toThrow("Pick who checked the photo ID");
+    ).rejects.toThrow("Pick the artist signing the form");
     const after = await db().booking.findUniqueOrThrow({
       where: { id: booking.id },
       include: { consentForm: true },
@@ -280,10 +370,14 @@ describe("reception service (DB)", () => {
     await setStaffCheckin(artist.id, true);
     await checkInCustomer(
       checkin(booking.id, artist.id, {
-        answers: { age: false },
+        answers: { diabetes: true },
         flagged: true,
       }),
     );
+    await db().booking.update({
+      where: { id: booking.id },
+      data: { style: "Fine line", placement: "Forearm" },
+    });
 
     const board = await loadReceptionBoard();
 
@@ -295,7 +389,11 @@ describe("reception service (DB)", () => {
     expect(sess?.customerName).toBe(customer.name);
     expect(sess?.checkedInAt).not.toBeNull();
     expect(sess?.consentFlagged).toBe(true);
+    // v3: the signing artist recorded the ID.
     expect(sess?.idCheckedBy).toBe(artist.name);
+    expect(sess?.customerDob).toBe("1990-01-15");
+    expect(sess?.style).toBe("Fine line");
+    expect(sess?.placement).toBe("Forearm");
     expect(sess?.completed).toBe(false);
     expect(sess?.amountChargedPence).toBeNull();
   });

@@ -6,8 +6,9 @@ import type {
   StaffCheckin,
 } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
-import type { ConsentQuestion } from "@bnb/core/consent";
+import type { ConsentQuestion, ConsentSnapshot } from "@bnb/core/consent";
 import { createBooking } from "./bookings";
+import { normaliseEmail, normalisePhone } from "./contact-identity";
 import { hashPassword, verifyPassword } from "./customer-auth";
 import { createCustomer, upsertCustomerByContact } from "./customers";
 
@@ -20,9 +21,9 @@ import { createCustomer, upsertCustomerByContact } from "./customers";
  *  - `setStaffCheckin`: artist taps in/out for the day (one row per artist per
  *    calendar day; tapping out stamps `checkedOutAt`).
  *  - `checkInCustomer`: customer arrival — stores the signed consent form
- *    (with its question/version snapshot, DOB and who checked ID) and stamps
- *    `Booking.checkedInAt`, in one transaction. A needs-review answer flags
- *    the form.
+ *    (the paper form's fields, its version snapshot, both signatures) and
+ *    stamps `Booking.checkedInAt`, in one transaction, filling empty contact
+ *    details on the customer record. A needs-review answer flags the form.
  *  - `consentNeedsAck`: whether checkout needs a staff acknowledgement first
  *    (no form on file, or a flagged one).
  *  - Kiosk PIN (`kioskPinConfigured` / `verifyKioskPin` / `setKioskPin`): the
@@ -87,7 +88,12 @@ export interface BoardSession {
   customerName: string;
   customerPhone: string | null;
   customerEmail: string | null;
+  /** YYYY-MM-DD from the customer record — prefills the consent form. */
+  customerDob: string | null;
   artistId: string;
+  /** From the booking — prefill the consent form's design/placement. */
+  style: string | null;
+  placement: string | null;
   /** ISO datetime strings — client-safe (serialisable) payload. */
   start: string;
   end: string;
@@ -97,7 +103,10 @@ export interface BoardSession {
   checkedInAt: string | null;
   /** null = no consent form yet; true/false = signed, flagged or clean. */
   consentFlagged: boolean | null;
-  /** Staff name recorded as having checked photo ID at check-in. */
+  /**
+   * Staff name recorded as having checked photo ID at check-in: the v2 ID
+   * checker, or on v3 the artist who recorded the ID and signed the form.
+   */
   idCheckedBy: string | null;
   completed: boolean;
   amountChargedPence: number | null;
@@ -147,9 +156,11 @@ export async function loadReceptionBoard(
       orderBy: { start: "asc" },
       include: {
         customer: {
-          select: { id: true, name: true, phone: true, email: true },
+          select: { id: true, name: true, phone: true, email: true, dob: true },
         },
-        consentForm: { select: { flagged: true, idCheckedBy: true } },
+        consentForm: {
+          select: { flagged: true, idCheckedBy: true, artistName: true },
+        },
         session: { select: { amountChargedPence: true } },
       },
     }),
@@ -178,7 +189,12 @@ export async function loadReceptionBoard(
       customerName: b.customer.name,
       customerPhone: b.customer.phone,
       customerEmail: b.customer.email,
+      customerDob: b.customer.dob
+        ? b.customer.dob.toISOString().slice(0, 10)
+        : null,
       artistId: b.artistId,
+      style: b.style,
+      placement: b.placement,
       start: b.start.toISOString(),
       end: b.end.toISOString(),
       durationMin: b.durationMin,
@@ -186,7 +202,8 @@ export async function loadReceptionBoard(
       status: b.status,
       checkedInAt: b.checkedInAt ? b.checkedInAt.toISOString() : null,
       consentFlagged: b.consentForm ? b.consentForm.flagged : null,
-      idCheckedBy: b.consentForm?.idCheckedBy ?? null,
+      idCheckedBy:
+        b.consentForm?.idCheckedBy ?? b.consentForm?.artistName ?? null,
       completed: b.status === "completed" || b.session != null,
       amountChargedPence: b.session?.amountChargedPence ?? null,
     })),
@@ -224,20 +241,28 @@ export interface CheckInCustomerInput {
   answers: Record<string, boolean>;
   /** Any needs-review answer — front desk should have a word before starting. */
   flagged: boolean;
-  /** Signature PNG data URL captured on the kiosk pad. */
+  /** Client signature PNG data URL captured on the kiosk pad. */
   signature: string;
-  /** Snapshot of the form as shown — see `@bnb/core/consent`. */
+  /** Version + snapshot of the form as shown — see `consentSnapshot`. */
   formVersion: number;
-  questions: ReadonlyArray<ConsentQuestion>;
-  /** The customer's full name as they typed it on the form. */
+  questions: ConsentSnapshot | ReadonlyArray<ConsentQuestion>;
+  /** The customer's half of the header table, exactly as they gave it. */
   printedName: string;
   /** Date of birth (UTC midnight of the calendar date — a DATE column). */
   dob: Date;
+  address: string;
+  postcode: string;
+  phone: string;
+  email?: string | null;
+  /** The paper form's "further details" (required after any Yes). */
   medicalNotes?: string | null;
-  /** Portfolio/socials photo consent; null = not answered. */
-  photoConsent?: boolean | null;
-  /** The artist (staff member) who checked the customer's photo ID. */
-  idCheckedByArtistId: string;
+  /** The artist's half: what ID they saw, and the design/placement. */
+  idProvided: string;
+  designPlacement?: string | null;
+  /** The artist signing the form (from the booking, or changed at the desk). */
+  artistId: string;
+  /** Artist signature PNG data URL from the second pad. */
+  artistSignature: string;
 }
 
 export interface CheckInCustomerResult {
@@ -246,11 +271,51 @@ export interface CheckInCustomerResult {
 }
 
 /**
+ * Fill gaps on the customer record from the form: phone, email and date of
+ * birth are written ONLY where the record has none, and a phone or email
+ * already belonging to another customer is skipped (both are unique, and the
+ * front desk is not the place to merge records). Never overwrites a value.
+ */
+async function backfillCustomer(
+  tx: Prisma.TransactionClient,
+  customer: {
+    id: string;
+    phone: string | null;
+    email: string | null;
+    dob: Date | null;
+  },
+  form: { phone: string; email?: string | null; dob: Date },
+): Promise<void> {
+  const data: Prisma.CustomerUpdateInput = {};
+  if (!customer.dob) data.dob = form.dob;
+  const phone = customer.phone ? null : normalisePhone(form.phone);
+  if (phone) {
+    const taken = await tx.customer.findFirst({
+      where: { phone, NOT: { id: customer.id } },
+      select: { id: true },
+    });
+    if (!taken) data.phone = phone;
+  }
+  const email = customer.email ? null : normaliseEmail(form.email);
+  if (email) {
+    const taken = await tx.customer.findFirst({
+      where: { email, NOT: { id: customer.id } },
+      select: { id: true },
+    });
+    if (!taken) data.email = email;
+  }
+  if (Object.keys(data).length > 0) {
+    await tx.customer.update({ where: { id: customer.id }, data });
+  }
+}
+
+/**
  * Store the signed consent form and mark the customer arrived. One
- * transaction: the form, the booking's `checkedInAt` and (when the customer
- * record has none yet) their date of birth are written together or not at
- * all. The ID checker's name is resolved here from the artist row — never
- * trusted from the client — and snapshotted so the record survives renames.
+ * transaction: the form, the booking's `checkedInAt` and the customer-record
+ * backfill (phone, email, DOB — only where empty) are written together or not
+ * at all. The signing artist's name is resolved here from the artist row —
+ * never trusted from the client — and snapshotted so the record survives
+ * renames. Check-in completes only once the artist has signed.
  */
 export async function checkInCustomer(
   input: CheckInCustomerInput,
@@ -262,7 +327,9 @@ export async function checkInCustomer(
         where: { id: input.bookingId },
         include: {
           consentForm: { select: { id: true } },
-          customer: { select: { id: true, dob: true } },
+          customer: {
+            select: { id: true, dob: true, phone: true, email: true },
+          },
         },
       });
       if (!booking) throw new ReceptionCheckinError("Booking not found");
@@ -277,13 +344,13 @@ export async function checkInCustomer(
         );
       }
 
-      const checker = await tx.artist.findFirst({
-        where: { id: input.idCheckedByArtistId, active: true },
+      const artist = await tx.artist.findFirst({
+        where: { id: input.artistId, active: true },
         select: { id: true, name: true },
       });
-      if (!checker) {
+      if (!artist) {
         throw new ReceptionCheckinError(
-          "Pick who checked the photo ID and try again",
+          "Pick the artist signing the form and try again",
         );
       }
 
@@ -294,26 +361,28 @@ export async function checkInCustomer(
           flagged: input.flagged,
           signature: input.signature,
           formVersion: input.formVersion,
-          questions: input.questions.map((q) => ({ ...q })),
+          // Plain JSON copy of exactly what was shown.
+          questions: JSON.parse(JSON.stringify(input.questions)),
           printedName: input.printedName,
           dob: input.dob,
+          address: input.address,
+          postcode: input.postcode,
+          phone: input.phone,
+          email: input.email?.trim() || null,
           medicalNotes: input.medicalNotes?.trim() || null,
-          photoConsent: input.photoConsent ?? null,
-          idCheckedBy: checker.name,
-          idCheckedByArtistId: checker.id,
-          idCheckedAt: now,
+          idProvided: input.idProvided,
+          designPlacement: input.designPlacement?.trim() || null,
+          artistName: artist.name,
+          artistId: artist.id,
+          artistSignature: input.artistSignature,
+          artistSignedAt: now,
         },
       });
       const updated = await tx.booking.update({
         where: { id: booking.id },
         data: { checkedInAt: now },
       });
-      if (!booking.customer.dob) {
-        await tx.customer.update({
-          where: { id: booking.customer.id },
-          data: { dob: input.dob },
-        });
-      }
+      await backfillCustomer(tx, booking.customer, input);
       return { booking: updated, consentForm };
     });
   } catch (err) {
