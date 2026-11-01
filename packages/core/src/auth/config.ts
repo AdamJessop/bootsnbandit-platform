@@ -16,6 +16,11 @@ export interface AuthConfig {
   challengeCookieName: string;
   /** Session lifetime in seconds. */
   sessionTtlSeconds: number;
+  /**
+   * Sliding renewal window: a request carrying a session with less than this
+   * left re-issues it for a full `sessionTtlSeconds` (see `renewSessionToken`).
+   */
+  sessionRenewWithinSeconds: number;
   /** Challenge lifetime in seconds (short-lived). */
   challengeTtlSeconds: number;
   /** Staff invite lifetime in seconds. */
@@ -35,8 +40,34 @@ export function getAuthConfig(): AuthConfig {
     sessionCookieName: process.env.SESSION_COOKIE || DEFAULT_SESSION_COOKIE,
     challengeCookieName: CHALLENGE_COOKIE,
     sessionTtlSeconds: 60 * 60 * 24 * 30, // 30 days
+    sessionRenewWithinSeconds: 60 * 60 * 24 * 15, // 15 days
     challengeTtlSeconds: 60 * 5, // 5 minutes
     inviteTtlSeconds: 60 * 60 * 24 * 7, // 7 days
+  };
+}
+
+export interface SessionCookieOptions {
+  httpOnly: true;
+  sameSite: "lax";
+  secure: boolean;
+  path: "/";
+  maxAge: number;
+}
+
+/**
+ * Attributes for the session cookie, shared by the sign-in write and the
+ * middleware renewal so a renewed cookie is indistinguishable from a fresh one.
+ * No `domain` — host-only, scoped to the app's own origin (P4).
+ */
+export function sessionCookieOptions(
+  cfg: AuthConfig = getAuthConfig(),
+): SessionCookieOptions {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: cfg.sessionTtlSeconds,
   };
 }
 

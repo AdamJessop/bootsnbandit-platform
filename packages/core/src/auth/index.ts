@@ -1,8 +1,8 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { prisma } from "@bnb/core/db";
+import { dbRoleToSessionRole } from "./config";
 import { readSessionCookie } from "./cookies";
-import { sessionPayloadToUser } from "./session";
 
 /* CONTRACT (Phase 4 implements the bodies; Phase 6 imports these).
    Keep these exact signatures; add more files in src/lib/auth as needed. */
@@ -17,19 +17,34 @@ export interface SessionUser {
 
 /**
  * Returns the signed-in staff user, or null. Sessions are stateless JWEs with
- * a 30-day TTL, so the user row is re-checked on every call (one PK lookup):
- * a deactivated or deleted staff member is signed out immediately, not when
- * their cookie expires. Fails closed — no row / inactive → null.
+ * a sliding 30-day TTL, so the user row is re-read on every call (one PK
+ * lookup): a deactivated or deleted staff member is signed out immediately, and
+ * role, artist link, email and display name come from the DB — never the
+ * cookie — so a promotion, demotion or newly linked profile applies on the next
+ * request, not when the cookie is re-issued. Fails closed — no row / inactive
+ * → null.
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   const payload = await readSessionCookie();
   if (!payload) return null;
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
-    select: { active: true },
+    select: {
+      active: true,
+      email: true,
+      role: true,
+      displayName: true,
+      artist: { select: { id: true } },
+    },
   });
   if (!user?.active) return null;
-  return sessionPayloadToUser(payload);
+  return {
+    id: payload.sub,
+    email: user.email,
+    role: dbRoleToSessionRole(user.role),
+    displayName: user.displayName,
+    artistId: user.artist?.id ?? null,
+  };
 }
 
 /**
