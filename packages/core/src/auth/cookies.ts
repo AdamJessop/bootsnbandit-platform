@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { getAuthConfig } from "./config";
+import { getAuthConfig, sessionCookieOptions } from "./config";
 import { encodeSession, decodeSession, type SessionPayload } from "./session";
 
 /**
@@ -22,14 +22,8 @@ export async function writeSessionCookie(
   const cfg = getAuthConfig();
   const token = await encodeSession(payload, cfg.sessionTtlSeconds);
   const jar = await cookies();
-  jar.set(cfg.sessionCookieName, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    // No `domain` — host-only cookie, scoped to the admin origin (P4).
-    maxAge: cfg.sessionTtlSeconds,
-  });
+  // No `domain` — host-only cookie, scoped to the admin origin (P4).
+  jar.set(cfg.sessionCookieName, token, sessionCookieOptions(cfg));
 }
 
 export async function readSessionCookie(): Promise<SessionPayload | null> {

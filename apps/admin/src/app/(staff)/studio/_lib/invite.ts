@@ -10,33 +10,63 @@ import { sendEmail } from "@bnb/core/email";
  *
  * Uses the dedicated `staff_invite` email template (added in P12); the invite
  * URL, role and expiry are carried in `data`.
+ *
+ * `sendEmail` never throws (a Resend error comes back as `status: "failed"`, a
+ * missing API key as `"skipped"`), so the outcome is surfaced as `emailed` for
+ * the owner to fall back to copying the link.
  */
 
 export interface InviteStaffInput {
   email: string;
+  /** Omit to keep an existing user's role (new users default to ARTIST). */
   role?: Role;
   displayName?: string;
 }
 
+export interface SentInvite extends MintedInvite {
+  /** True only when Resend accepted the email. */
+  emailed: boolean;
+}
+
 export async function inviteStaff(
   input: InviteStaffInput,
-): Promise<MintedInvite> {
+): Promise<SentInvite> {
   const invite = await mintStaffInvite({
     email: input.email,
     role: input.role,
     displayName: input.displayName,
   });
 
-  await sendEmail({
+  const emailed = await sendInviteEmail({
+    email: invite.email,
+    url: invite.url,
+    role: invite.role,
+    expiresAt: invite.expiresAt,
+    inviteeName: input.displayName,
+  });
+
+  return { ...invite, emailed };
+}
+
+export interface InviteEmail {
+  email: string;
+  url: string;
+  role: Role;
+  expiresAt: Date;
+  inviteeName?: string;
+}
+
+/** Send (or re-send) the invite email. Returns whether it actually went out. */
+export async function sendInviteEmail(invite: InviteEmail): Promise<boolean> {
+  const res = await sendEmail({
     to: invite.email,
     type: "staff_invite",
     data: {
-      inviteeName: input.displayName ?? invite.email,
+      inviteeName: invite.inviteeName ?? invite.email,
       url: invite.url,
       role: invite.role,
       expiresAt: invite.expiresAt.toISOString(),
     },
   });
-
-  return invite;
+  return res.status === "sent";
 }

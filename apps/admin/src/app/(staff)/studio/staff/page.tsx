@@ -1,27 +1,37 @@
 import { requireRole } from "@bnb/core/auth";
+import { listPendingInvites } from "@bnb/core/auth/invite";
 import { prisma } from "@bnb/core/db";
-import { StaffManager, type StaffMember } from "../_components/StaffManager";
+import {
+  StaffManager,
+  type StaffInviteRow,
+  type StaffMember,
+} from "../_components/StaffManager";
 import {
   inviteStaffAction,
   removePasskeyAction,
+  resendInviteAction,
   setActiveAction,
   setRoleAction,
+  updateStaffDetailsAction,
 } from "../_lib/actions";
 
 /** Studio › Staff (K1). Owner-only. */
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  await requireRole("OWNER");
-  const users = await prisma.user.findMany({
-    orderBy: [{ active: "desc" }, { displayName: "asc" }],
-    include: {
-      authenticators: {
-        select: { id: true, deviceName: true, createdAt: true },
+  const me = await requireRole("OWNER");
+  const [users, pending] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: [{ active: "desc" }, { displayName: "asc" }],
+      include: {
+        authenticators: {
+          select: { id: true, deviceName: true, createdAt: true },
+        },
+        artist: { select: { slug: true, status: true } },
       },
-      artist: { select: { slug: true, status: true } },
-    },
-  });
+    }),
+    listPendingInvites(),
+  ]);
 
   const staff: StaffMember[] = users.map((u) => ({
     id: u.id,
@@ -37,6 +47,14 @@ export default async function StaffPage() {
     })),
   }));
 
+  const invites: StaffInviteRow[] = pending.map((i) => ({
+    id: i.id,
+    email: i.email,
+    role: i.role,
+    url: i.url,
+    expiresAt: i.expiresAt.toISOString(),
+  }));
+
   return (
     <main className="mx-auto max-w-[1100px] px-7 py-10">
       <p className="kicker mb-2">Studio</p>
@@ -44,14 +62,19 @@ export default async function StaffPage() {
         Staff &amp; users
       </h1>
       <p className="mt-2 mb-6 text-text-muted">
-        Invite staff, set roles, enable or disable accounts, manage passkeys.
+        Invite staff, set roles, fix names and emails, enable or disable
+        accounts, manage passkeys.
       </p>
       <StaffManager
         staff={staff}
+        invites={invites}
+        currentUserId={me.id}
         inviteAction={inviteStaffAction}
+        resendInviteAction={resendInviteAction}
         setRoleAction={setRoleAction}
         setActiveAction={setActiveAction}
         removePasskeyAction={removePasskeyAction}
+        updateDetailsAction={updateStaffDetailsAction}
       />
     </main>
   );

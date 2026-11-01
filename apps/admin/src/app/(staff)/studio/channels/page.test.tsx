@@ -79,6 +79,35 @@ describe("ChannelsPage", () => {
     expect(html).toContain("INBOUND_EMAIL_DOMAIN");
     expect(html).toContain("RESEND_WEBHOOK_SECRET");
     expect(html).toContain("Not set");
+    // The owner-facing row says it in plain words.
+    expect(html).toContain("Customer replies can&#x27;t reach the inbox yet");
+  });
+
+  it("keeps env var names out of the owner's view, in collapsed Technical details", async () => {
+    const { default: Page } = await import("./page");
+    const html = renderToStaticMarkup(
+      await Page({ searchParams: Promise.resolve({}) }),
+    );
+    expect(html).toContain("Customer replies come back into the inbox");
+    expect(html).toContain("Sending email works");
+    // Every env var name (and the webhook URLs) lives inside a <details>
+    // that is closed by default.
+    const outside = html.replace(/<details[\s\S]*?<\/details>/g, "");
+    for (const name of [
+      "INBOUND_EMAIL_DOMAIN",
+      "RESEND_WEBHOOK_SECRET",
+      "RESEND_API_KEY",
+      "META_APP_ID",
+      "META_APP_SECRET",
+      "META_VERIFY_TOKEN",
+      "/api/webhooks/",
+    ]) {
+      expect(outside).not.toContain(name);
+      expect(html).toContain(name);
+    }
+    expect(html).toContain("<summary");
+    expect(html).toContain("Technical details");
+    expect(html).not.toMatch(/<details[^>]*\sopen/);
   });
 
   it("lists only open failed events, with a retry button", async () => {

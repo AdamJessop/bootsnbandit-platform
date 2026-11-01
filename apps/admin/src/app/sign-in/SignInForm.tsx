@@ -111,7 +111,7 @@ export function SignInForm({ invite }: { invite?: string }) {
     >
       {mode === "signin" ? (
         <div className="space-y-2">
-          <Label htmlFor="email">Studio email</Label>
+          <Label htmlFor="email">Your email</Label>
           <Input
             id="email"
             name="email"
@@ -120,7 +120,7 @@ export function SignInForm({ invite }: { invite?: string }) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@bootsnbandit.studio"
+            placeholder="name@example.com"
           />
         </div>
       ) : (

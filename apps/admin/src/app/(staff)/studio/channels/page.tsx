@@ -153,11 +153,6 @@ export default async function ChannelsPage({
             )}
           </dd>
 
-          <dt className="text-text-muted">Webhook URL</dt>
-          <dd className="text-text-secondary">
-            <code className="break-all">{webhookUrl}</code>
-          </dd>
-
           <dt className="text-text-muted">Last inbound email</dt>
           <dd className="text-text-secondary">
             {lastInbound ? (
@@ -171,27 +166,64 @@ export default async function ChannelsPage({
         <ul className="mt-4 space-y-2 border-t border-border-default pt-4">
           <li>
             <Status ok={Boolean(domain)}>
-              <code>INBOUND_EMAIL_DOMAIN</code>{" "}
-              {domain ? `= ${domain}` : "— Not set"}
+              {domain
+                ? "Customer replies come back into the inbox"
+                : "Customer replies can't reach the inbox yet"}
             </Status>
           </li>
           <li>
             <Status ok={secretSet}>
-              <code>RESEND_WEBHOOK_SECRET</code>{" "}
               {secretSet
-                ? "— set (inbound deliveries are verified)"
-                : "— Not set; the webhook answers 503"}
+                ? "Incoming email is checked before it's accepted"
+                : "Incoming email is off until setup is finished"}
             </Status>
           </li>
           <li>
             <Status ok={apiKeySet}>
-              <code>RESEND_API_KEY</code>{" "}
               {apiKeySet
-                ? "— set (inbound bodies and outbound sends work)"
-                : "— Not set; inbound bodies cannot be fetched"}
+                ? "Sending email works"
+                : "Email sending isn't set up — messages are only logged"}
             </Status>
           </li>
         </ul>
+
+        {/* Env var names mean nothing to an owner; they're for whoever
+            finishes the setup, so they sit behind a disclosure. */}
+        <details className="mt-4 text-sm">
+          <summary className="cursor-pointer text-text-muted">
+            Technical details
+          </summary>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr] sm:gap-x-6">
+            <dt className="text-text-muted">Webhook URL</dt>
+            <dd className="text-text-secondary">
+              <code className="break-all">{webhookUrl}</code>
+            </dd>
+          </dl>
+          <ul className="mt-3 space-y-2">
+            <li>
+              <Status ok={Boolean(domain)}>
+                <code>INBOUND_EMAIL_DOMAIN</code>{" "}
+                {domain ? `= ${domain}` : "— Not set"}
+              </Status>
+            </li>
+            <li>
+              <Status ok={secretSet}>
+                <code>RESEND_WEBHOOK_SECRET</code>{" "}
+                {secretSet
+                  ? "— set (inbound deliveries are verified)"
+                  : "— Not set; the webhook answers 503"}
+              </Status>
+            </li>
+            <li>
+              <Status ok={apiKeySet}>
+                <code>RESEND_API_KEY</code>{" "}
+                {apiKeySet
+                  ? "— set (inbound bodies and outbound sends work)"
+                  : "— Not set; inbound bodies cannot be fetched"}
+              </Status>
+            </li>
+          </ul>
+        </details>
       </section>
 
       <section className="mb-8 rounded-lg border border-border-default bg-bg-card p-5">
@@ -218,40 +250,54 @@ export default async function ChannelsPage({
           </p>
         ) : null}
 
-        <dl className="grid gap-3 text-sm sm:grid-cols-[auto_1fr] sm:gap-x-6">
-          <dt className="text-text-muted">Webhook URL</dt>
-          <dd className="text-text-secondary">
-            <code className="break-all">{metaWebhookUrl}</code>
-          </dd>
-          <dt className="text-text-muted">Subscribed fields</dt>
-          <dd className="text-text-secondary">
-            <code>messages, message_echoes, messaging_postbacks</code>
-          </dd>
-        </dl>
-
-        <ul className="mt-4 space-y-2 border-t border-border-default pt-4">
+        <ul className="space-y-2">
           <li>
-            <Status ok={metaAppId}>
-              <code>META_APP_ID</code> {metaAppId ? "— set" : "— Not set"}
-            </Status>
-          </li>
-          <li>
-            <Status ok={metaSecret}>
-              <code>META_APP_SECRET</code>{" "}
-              {metaSecret
-                ? "— set (inbound deliveries are verified)"
-                : "— Not set; the webhook answers 503"}
-            </Status>
-          </li>
-          <li>
-            <Status ok={metaVerify}>
-              <code>META_VERIFY_TOKEN</code>{" "}
-              {metaVerify
-                ? "— set (the subscription handshake works)"
-                : "— Not set; Meta cannot verify the webhook"}
+            <Status ok={metaConfigured}>
+              {metaConfigured
+                ? "Ready to connect Facebook Pages and Instagram"
+                : "Not set up yet — Facebook and Instagram messages can't come in"}
             </Status>
           </li>
         </ul>
+
+        <details className="mt-4 text-sm">
+          <summary className="cursor-pointer text-text-muted">
+            Technical details
+          </summary>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr] sm:gap-x-6">
+            <dt className="text-text-muted">Webhook URL</dt>
+            <dd className="text-text-secondary">
+              <code className="break-all">{metaWebhookUrl}</code>
+            </dd>
+            <dt className="text-text-muted">Subscribed fields</dt>
+            <dd className="text-text-secondary">
+              <code>messages, message_echoes, messaging_postbacks</code>
+            </dd>
+          </dl>
+          <ul className="mt-3 space-y-2">
+            <li>
+              <Status ok={metaAppId}>
+                <code>META_APP_ID</code> {metaAppId ? "— set" : "— Not set"}
+              </Status>
+            </li>
+            <li>
+              <Status ok={metaSecret}>
+                <code>META_APP_SECRET</code>{" "}
+                {metaSecret
+                  ? "— set (inbound deliveries are verified)"
+                  : "— Not set; the webhook answers 503"}
+              </Status>
+            </li>
+            <li>
+              <Status ok={metaVerify}>
+                <code>META_VERIFY_TOKEN</code>{" "}
+                {metaVerify
+                  ? "— set (the subscription handshake works)"
+                  : "— Not set; Meta cannot verify the webhook"}
+              </Status>
+            </li>
+          </ul>
+        </details>
 
         {metaConfigured ? (
           <>
@@ -330,8 +376,8 @@ export default async function ChannelsPage({
           </>
         ) : (
           <p className="mt-4 text-sm text-text-muted">
-            Not configured. Create the Meta app and set the three variables
-            first — the steps are in <code>docs/CHANNELS.md</code>.
+            Not configured. Whoever runs the hosting needs to create the Meta
+            app first — the steps are in <code>docs/CHANNELS.md</code>.
           </p>
         )}
       </section>

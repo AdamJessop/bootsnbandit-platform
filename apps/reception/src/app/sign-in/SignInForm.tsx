@@ -70,7 +70,7 @@ export function SignInForm() {
   return (
     <form onSubmit={handleSignIn} noValidate>
       <div className="field">
-        <label htmlFor="email">Studio email</label>
+        <label htmlFor="email">Your email</label>
         <input
           id="email"
           name="email"
@@ -80,7 +80,7 @@ export function SignInForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@bootsnbandit.studio"
+          placeholder="name@example.com"
           style={{ fontSize: 17, padding: 16 }}
         />
       </div>
