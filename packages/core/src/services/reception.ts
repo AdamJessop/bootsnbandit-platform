@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type {
   Booking,
   BookingType,
@@ -5,7 +6,9 @@ import type {
   StaffCheckin,
 } from "@prisma/client";
 import { prisma } from "@bnb/core/db";
+import type { ConsentQuestion } from "@bnb/core/consent";
 import { createBooking } from "./bookings";
+import { hashPassword, verifyPassword } from "./customer-auth";
 import { createCustomer, upsertCustomerByContact } from "./customers";
 
 /**
@@ -16,8 +19,14 @@ import { createCustomer, upsertCustomerByContact } from "./customers";
  *    status).
  *  - `setStaffCheckin`: artist taps in/out for the day (one row per artist per
  *    calendar day; tapping out stamps `checkedOutAt`).
- *  - `checkInCustomer`: customer arrival — stores the signed consent form and
- *    stamps `Booking.checkedInAt`. A needs-review answer flags the form.
+ *  - `checkInCustomer`: customer arrival — stores the signed consent form
+ *    (with its question/version snapshot, DOB and who checked ID) and stamps
+ *    `Booking.checkedInAt`, in one transaction. A needs-review answer flags
+ *    the form.
+ *  - `consentNeedsAck`: whether checkout needs a staff acknowledgement first
+ *    (no form on file, or a flagged one).
+ *  - Kiosk PIN (`kioskPinConfigured` / `verifyKioskPin` / `setKioskPin`): the
+ *    studio-wide staff PIN that gates staff actions on the shared tablet.
  *  - `createWalkInBooking`: front desk books a walk-in for today (creates the
  *    customer when needed; reuses the conflict-aware booking service).
  *
@@ -88,6 +97,8 @@ export interface BoardSession {
   checkedInAt: string | null;
   /** null = no consent form yet; true/false = signed, flagged or clean. */
   consentFlagged: boolean | null;
+  /** Staff name recorded as having checked photo ID at check-in. */
+  idCheckedBy: string | null;
   completed: boolean;
   amountChargedPence: number | null;
 }
@@ -138,7 +149,7 @@ export async function loadReceptionBoard(
         customer: {
           select: { id: true, name: true, phone: true, email: true },
         },
-        consentForm: { select: { flagged: true } },
+        consentForm: { select: { flagged: true, idCheckedBy: true } },
         session: { select: { amountChargedPence: true } },
       },
     }),
@@ -175,6 +186,7 @@ export async function loadReceptionBoard(
       status: b.status,
       checkedInAt: b.checkedInAt ? b.checkedInAt.toISOString() : null,
       consentFlagged: b.consentForm ? b.consentForm.flagged : null,
+      idCheckedBy: b.consentForm?.idCheckedBy ?? null,
       completed: b.status === "completed" || b.session != null,
       amountChargedPence: b.session?.amountChargedPence ?? null,
     })),
@@ -214,6 +226,18 @@ export interface CheckInCustomerInput {
   flagged: boolean;
   /** Signature PNG data URL captured on the kiosk pad. */
   signature: string;
+  /** Snapshot of the form as shown — see `@bnb/core/consent`. */
+  formVersion: number;
+  questions: ReadonlyArray<ConsentQuestion>;
+  /** The customer's full name as they typed it on the form. */
+  printedName: string;
+  /** Date of birth (UTC midnight of the calendar date — a DATE column). */
+  dob: Date;
+  medicalNotes?: string | null;
+  /** Portfolio/socials photo consent; null = not answered. */
+  photoConsent?: boolean | null;
+  /** The artist (staff member) who checked the customer's photo ID. */
+  idCheckedByArtistId: string;
 }
 
 export interface CheckInCustomerResult {
@@ -221,36 +245,162 @@ export interface CheckInCustomerResult {
   consentForm: ConsentForm;
 }
 
+/**
+ * Store the signed consent form and mark the customer arrived. One
+ * transaction: the form, the booking's `checkedInAt` and (when the customer
+ * record has none yet) their date of birth are written together or not at
+ * all. The ID checker's name is resolved here from the artist row — never
+ * trusted from the client — and snapshotted so the record survives renames.
+ */
 export async function checkInCustomer(
   input: CheckInCustomerInput,
+  now: Date = new Date(),
 ): Promise<CheckInCustomerResult> {
-  const booking = await prisma.booking.findUnique({
-    where: { id: input.bookingId },
-    include: { consentForm: { select: { id: true } } },
-  });
-  if (!booking) throw new ReceptionCheckinError("Booking not found");
-  if (booking.status === "cancelled" || booking.status === "no_show") {
-    throw new ReceptionCheckinError(
-      `Cannot check in a ${booking.status} booking`,
-    );
-  }
-  if (booking.consentForm) {
-    throw new ReceptionCheckinError("This booking has already been checked in");
-  }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: input.bookingId },
+        include: {
+          consentForm: { select: { id: true } },
+          customer: { select: { id: true, dob: true } },
+        },
+      });
+      if (!booking) throw new ReceptionCheckinError("Booking not found");
+      if (booking.status === "cancelled" || booking.status === "no_show") {
+        throw new ReceptionCheckinError(
+          `Cannot check in a ${booking.status} booking`,
+        );
+      }
+      if (booking.consentForm) {
+        throw new ReceptionCheckinError(
+          "This booking has already been checked in",
+        );
+      }
 
-  const consentForm = await prisma.consentForm.create({
-    data: {
-      bookingId: booking.id,
-      answers: input.answers,
-      flagged: input.flagged,
-      signature: input.signature,
-    },
+      const checker = await tx.artist.findFirst({
+        where: { id: input.idCheckedByArtistId, active: true },
+        select: { id: true, name: true },
+      });
+      if (!checker) {
+        throw new ReceptionCheckinError(
+          "Pick who checked the photo ID and try again",
+        );
+      }
+
+      const consentForm = await tx.consentForm.create({
+        data: {
+          bookingId: booking.id,
+          answers: input.answers,
+          flagged: input.flagged,
+          signature: input.signature,
+          formVersion: input.formVersion,
+          questions: input.questions.map((q) => ({ ...q })),
+          printedName: input.printedName,
+          dob: input.dob,
+          medicalNotes: input.medicalNotes?.trim() || null,
+          photoConsent: input.photoConsent ?? null,
+          idCheckedBy: checker.name,
+          idCheckedByArtistId: checker.id,
+          idCheckedAt: now,
+        },
+      });
+      const updated = await tx.booking.update({
+        where: { id: booking.id },
+        data: { checkedInAt: now },
+      });
+      if (!booking.customer.dob) {
+        await tx.customer.update({
+          where: { id: booking.customer.id },
+          data: { dob: input.dob },
+        });
+      }
+      return { booking: updated, consentForm };
+    });
+  } catch (err) {
+    // Two tablets (or a double tap) racing the same booking: the loser hits
+    // the unique ConsentForm.bookingId inside its transaction.
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new ReceptionCheckinError(
+        "This booking has already been checked in",
+      );
+    }
+    throw err;
+  }
+}
+
+/**
+ * Checkout must not pass silently over a missing or flagged consent form:
+ * true when staff have to acknowledge it first. Unknown bookings return
+ * false — `completeSession` reports those itself.
+ */
+export async function consentNeedsAck(bookingId: string): Promise<boolean> {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { consentForm: { select: { flagged: true } } },
   });
-  const updated = await prisma.booking.update({
-    where: { id: booking.id },
-    data: { checkedInAt: new Date() },
+  if (!booking) return false;
+  return booking.consentForm == null || booking.consentForm.flagged;
+}
+
+// ---------------------------------------------------------------------------
+// Kiosk staff PIN
+// ---------------------------------------------------------------------------
+
+/**
+ * The shared tablet is signed in once with a staff passkey, so everyone who
+ * walks up to it is "signed in". The studio-wide PIN is what separates staff
+ * actions (tap in/out, walk-ins, checkout, sign out) from customers. It is
+ * stored scrypt-hashed on the SiteSettings singleton; with no PIN set the
+ * kiosk falls back to a hold-to-unlock gate (see the kiosk's StaffGate).
+ * There is deliberately no admin UI for it yet — set it with
+ * `npm run kiosk:pin`.
+ */
+export const KIOSK_PIN_PATTERN = /^\d{4,6}$/;
+
+export class KioskPinError extends Error {
+  constructor(message = "The PIN must be 4 to 6 digits") {
+    super(message);
+    this.name = "KioskPinError";
+  }
+}
+
+async function kioskPinHash(): Promise<string | null> {
+  const settings = await prisma.siteSettings.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { kioskPinHash: true },
   });
-  return { booking: updated, consentForm };
+  return settings?.kioskPinHash ?? null;
+}
+
+export async function kioskPinConfigured(): Promise<boolean> {
+  return (await kioskPinHash()) != null;
+}
+
+/** Constant-time check of a PIN attempt. False when no PIN is configured. */
+export async function verifyKioskPin(pin: string): Promise<boolean> {
+  if (!KIOSK_PIN_PATTERN.test(pin)) return false;
+  const hash = await kioskPinHash();
+  if (!hash) return false;
+  return verifyPassword(pin, hash);
+}
+
+/** Set (or with null, clear) the studio-wide kiosk PIN. */
+export async function setKioskPin(pin: string | null): Promise<void> {
+  if (pin !== null && !KIOSK_PIN_PATTERN.test(pin)) throw new KioskPinError();
+  const settings = await prisma.siteSettings.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (!settings) {
+    throw new KioskPinError("No site settings row — seed the database first");
+  }
+  await prisma.siteSettings.update({
+    where: { id: settings.id },
+    data: { kioskPinHash: pin === null ? null : await hashPassword(pin) },
+  });
 }
 
 // ---------------------------------------------------------------------------

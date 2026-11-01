@@ -31,6 +31,7 @@ function sess(over: Partial<BoardSession> = {}): BoardSession {
     status: "confirmed",
     checkedInAt: null,
     consentFlagged: null,
+    idCheckedBy: null,
     completed: false,
     amountChargedPence: null,
     ...over,
@@ -49,7 +50,9 @@ describe("BoardCard", () => {
       />,
     );
     expect(html).toContain("In session");
-    expect(html).toContain("Megan Wray");
+    // The board faces the waiting area: first name + initial only.
+    expect(html).toContain("Megan W.");
+    expect(html).not.toContain("Megan Wray");
     expect(html).toContain("rk-progress");
     expect(html).toContain("Check out");
   });

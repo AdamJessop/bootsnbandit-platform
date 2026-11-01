@@ -5,6 +5,10 @@ import { prisma } from "@bnb/core/db";
  * screen: the artist's public profile plus their gallery pieces that have an
  * uploaded photo. Payload types are client-safe (strings/numbers/null only)
  * and re-exported type-only by the kiosk, so no prisma reaches the browser.
+ *
+ * `Artist.rating` / `Artist.pieces` are deliberately NOT exposed: they are
+ * prototype seed figures the CMS cannot edit, and the studio only says what
+ * is true. The kiosk derives a piece count from the real gallery instead.
  */
 
 export interface ShowcaseArtist {
@@ -18,8 +22,6 @@ export interface ShowcaseArtist {
   specials: string[];
   insta: string | null;
   experience: string | null;
-  rating: number | null;
-  pieces: number | null;
   headshot: string | null;
   hue: string | null;
 }
@@ -60,8 +62,6 @@ export async function loadArtistShowcase(
         specials: true,
         insta: true,
         experience: true,
-        rating: true,
-        pieces: true,
         headshot: true,
         hue: true,
       },
@@ -93,8 +93,6 @@ export async function loadArtistShowcase(
       specials: artist.specials,
       insta: artist.insta,
       experience: artist.experience,
-      rating: artist.rating,
-      pieces: artist.pieces,
       headshot: artist.headshot,
       hue: artist.hue,
     },

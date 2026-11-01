@@ -124,6 +124,11 @@ from Coolify's generated project directory (where its env file lives) so
 - **Enrol the first admin passkey**: run `npm run admin:link` from a checkout
   with `.env` pointing `DATABASE_URL` at the production DB and `APP_ORIGIN`
   at the admin origin, then open the printed enrolment URL.
+- **Set the front-desk kiosk PIN** (recommended): `npm run kiosk:pin 4821`
+  (4–6 digits; `npm run kiosk:pin -- --clear` removes it), from a checkout
+  with `.env` pointing at the production DB. It gates the reception tablet's
+  staff actions and the "ID checked" step; until one is set the kiosk uses a
+  2-second press-and-hold instead, which stops casual taps but is no secret.
 - **Merge duplicate customers** (`npm run customers:merge`) — a one-off that
   must run before the 2026-09-07 enquiry-threads release; see *Before deploying
   the enquiry-threads release* above for the full order of operations.

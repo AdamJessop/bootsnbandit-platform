@@ -20,6 +20,7 @@
     "./cron": "./src/cron/index.ts",
     "./cron/*": "./src/cron/*.ts",
     "./artist-status": "./src/artist-status.ts",
+    "./consent": "./src/consent.ts",
     "./utils": "./src/utils.ts",
     "./uploads": "./src/uploads.ts",
     "./http": "./src/http/index.ts",

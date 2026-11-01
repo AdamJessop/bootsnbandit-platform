@@ -283,6 +283,8 @@ describe("completeSession (DB + mocked email + loyalty)", () => {
     expect(reward![0].data.customerName).toBe(customer.name);
     expect(String(reward![0].data.rewardLabel)).toContain(firstPerk.title);
     expect(reward![0].data.stamps).toBe(firstPerk.stamps);
+    // The configured tier name, not "Tier 1".
+    expect(reward![0].data.tierLabel).toBe(`Level 1 · ${firstPerk.title}`);
   });
 
   it("does NOT email perks without marketing consent", async () => {

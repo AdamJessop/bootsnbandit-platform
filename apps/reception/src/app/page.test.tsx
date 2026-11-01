@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const requireRole = vi.fn();
 const loadReceptionBoard = vi.fn();
+const kioskPinConfigured = vi.fn();
 vi.mock("@bnb/core/auth", () => ({
   requireRole: () => requireRole(),
 }));
@@ -9,7 +10,11 @@ vi.mock("@bnb/core/services/reception", async () => {
   const actual = await vi.importActual<
     typeof import("@bnb/core/services/reception")
   >("@bnb/core/services/reception");
-  return { ...actual, loadReceptionBoard: () => loadReceptionBoard() };
+  return {
+    ...actual,
+    loadReceptionBoard: () => loadReceptionBoard(),
+    kioskPinConfigured: () => kioskPinConfigured(),
+  };
 });
 vi.mock("./actions", () => ({
   toggleStaffAction: vi.fn(),
@@ -17,6 +22,7 @@ vi.mock("./actions", () => ({
   walkInAction: vi.fn(),
   checkoutAction: vi.fn(),
   artistShowcaseAction: vi.fn(),
+  verifyStaffPinAction: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
@@ -29,6 +35,7 @@ describe("reception home page", () => {
   it("requires a signed-in staff user and renders the kiosk board", async () => {
     requireRole.mockResolvedValue({ id: "u1", role: "OWNER" });
     loadReceptionBoard.mockResolvedValue({ artists: [], sessions: [] });
+    kioskPinConfigured.mockResolvedValue(false);
 
     const el = await Page();
     const html = renderToStaticMarkup(el);

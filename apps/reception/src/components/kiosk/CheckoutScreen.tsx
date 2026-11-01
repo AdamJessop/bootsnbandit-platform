@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import { ArtistAvatar } from "./ArtistAvatar";
 import {
+  consentAckReason,
   estimatePence,
   hhmm,
+  maskPhone,
+  safeAction,
   typeLabel,
   type BoardArtist,
   type BoardSession,
@@ -21,10 +24,32 @@ import {
 
 type CheckoutResult = { ok: true } | { ok: false; error: string };
 
+/** The consent line in the summary — only what is actually on file. */
+export function consentFact(
+  session: Pick<BoardSession, "consentFlagged" | "idCheckedBy">,
+): { title: string; detail: string } {
+  if (session.consentFlagged == null) {
+    return {
+      title: "No consent form",
+      detail: "Nothing signed on the kiosk for this booking",
+    };
+  }
+  const id = session.idCheckedBy
+    ? `ID checked by ${session.idCheckedBy}`
+    : "Signed at check-in";
+  return session.consentFlagged
+    ? {
+        title: "Form signed · flagged",
+        detail: `${id} · some answers need a word — see the form in the studio app`,
+      }
+    : { title: "Consent form signed", detail: id };
+}
+
 /**
  * Check-out: confirm the final price and complete the session. Completing
  * sends the receipt + aftercare emails and awards the loyalty stamp via the
- * core sessions service.
+ * core sessions service. A missing or flagged consent form needs an explicit
+ * staff acknowledgement first (the server action enforces it too).
  */
 export function CheckoutScreen({
   session,
@@ -37,6 +62,7 @@ export function CheckoutScreen({
   onComplete: (
     bookingId: string,
     amountPence: number,
+    consentAcknowledged: boolean,
   ) => Promise<CheckoutResult>;
   onExit: () => void;
 }) {
@@ -48,6 +74,11 @@ export function CheckoutScreen({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPhone, setShowPhone] = useState(false);
+  const ackReason = consentAckReason(session);
+  /** True while the inline "continue anyway?" step is showing. */
+  const [asking, setAsking] = useState(false);
+  const fact = consentFact(session);
 
   const valid =
     cost.trim() !== "" && !Number.isNaN(Number(cost)) && Number(cost) >= 0;
@@ -58,15 +89,25 @@ export function CheckoutScreen({
   const bump = (d: number) =>
     setCost(String(Math.max(0, (Number(cost) || 0) + d)));
 
-  const submit = async () => {
+  const complete = async (acknowledged: boolean) => {
     if (!valid) return;
     setBusy(true);
     setError(null);
-    const result = await onComplete(session.id, Math.round(Number(cost) * 100));
+    const result = await safeAction(() =>
+      onComplete(session.id, Math.round(Number(cost) * 100), acknowledged),
+    );
     if (!result.ok) {
       setError(result.error);
       setBusy(false);
     }
+  };
+
+  const submit = () => {
+    if (ackReason && !asking) {
+      setAsking(true);
+      return;
+    }
+    void complete(false);
   };
 
   return (
@@ -79,8 +120,9 @@ export function CheckoutScreen({
         <div>
           <div className="rk-screen-title">Check out {firstName}</div>
           <div className="rk-screen-sub">
-            Confirm the final price, complete the session, and the receipt goes
-            out automatically.
+            {session.customerEmail
+              ? "Confirm the final price, complete the session, and the receipt is emailed automatically."
+              : "Confirm the final price and complete the session."}
           </div>
         </div>
       </div>
@@ -111,33 +153,34 @@ export function CheckoutScreen({
               <div className="rk-co-fact">
                 <ShieldCheck className="ic" />
                 <span>
-                  {session.checkedInAt ? (
-                    <>
-                      <b>
-                        {session.consentFlagged
-                          ? "Form signed · flagged"
-                          : "Consent form signed"}
-                      </b>
-                      <small>
-                        {session.consentFlagged
-                          ? "Front desk reviewed at check-in"
-                          : "Signed at check-in today"}
-                      </small>
-                    </>
-                  ) : (
-                    <>
-                      <b>No consent form</b>
-                      <small>Checked in without the kiosk</small>
-                    </>
-                  )}
+                  <b>{fact.title}</b>
+                  <small>{fact.detail}</small>
                 </span>
               </div>
               {session.customerPhone ? (
                 <div className="rk-co-fact">
                   <Phone className="ic" />
                   <span>
-                    <b>{session.customerPhone}</b>
-                    <small>Receipt goes to their email &amp; phone</small>
+                    {/* Hidden by default — the screen faces the room. */}
+                    <button
+                      type="button"
+                      className="rk-reveal"
+                      aria-label={
+                        showPhone ? "Hide phone number" : "Show phone number"
+                      }
+                      onClick={() => setShowPhone((v) => !v)}
+                    >
+                      <b>
+                        {showPhone
+                          ? session.customerPhone
+                          : maskPhone(session.customerPhone)}
+                      </b>
+                    </button>
+                    <small>
+                      {showPhone
+                        ? "Tap to hide"
+                        : "Phone on file · tap to show"}
+                    </small>
                   </span>
                 </div>
               ) : null}
@@ -200,16 +243,46 @@ export function CheckoutScreen({
                   <span>{error}</span>
                 </div>
               )}
-              <button
-                className="btn btn-lg rk-co-btn"
-                disabled={!valid || busy}
-                onClick={submit}
-              >
-                <CheckCircle2 className="ic" />
-                {busy
-                  ? "Completing…"
-                  : `Complete session · £${valid ? Math.round(Number(cost)) : "—"}`}
-              </button>
+              {asking && ackReason ? (
+                <div className="rk-ack" role="alertdialog" aria-live="polite">
+                  <div className="rk-flag">
+                    <AlertTriangle className="ic" />
+                    <span>
+                      {ackReason === "missing"
+                        ? "No consent form on file — continue anyway?"
+                        : "This consent form has flagged answers — have they been talked through? Continue anyway?"}
+                    </span>
+                  </div>
+                  <div className="rk-ack-btns">
+                    <button
+                      className="btn btn-lg btn-ghost"
+                      disabled={busy}
+                      onClick={() => setAsking(false)}
+                    >
+                      Go back
+                    </button>
+                    <button
+                      className="btn btn-lg"
+                      disabled={!valid || busy}
+                      onClick={() => complete(true)}
+                    >
+                      <CheckCircle2 className="ic" />
+                      {busy ? "Completing…" : "Continue anyway"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="btn btn-lg rk-co-btn"
+                  disabled={!valid || busy}
+                  onClick={submit}
+                >
+                  <CheckCircle2 className="ic" />
+                  {busy
+                    ? "Completing…"
+                    : `Complete session · £${valid ? Math.round(Number(cost)) : "—"}`}
+                </button>
+              )}
             </div>
           </div>
         </div>

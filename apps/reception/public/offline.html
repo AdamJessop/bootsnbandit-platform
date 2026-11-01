@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0d0c0a" />
+    <title>Front Desk · offline</title>
+    <!-- Served by the service worker when the tablet loses its connection.
+         Deliberately static: no customer data is ever cached on the kiosk. -->
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: #0d0c0a;
+        color: #ddd6ca;
+        font-family: Tahoma, Geneva, Verdana, -apple-system, "Segoe UI",
+          sans-serif;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 24px;
+        text-align: center;
+      }
+      img {
+        height: 72px;
+      }
+      h1 {
+        margin: 0;
+        color: #fbf7f0;
+        font-size: 34px;
+      }
+      p {
+        margin: 0;
+        max-width: 460px;
+        color: #9b9384;
+        font-size: 17px;
+        line-height: 1.6;
+      }
+      button {
+        min-height: 52px;
+        padding: 14px 28px;
+        border: 0;
+        border-radius: 6px;
+        background: #c92f4d;
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid #cfa05a;
+        outline-offset: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/bb-logo.png" alt="Boots 'n' Bandit" />
+      <h1>No connection</h1>
+      <p>
+        The front desk can&rsquo;t reach the studio system right now. Check the
+        wifi, then try again.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

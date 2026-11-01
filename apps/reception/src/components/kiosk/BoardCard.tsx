@@ -7,6 +7,7 @@ import {
   hhmm,
   nextSession,
   progressPct,
+  shortName,
   type BoardArtist,
   type BoardSession,
 } from "./kiosk-logic";
@@ -15,6 +16,8 @@ import {
  * One on-the-floor artist's card on the kiosk home board. The whole card is
  * a tap target opening the artist's showcase — as a clickable div, not a
  * wrapping <button>, because the inner Check out button may not nest.
+ * Customer names show as first name + initial: the board faces the waiting
+ * area.
  */
 export function BoardCard({
   artist,
@@ -67,7 +70,7 @@ export function BoardCard({
         {current ? (
           <>
             <div className="rk-now">
-              With <b>{current.customerName}</b>
+              With <b>{shortName(current.customerName)}</b>
               <span className="rk-time">
                 {hhmm(current.start)}–{hhmm(current.end)}
               </span>
@@ -109,7 +112,7 @@ export function BoardCard({
         )}
         {next && (
           <div className="rk-next">
-            Next: <b>{next.customerName}</b> · {hhmm(next.start)}–
+            Next: <b>{shortName(next.customerName)}</b> · {hhmm(next.start)}–
             {hhmm(next.end)}
             {next.checkedInAt && (
               <span className="rk-arrived" style={{ marginLeft: 8 }}>

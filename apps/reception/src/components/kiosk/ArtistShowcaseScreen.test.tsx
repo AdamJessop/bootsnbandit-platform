@@ -30,8 +30,6 @@ const showcase: ArtistShowcase = {
     specials: ["Cover-ups", "Large scale"],
     insta: "@sarah.ink",
     experience: "10 years",
-    rating: 4.9,
-    pieces: 340,
     headshot: null,
     hue: "crimson",
   },
@@ -95,9 +93,8 @@ describe("ArtistShowcaseScreen", () => {
     // insta as plain text, not a link
     expect(html).toContain("@sarah.ink");
     expect(html).not.toContain("<a ");
-    // meta
-    expect(html).toContain("4.9");
-    expect(html).toContain("340 pieces");
+    // meta: only real numbers — the uploaded portfolio count
+    expect(html).toContain("2 pieces in the portfolio");
     // gallery tiles + captions
     expect(html).toContain("Wolf sleeve");
     expect(html).toContain("Forearm");
@@ -106,7 +103,7 @@ describe("ArtistShowcaseScreen", () => {
     expect(html).not.toContain("Loading portfolio");
   });
 
-  it("shows a coming-soon message when the gallery is empty", () => {
+  it("says plainly when no photos are uploaded, with no piece count", () => {
     const html = renderToStaticMarkup(
       <ArtistShowcaseScreen
         artist={boardArtist}
@@ -114,7 +111,25 @@ describe("ArtistShowcaseScreen", () => {
         onExit={() => {}}
       />,
     );
-    expect(html).toContain("Portfolio photos coming soon.");
+    expect(html).toContain("No photos uploaded here yet");
+    expect(html).toContain("ask Sarah to show you their book");
+    expect(html).not.toContain("coming soon");
+    expect(html).not.toContain("in the portfolio");
+  });
+
+  it("renders uploaded /media gallery images (served by the kiosk's own /media route)", () => {
+    const html = renderToStaticMarkup(
+      <ArtistShowcaseScreen
+        artist={boardArtist}
+        showcase={{
+          ...showcase,
+          gallery: [{ ...showcase.gallery[0], image: "/media/abc123" }],
+        }}
+        onExit={() => {}}
+      />,
+    );
+    expect(html).toContain('src="/media/abc123"');
+    expect(html).toContain("1 piece in the portfolio");
   });
 
   it("omits the styles/specialisms sections when empty", () => {

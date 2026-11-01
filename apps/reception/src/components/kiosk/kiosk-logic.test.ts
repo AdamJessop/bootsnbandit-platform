@@ -3,14 +3,25 @@ import {
   allAnswered,
   awaitingCheckin,
   CONSENT_QUESTIONS,
+  consentAckReason,
   currentSession,
   estimatePence,
   flaggedQuestions,
   headerDate,
   hhmm,
+  HOLD_TO_UNLOCK_MS,
+  IDLE_COUNTDOWN_MS,
+  IDLE_TIMEOUT_MS,
+  idleStage,
+  isPinShaped,
+  isoDate,
+  maskPhone,
   nextSession,
+  OFFLINE_MSG,
   pounds,
   progressPct,
+  safeAction,
+  shortName,
   startSlots,
   takingsPence,
   typeLabel,
@@ -33,6 +44,7 @@ function sess(over: Partial<BoardSession> = {}): BoardSession {
     status: "confirmed",
     checkedInAt: null,
     consentFlagged: null,
+    idCheckedBy: null,
     completed: false,
     amountChargedPence: null,
     ...over,
@@ -175,15 +187,121 @@ describe("money / estimates", () => {
 });
 
 describe("consent questionnaire", () => {
-  it("flags only needs-yes questions answered No", () => {
-    const flags = flaggedQuestions({ age: false, eaten: false, sober: true });
+  /** Every question answered the way that needs no follow-up. */
+  const clean = () =>
+    Object.fromEntries(
+      CONSENT_QUESTIONS.map((q) => [q.id, q.expect === "yes"]),
+    );
+
+  it("flags only the concerning answers", () => {
+    const flags = flaggedQuestions({ age: false, eaten: true, sober: true });
     expect(flags.map((q) => q.id)).toEqual(["age"]);
+  });
+
+  // Every question on the kiosk form: its concerning answer flags it (and
+  // only it); its safe answer flags nothing. This is what used to be missing
+  // for skin, pregnancy and medical — answering No raised no flag at all.
+  for (const q of CONSENT_QUESTIONS) {
+    it(`"${q.id}" flags on ${q.expect === "yes" ? "No" : "Yes"}`, () => {
+      const concerning = { ...clean(), [q.id]: q.expect !== "yes" };
+      expect(flaggedQuestions(concerning).map((f) => f.id)).toEqual([q.id]);
+      expect(flaggedQuestions(clean())).toEqual([]);
+    });
+  }
+
+  it("skin, pregnancy and medical concerns are flagged", () => {
+    const flags = flaggedQuestions({
+      ...clean(),
+      skin: false,
+      preg: true,
+      medical: true,
+    });
+    expect(flags.map((q) => q.id).sort()).toEqual(["medical", "preg", "skin"]);
   });
 
   it("allAnswered requires every question", () => {
     const partial: Record<string, boolean> = { age: true };
     expect(allAnswered(partial)).toBe(false);
-    const full = Object.fromEntries(CONSENT_QUESTIONS.map((q) => [q.id, true]));
-    expect(allAnswered(full)).toBe(true);
+    expect(allAnswered(clean())).toBe(true);
+  });
+
+  it("formats a local date for the date input", () => {
+    expect(isoDate(new Date(2026, 0, 5))).toBe("2026-01-05");
+  });
+});
+
+describe("privacy on the customer-facing screen", () => {
+  it("shortName keeps the first name and last initial", () => {
+    expect(shortName("Megan Wray")).toBe("Megan W.");
+    expect(shortName("  Mary  Ann   de la Cruz ")).toBe("Mary C.");
+    expect(shortName("Cher")).toBe("Cher");
+    expect(shortName("")).toBe("");
+  });
+
+  it("maskPhone shows only the last three digits", () => {
+    expect(maskPhone("07123 456789")).toBe("••• 789");
+    expect(maskPhone("+44 7123 456 789")).toBe("••• 789");
+    expect(maskPhone("12")).toBe("•••");
+  });
+});
+
+describe("checkout consent acknowledgement", () => {
+  it("needs an acknowledgement for a missing or flagged form only", () => {
+    expect(consentAckReason({ consentFlagged: null })).toBe("missing");
+    expect(consentAckReason({ consentFlagged: true })).toBe("flagged");
+    expect(consentAckReason({ consentFlagged: false })).toBeNull();
+  });
+});
+
+describe("safeAction (network failures)", () => {
+  it("passes results through", async () => {
+    expect(await safeAction(async () => ({ ok: true }) as const)).toEqual({
+      ok: true,
+    });
+    expect(
+      await safeAction(async () => ({ ok: false, error: "Nope" }) as const),
+    ).toEqual({ ok: false, error: "Nope" });
+  });
+
+  it("turns a thrown fetch/action failure into a friendly retry message", async () => {
+    const res = await safeAction(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    expect(res).toEqual({ ok: false, error: OFFLINE_MSG });
+    expect(OFFLINE_MSG).toBe("No connection — try again");
+  });
+});
+
+describe("idleStage", () => {
+  it("stays active until ~90s without a touch", () => {
+    expect(IDLE_TIMEOUT_MS).toBe(90_000);
+    expect(idleStage(0)).toEqual({ stage: "active" });
+    expect(idleStage(89_999)).toEqual({ stage: "active" });
+  });
+
+  it("then counts down 10 seconds of 'Still there?'", () => {
+    expect(IDLE_COUNTDOWN_MS).toBe(10_000);
+    expect(idleStage(90_000)).toEqual({ stage: "warning", secondsLeft: 10 });
+    expect(idleStage(95_500)).toEqual({ stage: "warning", secondsLeft: 5 });
+    expect(idleStage(99_001)).toEqual({ stage: "warning", secondsLeft: 1 });
+  });
+
+  it("then resets", () => {
+    expect(idleStage(100_000)).toEqual({ stage: "reset" });
+    expect(idleStage(1_000_000)).toEqual({ stage: "reset" });
+  });
+});
+
+describe("staff gate", () => {
+  it("accepts 4–6 digit PINs only", () => {
+    expect(isPinShaped("1234")).toBe(true);
+    expect(isPinShaped("123456")).toBe(true);
+    expect(isPinShaped("123")).toBe(false);
+    expect(isPinShaped("1234567")).toBe(false);
+    expect(isPinShaped("12a4")).toBe(false);
+  });
+
+  it("holds for 2 seconds without a PIN", () => {
+    expect(HOLD_TO_UNLOCK_MS).toBe(2000);
   });
 });

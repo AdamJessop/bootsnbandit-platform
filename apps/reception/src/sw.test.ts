@@ -77,7 +77,7 @@ describe("kiosk service worker fetch routing", () => {
     );
   });
 
-  it("handles navigations (network-first shell)", () => {
+  it("handles navigations (network-only, offline-page fallback)", () => {
     const { listeners } = loadWorker();
     expect(
       fireFetch(listeners, {
@@ -102,5 +102,102 @@ describe("kiosk service worker fetch routing", () => {
         destination: "image",
       }),
     ).toBe(true);
+  });
+});
+
+/**
+ * The board page is authenticated and full of customer names, phones and
+ * consent status — a shared tablet's cache must never hold a copy of it.
+ */
+describe("kiosk service worker never caches authenticated pages", () => {
+  function harness(fetchImpl: () => Promise<Response>) {
+    const listeners: Record<string, Listener> = {};
+    const put = vi.fn(async () => {});
+    const addAll = vi.fn(async (urls: string[]) => {
+      void urls;
+    });
+    const caches = {
+      open: vi.fn(async () => ({ addAll, put })),
+      match: vi.fn(async (req: unknown) =>
+        req === "/offline.html" ? new Response("offline page") : undefined,
+      ),
+      keys: vi.fn(async () => [
+        "bnb-reception-v2-runtime",
+        "bnb-reception-v3-shell",
+      ]),
+      delete: vi.fn(async () => true),
+    };
+    const scope = {
+      location: new URL(ORIGIN),
+      addEventListener: (type: string, fn: Listener) => {
+        listeners[type] = fn;
+      },
+      skipWaiting: () => {},
+      clients: { claim: () => {} },
+    };
+    // Evaluating our own repo's sw.js source — no untrusted input involved.
+    new Function("self", "caches", "fetch", source)(scope, caches, fetchImpl);
+    return { listeners, caches, put, addAll };
+  }
+
+  function navigate(listeners: Record<string, Listener>): Promise<Response> {
+    let responded: Promise<Response> | undefined;
+    listeners.fetch({
+      request: {
+        method: "GET",
+        url: `${ORIGIN}/`,
+        mode: "navigate",
+        destination: "document",
+        clone: () => ({}),
+      },
+      respondWith: (p: Promise<Response>) => {
+        responded = p;
+      },
+      waitUntil: () => {},
+    });
+    return responded!;
+  }
+
+  it("precaches only static files — the offline page, never the board", async () => {
+    const { listeners, addAll } = harness(async () => new Response("x"));
+    let installed: Promise<unknown> | undefined;
+    listeners.install({
+      waitUntil: (p: Promise<unknown>) => {
+        installed = p;
+      },
+    });
+    await installed;
+    const urls = addAll.mock.calls[0][0];
+    expect(urls).toContain("/offline.html");
+    expect(urls).not.toContain("/");
+  });
+
+  it("serves navigations from the network without writing them to a cache", async () => {
+    const { listeners, put } = harness(async () => new Response("board html"));
+    const res = await navigate(listeners);
+    expect(await res.text()).toBe("board html");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the static offline page when the network fails", async () => {
+    const { listeners } = harness(async () => {
+      throw new TypeError("offline");
+    });
+    const res = await navigate(listeners);
+    expect(await res.text()).toBe("offline page");
+  });
+
+  it("deletes older caches (which held board pages) on activate", async () => {
+    const { listeners, caches } = harness(async () => new Response("x"));
+    let activated: Promise<unknown> | undefined;
+    listeners.activate({
+      waitUntil: (p: Promise<unknown>) => {
+        activated = p;
+      },
+    });
+    await activated;
+    expect(caches.delete).toHaveBeenCalledWith("bnb-reception-v2-runtime");
+    expect(caches.delete).not.toHaveBeenCalledWith("bnb-reception-v3-shell");
   });
 });

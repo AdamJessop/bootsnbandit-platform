@@ -48,6 +48,7 @@ const sessions: BoardSession[] = [
     status: "confirmed",
     checkedInAt: new Date().toISOString(),
     consentFlagged: false,
+    idCheckedBy: null,
     completed: false,
     amountChargedPence: null,
   },
@@ -66,6 +67,7 @@ describe("KioskApp home board", () => {
           walkIn: noop,
           checkout: noop,
           artistShowcase: async () => ({ ok: false, error: "x" }) as const,
+          verifyStaffPin: noop,
         }}
       />,
     );
@@ -75,8 +77,10 @@ describe("KioskApp home board", () => {
     expect(html).toContain("New session");
     expect(html).toContain("On the floor today");
     expect(html).toContain("1 in · updated live");
-    // Sarah is in (board card), Rhodri sits in the Not in strip
-    expect(html).toContain("Megan Wray");
+    // Sarah is in (board card), Rhodri sits in the Not in strip. Customer
+    // names on the customer-facing board are first name + initial.
+    expect(html).toContain("Megan W.");
+    expect(html).not.toContain("Megan Wray");
     expect(html).toContain("Not in");
     expect(html).toContain("Rhodri");
     expect(html).toContain("Today’s sessions");
@@ -92,6 +96,7 @@ describe("KioskApp home board", () => {
           walkIn: noop,
           checkout: noop,
           artistShowcase: async () => ({ ok: false, error: "x" }) as const,
+          verifyStaffPin: noop,
         }}
       />,
     );
@@ -99,5 +104,51 @@ describe("KioskApp home board", () => {
     expect(html).toMatch(/<div class="rk-card"[^>]*role="button"/);
     // …and Not-in chips are real buttons.
     expect(html).toMatch(/<button[^>]*class="rk-off-chip"/);
+  });
+
+  const actions = {
+    toggleStaff: noop,
+    customerCheckin: noop,
+    walkIn: noop,
+    checkout: noop,
+    artistShowcase: async () => ({ ok: false, error: "x" }) as const,
+    verifyStaffPin: noop,
+  };
+
+  it("starts locked: a Staff unlock control, no staff-mode tray, nothing inert", () => {
+    const html = renderToStaticMarkup(
+      <KioskApp board={{ artists, sessions }} actions={actions} />,
+    );
+    expect(html).toContain('aria-label="Unlock staff mode"');
+    expect(html).not.toContain("Staff mode");
+    expect(html).not.toContain("Sign out of this tablet");
+    // On the home board nothing is behind an overlay.
+    expect(html).not.toContain("inert");
+    // No gate or idle prompt until something asks for one.
+    expect(html).not.toContain("Staff only");
+    expect(html).not.toContain("Still there?");
+  });
+
+  it("shows the empty-floor state with a Staff check-in shortcut", () => {
+    const html = renderToStaticMarkup(
+      <KioskApp
+        board={{
+          artists: artists.map((a) => ({ ...a, checkedIn: false })),
+          sessions,
+        }}
+        actions={actions}
+      />,
+    );
+    expect(html).toContain("Nobody’s tapped in yet");
+    expect(html).toContain("tap <b>Staff check-in</b>");
+    expect(html).not.toContain('class="rk-grid"');
+  });
+
+  it("shows a no-sessions note with a New session shortcut", () => {
+    const html = renderToStaticMarkup(
+      <KioskApp board={{ artists, sessions: [] }} actions={actions} />,
+    );
+    expect(html).toContain("No sessions booked today yet.");
+    expect(html).toMatch(/rk-empty-note[\s\S]*New session/);
   });
 });

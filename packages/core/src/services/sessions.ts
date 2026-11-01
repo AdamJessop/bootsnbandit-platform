@@ -160,7 +160,7 @@ export async function completeSession(
         customerName: booking.customer.name,
         rewardLabel: loyalty.unlockedPerks.map((p) => p.title).join(", "),
         stamps: loyalty.loyaltyStamps,
-        tierLabel: `Tier ${loyalty.loyaltyTier}`,
+        tierLabel: loyalty.tierLabel,
       },
     });
   }
