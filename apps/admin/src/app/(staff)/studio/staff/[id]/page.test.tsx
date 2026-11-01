@@ -31,7 +31,7 @@ describe("StaffProfilePage (/studio/staff/[id])", () => {
     requireRole.mockReset().mockResolvedValue({ id: "o1", role: "OWNER" });
     userFindUnique.mockReset().mockResolvedValue({
       id: "u1",
-      email: "sarah@studio.test",
+      email: "sarah@example.com",
       displayName: "Sarah",
       artist: {
         id: "art1",
@@ -90,7 +90,7 @@ describe("StaffProfilePage (/studio/staff/[id])", () => {
   it("404s for a user with no linked artist profile", async () => {
     userFindUnique.mockResolvedValue({
       id: "u2",
-      email: "new@studio.test",
+      email: "new@example.com",
       displayName: "New",
       artist: null,
     });

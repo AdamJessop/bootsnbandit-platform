@@ -23,4 +23,10 @@ describe("reception SignInForm", () => {
     expect(html).toContain("webauthn");
     expect(html.toLowerCase()).toContain("passkey");
   });
+
+  it("uses a neutral placeholder (staff sign in with a personal email)", () => {
+    const html = renderToStaticMarkup(<SignInForm />);
+    expect(html).toContain('placeholder="name@example.com"');
+    expect(html).not.toContain("Studio email");
+  });
 });
