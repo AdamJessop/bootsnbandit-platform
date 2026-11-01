@@ -108,6 +108,8 @@ describe("sendMetaMessage", () => {
       lastInboundAt: RECENT,
       now: NOW,
       fetchImpl,
+      // No app secret, so no appsecret_proof — independent of the local .env.
+      env: {},
     });
 
     expect(parts).toEqual([
