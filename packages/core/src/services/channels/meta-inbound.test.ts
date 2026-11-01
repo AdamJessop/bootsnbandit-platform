@@ -23,6 +23,7 @@ const findOrCreateCustomer = vi.fn();
 const resolveThread = vi.fn();
 const recordInbound = vi.fn();
 const recordOutbound = vi.fn();
+const notifyOwnersOfNewEnquiry = vi.fn();
 
 vi.mock("@bnb/core/db", () => ({
   prisma: {
@@ -43,6 +44,9 @@ vi.mock("../contact-identity", () => ({
 }));
 vi.mock("../enquiry-threading", () => ({
   resolveThread: (...a: unknown[]) => resolveThread(...a),
+}));
+vi.mock("../enquiry-alerts", () => ({
+  notifyOwnersOfNewEnquiry: (...a: unknown[]) => notifyOwnersOfNewEnquiry(...a),
 }));
 vi.mock("../enquiry-messages", () => ({
   recordInbound: (...a: unknown[]) => recordInbound(...a),
@@ -468,5 +472,26 @@ describe("ingestMetaEvent", () => {
     expect(deleteMany).toHaveBeenCalledWith({
       where: { id: "enqNew", messages: { none: {} } },
     });
+    // The winner already alerted for its own enquiry.
+    expect(notifyOwnersOfNewEnquiry).not.toHaveBeenCalled();
+  });
+
+  it("alerts the owners when a customer opens a new thread", async () => {
+    await ingestMetaEvent(first(messengerText), deps());
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledTimes(1);
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledWith({
+      enquiryId: "enq1",
+      customerName: "Amy Rowe",
+      channel: "messenger",
+      summary: "Hiya, do you have any space for a small linework piece?",
+    });
+  });
+
+  it("does not alert for a reply on an existing thread, or for an echo", async () => {
+    resolveThread.mockResolvedValue({ enquiryId: "enq1", created: false });
+    await ingestMetaEvent(first(messengerText), deps());
+    resolveThread.mockResolvedValue({ enquiryId: "enq1", created: true });
+    await ingestMetaEvent(first(echo), deps());
+    expect(notifyOwnersOfNewEnquiry).not.toHaveBeenCalled();
   });
 });

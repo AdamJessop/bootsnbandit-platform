@@ -15,6 +15,7 @@ import {
   replyAddressFor,
 } from "./channels/email-format";
 import { findOrCreateCustomer } from "./contact-identity";
+import { notifyOwnersOfNewEnquiry } from "./enquiry-alerts";
 import { recordInbound } from "./enquiry-messages";
 import { attachMoodboardAssets } from "./moodboard-assets";
 
@@ -22,8 +23,9 @@ import { attachMoodboardAssets } from "./moodboard-assets";
  * Enquiries — public lead capture from the Enquire form (web), flash claims
  * (flash) and the Inkling style matcher (inkling).
  *
- * Each enquiry is tied to a Customer (find-or-create by contact) and triggers
- * an enquiry-ack email when we have an address to send to.
+ * Each enquiry is tied to a Customer (find-or-create by contact), triggers
+ * an enquiry-ack email when we have an address to send to, and alerts the
+ * owners (fire-and-forget — see enquiry-alerts.ts).
  */
 
 export interface CreateEnquiryInput {
@@ -146,17 +148,18 @@ export async function createEnquiry(
     }
   }
 
+  let artistName: string | undefined;
+  if (input.preferredArtistId) {
+    const artist = await prisma.artist.findUnique({
+      where: { id: input.preferredArtistId },
+      select: { name: true },
+    });
+    artistName = artist?.name;
+  }
+
   // Acknowledge the enquiry by email when we have an address. The template
   // consumes { customerName, artistName, subjectIdea } — map our fields to it.
   if (input.contactEmail) {
-    let artistName: string | undefined;
-    if (input.preferredArtistId) {
-      const artist = await prisma.artist.findUnique({
-        where: { id: input.preferredArtistId },
-        select: { name: true },
-      });
-      artistName = artist?.name;
-    }
     // The ack carries the same reply token a staff reply would: a customer who
     // simply hits reply lands back on this thread instead of mailing
     // EMAIL_FROM, which has no inbound MX. With no INBOUND_EMAIL_DOMAIN
@@ -182,6 +185,16 @@ export async function createEnquiry(
       },
     });
   }
+
+  // Tell the owners. Not awaited, and it never rejects: an alert that fails
+  // or crawls must not hold up — let alone fail — the customer's submission.
+  void notifyOwnersOfNewEnquiry({
+    enquiryId: enquiry.id,
+    customerName: input.contactName,
+    channel: enquiry.channel,
+    artistName: artistName ?? null,
+    summary: enquiryBriefText(input),
+  });
 
   // Re-read so the caller sees the timestamps recordInbound set.
   return prisma.enquiry.findUniqueOrThrow({ where: { id: enquiry.id } });

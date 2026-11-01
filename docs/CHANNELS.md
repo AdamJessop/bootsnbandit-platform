@@ -74,6 +74,16 @@ customer replying to their acknowledgement mails `EMAIL_FROM`, which has no
 inbound MX, and the reply is lost. Reception neither sends nor receives
 enquiry mail and needs neither var.
 
+**Owner alerts.** Every brand-new enquiry — web form, flash claim, Inkling,
+or an email / Messenger / Instagram message that opens a new thread (never a
+reply on an open one) — emails each active OWNER a short alert with a button
+to `${ADMIN_ORIGIN}/enquiries/<id>`. It goes to the owner's own `User.email`;
+any owner address on `INBOUND_EMAIL_DOMAIN` or the `EMAIL_FROM` host is
+skipped, because mail to the studio domain lands back in this inbox. So an
+owner signed in as `studio@<domain>` gets no alert until their staff account
+uses a personal address. The send is fire-and-forget and logged to MessageLog
+as `enquiry_alert` with no customer attached.
+
 `RESEND_API_KEY` must also be set: inbound bodies and attachments are fetched
 from the Resend API with it, so inbound email does not work without it.
 

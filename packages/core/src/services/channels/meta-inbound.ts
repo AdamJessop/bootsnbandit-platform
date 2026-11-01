@@ -12,6 +12,7 @@ import {
 } from "../channel-connections";
 import { findOrCreateCustomer } from "../contact-identity";
 import { recordInbound, recordOutbound } from "../enquiry-messages";
+import { notifyOwnersOfNewEnquiry } from "../enquiry-alerts";
 import { resolveThread } from "../enquiry-threading";
 import {
   isAllowedMetaAttachmentUrl,
@@ -432,11 +433,24 @@ export async function ingestMetaEvent(
     });
   }
 
+  const createdEnquiry = thread.created && row.enquiryId === thread.enquiryId;
+  // A customer opening a fresh thread is a new enquiry — tell the owners. An
+  // echo is staff typing in Meta's own inbox, so there is nothing to tell.
+  // Fire-and-forget: it never rejects, and the webhook must not wait on it.
+  if (createdEnquiry && !event.isEcho) {
+    void notifyOwnersOfNewEnquiry({
+      enquiryId: row.enquiryId,
+      customerName: displayName || customer.name,
+      channel: event.channel,
+      summary: bodyText,
+    });
+  }
+
   return {
     status: "recorded",
     direction: event.isEcho ? "outbound" : "inbound",
     enquiryId: row.enquiryId,
     messageId: row.id,
-    createdEnquiry: thread.created && row.enquiryId === thread.enquiryId,
+    createdEnquiry,
   };
 }

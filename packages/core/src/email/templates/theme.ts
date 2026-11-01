@@ -39,6 +39,17 @@ export function publicSiteOrigin(): string {
   return (fromEnv && fromEnv.replace(/\/$/, "")) || "http://localhost:3000";
 }
 
+/**
+ * Admin (staff app) origin for STAFF-facing links in mail that any app may
+ * send — an owner's new-enquiry alert can be raised by the web app, whose
+ * APP_ORIGIN is the public site, so this reads its own `ADMIN_ORIGIN` rather
+ * than guessing from APP_ORIGIN. Unset falls back to the local admin server.
+ */
+export function adminOrigin(): string {
+  const fromEnv = process.env.ADMIN_ORIGIN?.trim();
+  return (fromEnv && fromEnv.replace(/\/$/, "")) || "http://localhost:3001";
+}
+
 /** pence -> "£12.34" */
 export function formatGBP(pence: number): string {
   const safe = Number.isFinite(pence) ? pence : 0;
