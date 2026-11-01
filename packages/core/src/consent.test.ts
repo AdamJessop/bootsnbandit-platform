@@ -152,13 +152,13 @@ describe("v3 — the studio's paper Client Consent Form", () => {
 
   it("carries the client-information risks", () => {
     expect(v3.clientInformation?.intro).toBe(
-      "Known (potential) risks associated with tattooing/piercing:",
+      "Known (potential) risks associated with tattooing:",
     );
     expect(v3.clientInformation?.risks).toEqual([
       "Scarring",
       "Blood Poisoning (Septicaemia)",
       "Localised Infection",
-      "Allergic reactions to pigment/jewellery",
+      "Allergic reactions to pigment",
       "Localised swelling around the area",
     ]);
   });
@@ -216,9 +216,14 @@ describe("consentDetailsErrors", () => {
     dob: "1990-01-15",
   };
 
-  it("accepts a complete set of details (email optional)", () => {
+  it("accepts a complete set of details", () => {
     expect(consentDetailsErrors(good, on)).toEqual({});
-    expect(consentDetailsErrors({ ...good, email: "" }, on)).toEqual({});
+  });
+
+  it("requires an email address", () => {
+    expect(consentDetailsErrors({ ...good, email: " " }, on)).toEqual({
+      email: "Add your email address",
+    });
   });
 
   it("names every missing field", () => {
@@ -234,7 +239,7 @@ describe("consentDetailsErrors", () => {
       on,
     );
     expect(Object.keys(errors).sort()).toEqual(
-      ["address", "dob", "phone", "postcode", "printedName"].sort(),
+      ["address", "dob", "email", "phone", "postcode", "printedName"].sort(),
     );
   });
 
@@ -288,12 +293,13 @@ describe("idProvidedText", () => {
     expect(idProvidedText("library_card")).toBeNull();
     expect(idProvidedText("other", "  ")).toBeNull();
   });
-  it("offers exactly the four paper-form options", () => {
+  it("offers the paper-form options plus None provided", () => {
     expect(ID_TYPES.map((t) => t.label)).toEqual([
       "Passport",
       "Driving licence",
       "Citizen/PASS card",
       "Other",
+      "None provided",
     ]);
   });
 });

@@ -201,7 +201,7 @@ describe("consent print page — v3 paper layout", () => {
     expect(html).toContain(".cp-second { break-before: page;");
     expect(html).toContain("CLIENT INFORMATION;");
     expect(html).toContain(
-      "<b>Scarring, Blood Poisoning (Septicaemia), Localised Infection, Allergic reactions to pigment/jewellery, Localised swelling around the area.</b>",
+      "<b>Scarring, Blood Poisoning (Septicaemia), Localised Infection, Allergic reactions to pigment, Localised swelling around the area.</b>",
     );
     expect(html).toContain("INDIVIDUAL CONSENT;");
     for (const s of V3.statements!)

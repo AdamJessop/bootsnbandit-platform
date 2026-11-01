@@ -222,8 +222,10 @@ const V2: ConsentFormDefinition = {
 
 /**
  * v3 — the studio's paper Client Consent Form, word for word (the paper's
- * "prong" fixed to "prone", and the waiver's garbled grammar lightly
- * corrected with its meaning kept). Every medical row is a Yes/No where No is
+ * "prong" fixed to "prone", the waiver's garbled grammar lightly corrected
+ * with its meaning kept, and — at the studio's request — tattoo-only wording:
+ * "tattoo/piercing" reads "tattoo" and the jewellery mentions are gone).
+ * Every medical row is a Yes/No where No is
  * expected; any Yes flags the form and makes the further-details box
  * required. The paper's last row ("If yes to any above — please give further
  * details on the back of your form") IS that box. The v2 extras that are not
@@ -275,7 +277,7 @@ const V3_MEDICAL: ReadonlyArray<
     id: "allergies",
     q: "Allergies especially nickel allergy",
     explanation:
-      "may result in serious skin reactions present on products used. I.e ink, jewellery",
+      "may result in serious skin reactions present on products used. I.e ink",
   },
   {
     id: "pregnant",
@@ -308,23 +310,23 @@ const V3: ConsentFormDefinition = {
   furtherDetailsPrompt:
     "If you answered yes to any of the above, please give further details",
   clientInformation: {
-    intro: "Known (potential) risks associated with tattooing/piercing:",
+    intro: "Known (potential) risks associated with tattooing:",
     risks: [
       "Scarring",
       "Blood Poisoning (Septicaemia)",
       "Localised Infection",
-      "Allergic reactions to pigment/jewellery",
+      "Allergic reactions to pigment",
       "Localised swelling around the area",
     ],
   },
   statements: [
     {
       id: "questions",
-      text: "I acknowledge by signing this agreement that I have been given the full opportunity to ask any questions which I might have about obtaining a tattoo/piercing and that all my questions have been answered to my satisfaction.",
+      text: "I acknowledge by signing this agreement that I have been given the full opportunity to ask any questions which I might have about obtaining a tattoo and that all my questions have been answered to my satisfaction.",
     },
     {
       id: "allergy",
-      text: "I acknowledge that it is not reasonably possible to determine whether I might have an allergic reaction to the pigments, jewellery or the process used in my tattoo/piercing and I agree to accept that such risk is possible.",
+      text: "I acknowledge that it is not reasonably possible to determine whether I might have an allergic reaction to the pigments or the process used in my tattoo and I agree to accept that such risk is possible.",
     },
     {
       id: "inkRisk",
@@ -332,7 +334,7 @@ const V3: ConsentFormDefinition = {
     },
     {
       id: "consent",
-      text: "I declare that I give my full consent to the tattoo/piercing being carried out by the aforementioned operator. I confirm that potential complications, e.g. infection, swelling, for the procedure undertaken are always possible, particularly in the event that I do not take proper care of my tattoo/piercing. I confirm that the aftercare instructions have been explained to me and that it is my responsibility to follow the aftercare instructions until the site has healed. Any aftercare advice which has not been followed due to negligence, I agree that the work will be done at my own expense.",
+      text: "I declare that I give my full consent to the tattoo being carried out by the aforementioned operator. I confirm that potential complications, e.g. infection, swelling, for the procedure undertaken are always possible, particularly in the event that I do not take proper care of my tattoo. I confirm that the aftercare instructions have been explained to me and that it is my responsibility to follow the aftercare instructions until the site has healed. Any aftercare advice which has not been followed due to negligence, I agree that the work will be done at my own expense.",
     },
     {
       id: "accurate",
@@ -487,12 +489,18 @@ export const CONSENT_FIELD_MAX = {
   designPlacement: 300,
 } as const;
 
-/** "ID provided" — what the artist saw. "Other" needs a description. */
+/**
+ * "ID provided" — what the artist saw. "Other" needs a description. Like the
+ * paper box, it records rather than gates: "None provided" is a valid answer,
+ * so the artist always writes something down but a missing ID never blocks
+ * check-in (the DOB still flags anyone under 18).
+ */
 export const ID_TYPES = [
   { id: "passport", label: "Passport" },
   { id: "driving_licence", label: "Driving licence" },
   { id: "pass_card", label: "Citizen/PASS card" },
   { id: "other", label: "Other" },
+  { id: "none", label: "None provided" },
 ] as const;
 
 export type IdType = (typeof ID_TYPES)[number]["id"];
@@ -518,7 +526,6 @@ export interface ConsentDetails {
   address: string;
   postcode: string;
   phone: string;
-  /** Optional, but must look like an address when given. */
   email: string;
   /** YYYY-MM-DD. */
   dob: string;
@@ -577,9 +584,9 @@ export function consentDetailsErrors(
   if (!phone) errors.phone = "Add a phone number";
   else if (phone.length > max.phone || !looksLikePhone(phone))
     errors.phone = "That doesn't look like a phone number";
-  if (email && (email.length > max.email || !looksLikeEmail(email))) {
+  if (!email) errors.email = "Add your email address";
+  else if (email.length > max.email || !looksLikeEmail(email))
     errors.email = "That doesn't look like an email address";
-  }
   if (!d.dob) errors.dob = "Add your date of birth";
   else {
     const age = ageOn(d.dob, on);

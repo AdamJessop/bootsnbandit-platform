@@ -281,7 +281,6 @@ function DetailsStep({
         <Field
           id="rk-email"
           label="Email"
-          hint="(optional)"
           error={shown("email")}
         >
           {input("email", {
@@ -586,7 +585,7 @@ export function artistProblem(
   signed: boolean,
 ): string | null {
   if (!d.artistId) return "Pick the artist";
-  if (!d.idType) return "ID must be checked before the session";
+  if (!d.idType) return "Record what ID was shown — or None provided";
   if (!idProvidedText(d.idType, d.idOther)) return "Say what ID was provided";
   if (!signed) return "Artist signature needed";
   return null;
@@ -710,7 +709,7 @@ export function ArtistForm({
       <div className="rk-consent-section">
         <h3 className="rk-consent-h">ID provided</h3>
         <p className="rk-consent-note">
-          ID must be checked before the session.
+          Record what ID was shown — choose None provided if there was none.
         </p>
         <div className="rk-choice-row" role="group" aria-label="ID provided">
           {ID_TYPES.map((t) => (
@@ -835,7 +834,7 @@ export function ArtistScreen({
             <div className="rk-consent-intro">
               <IdCard className="ic" />
               <p style={{ margin: 0, fontSize: 16 }}>
-                Staff only — ID must be checked before the session.
+                Staff only — record what ID was shown.
               </p>
             </div>
             <div className="rk-idcheck-unlock">

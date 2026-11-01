@@ -149,7 +149,7 @@ function checkinProblem(input: CheckinInput): string | null {
     return "The client signature is missing";
   }
   if (!idProvidedText(input.idType, input.idOther)) {
-    return "ID must be checked before the session";
+    return "Record what ID was shown — or None provided";
   }
   if (!input.artistSignature.startsWith(PNG_PREFIX)) {
     return "The artist signature is missing";

@@ -168,17 +168,28 @@ describe("customerCheckinAction", () => {
     expect(snap.agreed).toBe(true);
   });
 
-  it("records an Other ID with what it was, and a blank email as none", async () => {
+  it("records an Other ID with what it was", async () => {
     checkInCustomer.mockResolvedValue({});
     await customerCheckinAction(
-      checkin({ idType: "other", idOther: "Military ID", email: " " }),
+      checkin({ idType: "other", idOther: "Military ID" }),
     );
     expect(checkInCustomer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        idProvided: "Other: Military ID",
-        email: null,
-      }),
+      expect.objectContaining({ idProvided: "Other: Military ID" }),
     );
+  });
+
+  it("records None provided rather than refusing the check-in", async () => {
+    checkInCustomer.mockResolvedValue({});
+    await customerCheckinAction(checkin({ idType: "none" }));
+    expect(checkInCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({ idProvided: "None provided" }),
+    );
+  });
+
+  it("refuses a check-in without an email address", async () => {
+    const res = await customerCheckinAction(checkin({ email: " " }));
+    expect(checkInCustomer).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ ok: false });
   });
 
   it("derives the flag from the answers server-side", async () => {
@@ -234,7 +245,7 @@ describe("customerCheckinAction", () => {
     ]) {
       expect(await customerCheckinAction(checkin(bad))).toEqual({
         ok: false,
-        error: "ID must be checked before the session",
+        error: "Record what ID was shown — or None provided",
       });
     }
     expect(checkInCustomer).not.toHaveBeenCalled();

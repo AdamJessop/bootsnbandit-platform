@@ -366,7 +366,7 @@ describe("ArtistScreen (behind the staff gate)", () => {
     );
     expect(html).toContain("Over to your artist");
     expect(html).toContain("Hold to open the artist&#x27;s part");
-    expect(html).toContain("ID must be checked before the session");
+    expect(html).toContain("Staff only — record what ID was shown.");
     expect(html).not.toContain("Driving licence");
     expect(html).not.toContain("<canvas");
   });
@@ -416,10 +416,11 @@ describe("ArtistForm (the artist's half)", () => {
       "Driving licence",
       "Citizen/PASS card",
       "Other",
+      "None provided",
     ]) {
       expect(html).toContain(`>${t}</button>`);
     }
-    expect(html).toContain("ID must be checked before the session.");
+    expect(html).toContain("choose None provided if there was none.");
     expect(html).toContain('value="Fine line · Forearm"');
     expect(html).toContain("Artist signature — Sarah");
     expect(html).toContain("<canvas");
@@ -430,7 +431,7 @@ describe("ArtistForm (the artist's half)", () => {
     const html = render();
     expect(html).toMatch(/<button class="btn btn-lg" disabled=""/);
     expect(html).toMatch(
-      /disabled="">.*ID must be checked before the session</,
+      /disabled="">.*Record what ID was shown — or None provided</,
     );
   });
 
@@ -469,8 +470,10 @@ describe("artistProblem", () => {
   });
   it("names what's missing, ID first", () => {
     expect(artistProblem({ ...ok, idType: "" }, true)).toBe(
-      "ID must be checked before the session",
+      "Record what ID was shown — or None provided",
     );
+    // Like the paper box, "None provided" is a recorded answer, not a block.
+    expect(artistProblem({ ...ok, idType: "none" }, true)).toBeNull();
     expect(artistProblem({ ...ok, idType: "other" }, true)).toBe(
       "Say what ID was provided",
     );

@@ -121,7 +121,7 @@ describe("buildConsentRecords", () => {
         id: "allergies",
         q: "Allergies especially nickel allergy",
         explanation:
-          "may result in serious skin reactions present on products used. I.e ink, jewellery",
+          "may result in serious skin reactions present on products used. I.e ink",
         answer: "Yes",
         flagged: true,
       },
