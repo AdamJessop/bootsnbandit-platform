@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface EnquiryAckProps {
@@ -21,19 +21,22 @@ const quote: React.CSSProperties = {
 };
 
 export function EnquiryAckEmail(props: EnquiryAckProps) {
-  const { customerName = "there", artistName, subjectIdea } = props;
+  const { customerName, artistName, subjectIdea } = props;
   return (
     <EmailLayout
       preview="We've got your enquiry — we'll be in touch shortly"
       eyebrow="Enquiry received"
     >
-      <Text style={heading}>Thanks for getting in touch, {customerName}.</Text>
+      <Text style={heading}>
+        {`Thanks for getting in touch${greetingName(customerName)}.`}
+      </Text>
       <Text style={paragraph}>
-        We&apos;ve received your enquiry and a{" "}
+        {/* One whole sentence per branch: splicing a name into the middle of
+            shared copy is how this once read "a message is on its way to
+            Calum will get back to you soon". */}
         {artistName
-          ? `message is on its way to ${artistName}`
-          : "member of the crew"}{" "}
-        will get back to you soon — usually within a couple of working days.
+          ? `Your enquiry is with ${artistName}, who'll get back to you soon — usually within a couple of working days.`
+          : "Your enquiry is with the studio — we'll match you with the right artist and get back to you soon, usually within a couple of working days."}
       </Text>
       {subjectIdea ? (
         <Section>

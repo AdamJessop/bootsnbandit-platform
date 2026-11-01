@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors, publicSiteOrigin } from "./theme";
 
 export interface AftercareProps {
@@ -62,7 +62,7 @@ const button: React.CSSProperties = {
 };
 
 export function AftercareEmail(props: AftercareProps) {
-  const { customerName = "there" } = props;
+  const { customerName } = props;
   // Customer-facing link → public web site, not the (admin) app origin.
   const url = `${publicSiteOrigin()}/aftercare`;
   return (
@@ -70,7 +70,9 @@ export function AftercareEmail(props: AftercareProps) {
       preview="Looking after your new tattoo — the 5 healing stages"
       eyebrow="Aftercare"
     >
-      <Text style={heading}>Look after that new ink, {customerName}.</Text>
+      <Text style={heading}>
+        {`Look after that new ink${greetingName(customerName)}.`}
+      </Text>
       <Text style={paragraph}>
         The next few weeks decide how your tattoo settles. Here&apos;s the short
         version of the five healing stages — the full guide, do&apos;s and

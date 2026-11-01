@@ -110,6 +110,15 @@ export function EmailLayout({ preview, eyebrow, children }: LayoutProps) {
   );
 }
 
+/**
+ * ", Ada" for a greeting line when we know the name, nothing when we don't —
+ * so a nameless send reads "Welcome." rather than "Welcome, there.".
+ */
+export function greetingName(name?: string | null): string {
+  const trimmed = name?.trim();
+  return trimmed ? `, ${trimmed}` : "";
+}
+
 /** Reusable body paragraph. */
 export const paragraph: React.CSSProperties = {
   color: colors.body,

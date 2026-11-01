@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface LoyaltyRewardProps {
@@ -21,7 +21,7 @@ const rewardBox: React.CSSProperties = {
 
 export function LoyaltyRewardEmail(props: LoyaltyRewardProps) {
   const {
-    customerName = "there",
+    customerName,
     rewardLabel = "a Bandit Pass perk",
     stamps,
     tierLabel,
@@ -32,7 +32,9 @@ export function LoyaltyRewardEmail(props: LoyaltyRewardProps) {
       preview={`You've unlocked a reward: ${rewardLabel}`}
       eyebrow="Bandit Pass"
     >
-      <Text style={heading}>Nice one, {customerName} — reward unlocked.</Text>
+      <Text style={heading}>
+        {`Nice one${greetingName(customerName)} — reward unlocked.`}
+      </Text>
       <Section style={rewardBox}>
         <Text
           style={{

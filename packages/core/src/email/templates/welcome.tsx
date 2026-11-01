@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface WelcomeProps {
@@ -44,14 +44,14 @@ function formatExpiry(iso?: string): string | null {
 }
 
 export function WelcomeEmail(props: WelcomeProps) {
-  const { customerName = "there", setPasswordUrl, expiresAt } = props;
+  const { customerName, setPasswordUrl, expiresAt } = props;
   const expiry = formatExpiry(expiresAt);
   return (
     <EmailLayout
       preview="Welcome to Boots 'n' Bandit — activate your Bandit Pass account"
       eyebrow="Welcome aboard"
     >
-      <Text style={heading}>Welcome, {customerName}.</Text>
+      <Text style={heading}>{`Welcome${greetingName(customerName)}.`}</Text>
       <Text style={paragraph}>
         We&apos;ve set you up with a Boots &apos;n&apos; Bandit account. Pick a
         password and you can see your bookings, track your Bandit Pass stamps

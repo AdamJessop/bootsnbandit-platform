@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Column, Hr, Row, Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors, formatGBP } from "./theme";
 
 export interface ReceiptLineItem {
@@ -38,18 +38,13 @@ const refBox: React.CSSProperties = {
 };
 
 export function ReceiptEmail(props: ReceiptProps) {
-  const {
-    customerName = "there",
-    amountPence = 0,
-    bankRef,
-    lineItems = [],
-  } = props;
+  const { customerName, amountPence = 0, bankRef, lineItems = [] } = props;
   return (
     <EmailLayout
       preview={`Your receipt — ${formatGBP(amountPence)}`}
       eyebrow="Payment received"
     >
-      <Text style={heading}>Thanks, {customerName}.</Text>
+      <Text style={heading}>{`Thanks${greetingName(customerName)}.`}</Text>
       <Text style={paragraph}>
         We&apos;ve recorded your payment of{" "}
         <strong style={{ color: colors.crimson }}>

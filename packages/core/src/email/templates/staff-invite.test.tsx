@@ -25,7 +25,9 @@ describe("StaffInviteEmail", () => {
 
   it("omits the button when no URL is provided and defaults the greeting", async () => {
     const html = await render(StaffInviteEmail({}));
-    expect(html).toContain("there");
+    // No name means no name — never "Welcome aboard, there.".
+    expect(html).toContain("Welcome aboard.");
+    expect(html).not.toContain("there");
     expect(html).not.toContain("invite=");
   });
 });
