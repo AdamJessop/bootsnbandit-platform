@@ -62,6 +62,17 @@ describe("buildOwnerAlerts", () => {
       { href: "/sessions", text: "4 overdue review follow-ups" },
     ]);
   });
+
+  it("points reviews awaiting moderation at the reviews screen", () => {
+    const counts = { newEnquiries: 0, pendingSoon: 0, overdueFollowUps: 0 };
+    expect(buildOwnerAlerts({ ...counts, reviewsAwaiting: 1 })).toEqual([
+      { href: "/content/reviews", text: "1 review awaiting moderation" },
+    ]);
+    expect(buildOwnerAlerts({ ...counts, reviewsAwaiting: 3 })[0].text).toBe(
+      "3 reviews awaiting moderation",
+    );
+    expect(buildOwnerAlerts({ ...counts, reviewsAwaiting: 0 })).toEqual([]);
+  });
 });
 
 describe("artistsBookedToday", () => {

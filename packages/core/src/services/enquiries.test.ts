@@ -13,6 +13,10 @@ const sendEmail = vi.fn(
   }) => Promise.resolve({ id: uid("msg"), status: "sent", type: input.type }),
 );
 vi.mock("@bnb/core/email", () => ({ sendEmail }));
+// Owner alerts have their own suite (enquiry-alerts.test.ts); here we only
+// assert that a new enquiry raises one, with the right facts.
+const notifyOwnersOfNewEnquiry = vi.fn(() => Promise.resolve());
+vi.mock("./enquiry-alerts", () => ({ notifyOwnersOfNewEnquiry }));
 
 const { channelForSource, createEnquiry, enquiryBriefText, enquirySubject } =
   await import("./enquiries");
@@ -73,6 +77,31 @@ describe("createEnquiry (DB + mocked email)", () => {
     const data = sendEmail.mock.calls[0][0].data;
     expect(data.subjectIdea).toBe("Blackwork");
     expect(data.artistName).toBe(artist.name);
+  });
+
+  it("alerts the owners once, with the artist, channel and brief", async () => {
+    if (!(await dbReachable())) return;
+    notifyOwnersOfNewEnquiry.mockClear();
+    const artist = await db().artist.findFirstOrThrow();
+    // No email address: the owners still hear about an enquiry we can't ack.
+    const enq = await createEnquiry({
+      contactName: `No Email ${uid()}`,
+      preferredArtistId: artist.id,
+      style: "Blackwork",
+      placement: "Calf",
+      source: "flash",
+    });
+    enquiries.push(enq.id);
+    if (enq.customerId) customers.push(enq.customerId);
+
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledTimes(1);
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledWith({
+      enquiryId: enq.id,
+      customerName: enq.contactName,
+      channel: "flash",
+      artistName: artist.name,
+      summary: "Style: Blackwork · Placement: Calf",
+    });
   });
 
   it("sets source=inkling and stores matchData", async () => {

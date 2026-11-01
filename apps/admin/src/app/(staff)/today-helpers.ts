@@ -28,6 +28,8 @@ export interface OwnerAlertCounts {
   newEnquiries: number;
   pendingSoon: number;
   overdueFollowUps: number;
+  /** Customer reviews submitted but not yet published or hidden. */
+  reviewsAwaiting?: number;
 }
 
 export interface OwnerAlert {
@@ -60,6 +62,13 @@ export function buildOwnerAlerts(counts: OwnerAlertCounts): OwnerAlert[] {
       text: `${counts.overdueFollowUps} overdue review follow-up${
         counts.overdueFollowUps === 1 ? "" : "s"
       }`,
+    });
+  }
+  const reviews = counts.reviewsAwaiting ?? 0;
+  if (reviews > 0) {
+    alerts.push({
+      href: "/content/reviews",
+      text: `${reviews} review${reviews === 1 ? "" : "s"} awaiting moderation`,
     });
   }
   return alerts;

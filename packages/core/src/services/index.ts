@@ -33,4 +33,5 @@ export * from "./enquiry-threading";
 export * from "./assets";
 export * from "./enquiry-messages";
 export * from "./webhook-failures";
+export * from "./reviews";
 export * from "./channel-connections";

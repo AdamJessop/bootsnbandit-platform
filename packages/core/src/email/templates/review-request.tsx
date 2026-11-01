@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors, publicSiteOrigin } from "./theme";
 
 export interface ReviewRequestProps {
@@ -23,7 +23,7 @@ const button: React.CSSProperties = {
 };
 
 export function ReviewRequestEmail(props: ReviewRequestProps) {
-  const { customerName = "there", artistName, reviewToken } = props;
+  const { customerName, artistName, reviewToken } = props;
   // Customer-facing link → public web site, not the (admin) app origin.
   const url = reviewToken
     ? `${publicSiteOrigin()}/review/${reviewToken}`
@@ -33,7 +33,9 @@ export function ReviewRequestEmail(props: ReviewRequestProps) {
       preview="How did we do? Leave a quick review"
       eyebrow="Your thoughts"
     >
-      <Text style={heading}>How&apos;s the new piece, {customerName}?</Text>
+      <Text style={heading}>
+        {`How's the new piece${greetingName(customerName)}?`}
+      </Text>
       <Text style={paragraph}>
         We hope you&apos;re loving your tattoo
         {artistName ? ` from ${artistName}` : ""}. If you have a spare minute, a

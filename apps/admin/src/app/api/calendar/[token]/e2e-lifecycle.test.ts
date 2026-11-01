@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { addDays } from "date-fns";
 import {
   closeTestDb,
@@ -22,6 +22,12 @@ import { GET as calendarGet } from "@/app/api/calendar/[token]/route";
  *   → submit the review
  *   → the per-artist iCal feed lists the booking.
  */
+
+// Never mail the real owners from a test run (the root .env may carry a live
+// RESEND_API_KEY); the alert itself is covered in @bnb/core.
+vi.mock("@bnb/core/services/enquiry-alerts", () => ({
+  notifyOwnersOfNewEnquiry: vi.fn(() => Promise.resolve()),
+}));
 
 const db = () => testDb();
 

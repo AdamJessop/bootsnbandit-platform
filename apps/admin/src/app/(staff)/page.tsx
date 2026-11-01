@@ -11,6 +11,7 @@ import { getCurrentUser } from "@bnb/core/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@bnb/core/db";
 import { reportOverview } from "@bnb/core/services/reports";
+import { countReviewsAwaitingModeration } from "@bnb/core/services/reviews";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPence } from "@/components/admin/booking-form";
 import {
@@ -72,6 +73,7 @@ async function OwnerToday() {
     perArtistToday,
     pendingSoon,
     overdueFollowUps,
+    reviewsAwaiting,
   ] = await Promise.all([
     prisma.booking.count({
       where: { start: { gte: from, lte: to }, status: { not: "cancelled" } },
@@ -105,6 +107,8 @@ async function OwnerToday() {
         booking: { messages: { none: { type: "review_request" } } },
       },
     }),
+    // Reviews customers have written that nobody has published or hidden.
+    countReviewsAwaitingModeration(),
   ]);
 
   const artistsBooked = artistsBookedToday(perArtistToday);
@@ -112,6 +116,7 @@ async function OwnerToday() {
     newEnquiries,
     pendingSoon,
     overdueFollowUps,
+    reviewsAwaiting,
   });
 
   return (

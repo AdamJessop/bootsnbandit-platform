@@ -13,6 +13,7 @@ export type EmailType =
   | "aftercare"
   | "review_request"
   | "enquiry_ack"
+  | "enquiry_alert"
   | "loyalty_reward"
   | "staff_invite"
   | "staff_reply"

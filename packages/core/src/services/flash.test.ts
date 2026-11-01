@@ -5,6 +5,9 @@ const db = () => testDb();
 
 const sendEmail = vi.fn(async () => ({ id: uid("msg"), status: "sent" }));
 vi.mock("@bnb/core/email", () => ({ sendEmail }));
+vi.mock("./enquiry-alerts", () => ({
+  notifyOwnersOfNewEnquiry: vi.fn(() => Promise.resolve()),
+}));
 
 const { claimFlash, FlashUnavailableError } = await import("./flash");
 

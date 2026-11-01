@@ -40,6 +40,9 @@ services:
       # Reply-To: enq-<token>@<domain> so a customer replying to it threads.
       INBOUND_EMAIL_DOMAIN: ${INBOUND_EMAIL_DOMAIN:-}
       APP_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      # A new enquiry emails the owners a link into the admin app; APP_ORIGIN
+      # here is the public site, so the admin origin is passed separately.
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:?ADMIN_ORIGIN is required}
       BRAVE_SEARCH_KEY: ${BRAVE_SEARCH_KEY:-}
       GOOGLE_CSE_KEY: ${GOOGLE_CSE_KEY:-}
       GOOGLE_CSE_CX: ${GOOGLE_CSE_CX:-}
@@ -74,6 +77,7 @@ services:
       META_GRAPH_VERSION: ${META_GRAPH_VERSION:-}
       CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
       APP_ORIGIN: ${ADMIN_ORIGIN:?ADMIN_ORIGIN is required}
+      ADMIN_ORIGIN: ${ADMIN_ORIGIN:?ADMIN_ORIGIN is required}
       PUBLIC_SITE_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
       RP_ID: ${RP_ID:?RP_ID is required}
       SESSION_COOKIE: bb_admin_session

@@ -100,6 +100,34 @@ describe("renderEmail", () => {
     expect(html).toContain("Snake and peony half sleeve");
   });
 
+  it("renders enquiry_ack naming the chosen artist in a whole sentence", async () => {
+    const { html } = await renderEmail("enquiry_ack", {
+      customerName: "Ada",
+      artistName: "Calum",
+    });
+    expect(html).toContain("Your enquiry is with Calum, who&#x27;ll get back");
+    expect(html).not.toContain("on its way to");
+  });
+
+  it("renders enquiry_alert with the customer, channel, artist and admin link", async () => {
+    const { subject, html } = await renderEmail("enquiry_alert", {
+      customerName: "Ada\r\nBcc: x@evil.test",
+      channelLabel: "Instagram",
+      artistName: "Sarah",
+      summary: "Swallow on the wrist",
+      enquiryUrl: "https://admin.example/enquiries/enq_1",
+    });
+    expectHtmlBasics(html, subject);
+    // The name is customer input headed for a header: no line breaks survive.
+    expect(subject).toBe(
+      "New enquiry from Ada Bcc: x@evil.test — Boots 'n' Bandit",
+    );
+    expect(html).toContain("Instagram");
+    expect(html).toContain("Sarah");
+    expect(html).toContain("Swallow on the wrist");
+    expect(html).toContain("https://admin.example/enquiries/enq_1");
+  });
+
   it("renders loyalty_reward with the reward and stamp count", async () => {
     const { subject, html } = await renderEmail("loyalty_reward", {
       customerName: "Ada",
@@ -191,6 +219,7 @@ describe("renderEmail", () => {
       "aftercare",
       "review_request",
       "enquiry_ack",
+      "enquiry_alert",
       "loyalty_reward",
       "staff_invite",
       "staff_reply",

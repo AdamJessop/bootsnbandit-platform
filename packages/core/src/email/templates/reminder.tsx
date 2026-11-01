@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface ReminderProps {
@@ -10,13 +10,15 @@ export interface ReminderProps {
 }
 
 export function ReminderEmail(props: ReminderProps) {
-  const { customerName = "there", artistName, date } = props;
+  const { customerName, artistName, date } = props;
   return (
     <EmailLayout
       preview={`A quick reminder about your tattoo session${date ? ` — ${date}` : ""}`}
       eyebrow="Session reminder"
     >
-      <Text style={heading}>See you soon, {customerName}.</Text>
+      <Text
+        style={heading}
+      >{`See you soon${greetingName(customerName)}.`}</Text>
       <Text style={paragraph}>
         Just a friendly nudge about your upcoming session
         {artistName ? ` with ${artistName}` : ""}

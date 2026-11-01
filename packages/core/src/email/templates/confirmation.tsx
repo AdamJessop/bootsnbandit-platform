@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface ConfirmationProps {
@@ -34,13 +34,15 @@ const value: React.CSSProperties = {
 };
 
 export function ConfirmationEmail(props: ConfirmationProps) {
-  const { customerName = "there", artistName, date, placement } = props;
+  const { customerName, artistName, date, placement } = props;
   return (
     <EmailLayout
       preview={`Your booking with ${artistName ?? "Boots 'n' Bandit"} is confirmed`}
       eyebrow="Booking confirmed"
     >
-      <Text style={heading}>You&apos;re booked in, {customerName}.</Text>
+      <Text style={heading}>
+        {`You're booked in${greetingName(customerName)}.`}
+      </Text>
       <Text style={paragraph}>
         Brilliant — your session is locked in. Here are the details:
       </Text>

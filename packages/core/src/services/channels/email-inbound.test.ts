@@ -2,13 +2,20 @@ import { readFileSync } from "node:fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@bnb/core/db";
 import { closeTestDb, dbReachable, testDb, uid } from "../testdb";
-import { ingestResendEvent } from "./email-inbound";
 import type {
   ResendAttachmentLink,
   ResendInboundDeps,
   ResendInboundEmail,
   ResendReceivedEvent,
 } from "./email";
+
+// Owner alerts have their own suite; here we only care WHEN they fire.
+const notifyOwnersOfNewEnquiry = vi.fn();
+vi.mock("../enquiry-alerts", () => ({
+  notifyOwnersOfNewEnquiry: (...a: unknown[]) => notifyOwnersOfNewEnquiry(...a),
+}));
+
+const { ingestResendEvent } = await import("./email-inbound");
 
 /**
  * The full inbound path against the real database: identity resolution,
@@ -78,6 +85,7 @@ describe("ingestResendEvent (DB)", () => {
 
   beforeEach(() => {
     process.env.INBOUND_EMAIL_DOMAIN = DOMAIN;
+    notifyOwnersOfNewEnquiry.mockClear();
   });
 
   afterEach(() => {
@@ -121,6 +129,13 @@ describe("ingestResendEvent (DB)", () => {
     if (outcome.status !== "recorded") return;
     expect(outcome.createdEnquiry).toBe(true);
     enquiries.push(outcome.enquiryId);
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledTimes(1);
+    expect(notifyOwnersOfNewEnquiry).toHaveBeenCalledWith({
+      enquiryId: outcome.enquiryId,
+      customerName: "Amy Jones",
+      channel: "email",
+      summary: "Sleeve idea",
+    });
 
     const enquiry = await db().enquiry.findUniqueOrThrow({
       where: { id: outcome.enquiryId },
@@ -212,6 +227,8 @@ describe("ingestResendEvent (DB)", () => {
     });
     expect(after.status).toBe("customer_replied");
     expect(after.lastInboundAt).toBeInstanceOf(Date);
+    // A reply on an open thread is not a new enquiry — no owner alert.
+    expect(notifyOwnersOfNewEnquiry).not.toHaveBeenCalled();
     expect(await db().enquiry.count({ where: { customerId: customer.id } })).toBe(1);
   });
 

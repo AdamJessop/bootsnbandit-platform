@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Button, Section, Text } from "@react-email/components";
-import { EmailLayout, heading, paragraph } from "./layout";
+import { EmailLayout, greetingName, heading, paragraph } from "./layout";
 import { colors } from "./theme";
 
 export interface StaffInviteProps {
@@ -45,7 +45,7 @@ function formatExpiry(iso?: string): string | null {
 }
 
 export function StaffInviteEmail(props: StaffInviteProps) {
-  const { inviteeName = "there", url, role, expiresAt } = props;
+  const { inviteeName, url, role, expiresAt } = props;
   const expiry = formatExpiry(expiresAt);
   const roleLabel =
     role && role.toLowerCase() === "owner" ? "an owner" : "an artist";
@@ -54,7 +54,9 @@ export function StaffInviteEmail(props: StaffInviteProps) {
       preview="You've been invited to the Boots 'n' Bandit studio"
       eyebrow="Studio invite"
     >
-      <Text style={heading}>Welcome aboard, {inviteeName}.</Text>
+      <Text
+        style={heading}
+      >{`Welcome aboard${greetingName(inviteeName)}.`}</Text>
       <Text style={paragraph}>
         You&apos;ve been invited to join the Boots &apos;n&apos; Bandit studio
         team{role ? ` as ${roleLabel}` : ""}. Set up your account by enrolling a

@@ -7,6 +7,7 @@ import { ReceiptEmail, type ReceiptLineItem } from "./templates/receipt";
 import { AftercareEmail } from "./templates/aftercare";
 import { ReviewRequestEmail } from "./templates/review-request";
 import { EnquiryAckEmail } from "./templates/enquiry-ack";
+import { EnquiryAlertEmail } from "./templates/enquiry-alert";
 import { LoyaltyRewardEmail } from "./templates/loyalty-reward";
 import { StaffInviteEmail } from "./templates/staff-invite";
 import { StaffReplyEmail } from "./templates/staff-reply";
@@ -102,6 +103,20 @@ function buildElement(
           subjectIdea: str(data, "subjectIdea"),
         }),
       };
+    case "enquiry_alert": {
+      // Customer-supplied name lands in a header: flatten any line breaks.
+      const name = str(data, "customerName")?.replace(/\s+/g, " ").trim();
+      return {
+        subject: `New enquiry${name ? ` from ${name}` : ""} — Boots 'n' Bandit`,
+        element: React.createElement(EnquiryAlertEmail, {
+          customerName: name || undefined,
+          channelLabel: str(data, "channelLabel"),
+          artistName: str(data, "artistName"),
+          summary: str(data, "summary"),
+          enquiryUrl: str(data, "enquiryUrl"),
+        }),
+      };
+    }
     case "loyalty_reward":
       return {
         subject: "You've unlocked a Bandit Pass reward — Boots 'n' Bandit",

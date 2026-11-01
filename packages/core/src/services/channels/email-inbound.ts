@@ -1,5 +1,6 @@
 import { prisma } from "@bnb/core/db";
 import { findOrCreateCustomer } from "../contact-identity";
+import { notifyOwnersOfNewEnquiry } from "../enquiry-alerts";
 import { recordInbound } from "../enquiry-messages";
 import { resolveThread } from "../enquiry-threading";
 import {
@@ -135,10 +136,23 @@ export async function ingestResendEvent(
     });
   }
 
+  const createdEnquiry = thread.created && row.enquiryId === thread.enquiryId;
+  // A fresh thread is a new enquiry — tell the owners. A reply onto an open
+  // thread is not (the inbox badge covers it), nor is a race loser's orphan.
+  // Fire-and-forget: it never rejects, and the webhook must not wait on it.
+  if (createdEnquiry) {
+    void notifyOwnersOfNewEnquiry({
+      enquiryId: row.enquiryId,
+      customerName: parsed.fromName ?? customer.name,
+      channel: "email",
+      summary: parsed.subject?.trim() || parsed.bodyText,
+    });
+  }
+
   return {
     status: "recorded",
     enquiryId: row.enquiryId,
     messageId: row.id,
-    createdEnquiry: thread.created && row.enquiryId === thread.enquiryId,
+    createdEnquiry,
   };
 }

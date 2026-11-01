@@ -25,7 +25,9 @@ describe("WelcomeEmail", () => {
 
   it("omits the button without a URL and defaults the greeting", async () => {
     const html = await render(WelcomeEmail({}));
-    expect(html).toContain("there");
+    // No name means no name — never "Welcome, there.".
+    expect(html).toContain("Welcome.");
+    expect(html).not.toContain("there");
     expect(html).not.toContain("set-password?token=");
   });
 });

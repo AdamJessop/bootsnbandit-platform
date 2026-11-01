@@ -48,6 +48,16 @@ const SAMPLE: Record<
       subjectIdea: "Snake & dagger",
     },
   },
+  enquiry_alert: {
+    label: "New-enquiry alert (to owners)",
+    data: {
+      customerName: "Alex",
+      channelLabel: "Web form",
+      artistName: "Sarah",
+      summary: "Snake & dagger on the forearm, about 15cm",
+      enquiryUrl: "http://localhost:3001/enquiries/demo",
+    },
+  },
   loyalty_reward: {
     label: "Loyalty reward",
     data: {
