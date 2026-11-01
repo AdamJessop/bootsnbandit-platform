@@ -6,6 +6,7 @@ const userCreate = vi.fn();
 const artistCreate = vi.fn();
 const artistUpdate = vi.fn();
 const artistDelete = vi.fn();
+const consentCount = vi.fn();
 const transaction = vi.fn();
 
 vi.mock("@bnb/core/auth", () => ({
@@ -17,6 +18,7 @@ vi.mock("next/cache", () => ({
 vi.mock("@bnb/core/db", () => ({
   prisma: {
     artist: { update: artistUpdate, delete: artistDelete },
+    consentForm: { count: (...a: unknown[]) => consentCount(...a) },
     $transaction: (...a: unknown[]) => transaction(...a),
   },
 }));
@@ -38,6 +40,7 @@ describe("artist CMS actions", () => {
     artistCreate.mockReset().mockResolvedValue({ id: "a-new" });
     artistUpdate.mockReset().mockResolvedValue({});
     artistDelete.mockReset().mockResolvedValue({});
+    consentCount.mockReset().mockResolvedValue(0);
     // $transaction runs the callback with a tx that exposes the same delegates.
     transaction
       .mockReset()
@@ -131,7 +134,35 @@ describe("artist CMS actions", () => {
 
   it("deleteArtist removes the artist row", async () => {
     const { deleteArtist } = await import("./artist-action");
-    await deleteArtist(fd({ id: "a1" }));
+    expect(await deleteArtist(fd({ id: "a1" }))).toBeUndefined();
     expect(artistDelete).toHaveBeenCalledWith({ where: { id: "a1" } });
+  });
+
+  it("deleteArtist refuses, with a clear message, when signed consent forms exist", async () => {
+    consentCount.mockResolvedValue(2);
+    const { deleteArtist } = await import("./artist-action");
+    const res = await deleteArtist(fd({ id: "a1" }));
+    expect(consentCount).toHaveBeenCalledWith({
+      where: { booking: { artistId: "a1" } },
+    });
+    expect(res).toEqual({ error: expect.stringContaining("consent forms") });
+    expect(res && res.error).toContain("untick Active");
+    expect(artistDelete).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("deleteArtist turns a restrict violation (form signed mid-delete) into the same message", async () => {
+    artistDelete.mockRejectedValue(
+      Object.assign(new Error("fk"), { code: "P2003" }),
+    );
+    const { deleteArtist } = await import("./artist-action");
+    const res = await deleteArtist(fd({ id: "a1" }));
+    expect(res).toEqual({ error: expect.stringContaining("consent forms") });
+  });
+
+  it("deleteArtist rethrows anything else", async () => {
+    artistDelete.mockRejectedValue(new Error("db down"));
+    const { deleteArtist } = await import("./artist-action");
+    await expect(deleteArtist(fd({ id: "a1" }))).rejects.toThrow("db down");
   });
 });

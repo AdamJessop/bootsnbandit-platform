@@ -9,14 +9,18 @@ import { Toaster } from "@/components/ui/sonner";
 import { CustomerTimeline } from "@/components/admin/CustomerTimeline";
 import { loyaltyTierLabel } from "../../_shared/labels";
 import { buildTimeline } from "./timeline-builder";
+import { buildConsentRecords } from "./consent-records";
+import { ConsentForms } from "./ConsentForms";
 import { CustomerActions } from "./CustomerActions";
 import { buildIdentityChips, IdentityChips } from "./IdentityChips";
 import { LinkIdentityCard } from "./LinkIdentityCard";
 
 /**
  * Customer detail (BACKOFHOUSE-IA F2): unified timeline (enquiries + bookings +
- * sessions + emails + loyalty), notes, marketing consent and manual email.
- * Owners see anyone; artists only customers they have a booking with.
+ * sessions + emails + loyalty), notes, marketing consent and manual email,
+ * plus the read-only kiosk consent forms. Owners see anyone; artists only
+ * customers they have a booking with — and only the consent forms from their
+ * own bookings.
  */
 export const dynamic = "force-dynamic";
 
@@ -53,6 +57,7 @@ export default async function CustomerDetailPage({
         include: {
           artist: { select: { name: true } },
           session: true,
+          consentForm: true,
         },
       },
       messages: { orderBy: { createdAt: "desc" } },
@@ -87,6 +92,11 @@ export default async function CustomerDetailPage({
       amountChargedPence: b.session!.amountChargedPence,
       tipPence: b.session!.tipPence,
     }));
+
+  const consentRecords = buildConsentRecords(customer.bookings, {
+    role: user.role,
+    artistId: user.artistId ?? null,
+  });
 
   const entries = buildTimeline({
     enquiries: customer.enquiries.map((e) => ({
@@ -165,6 +175,10 @@ export default async function CustomerDetailPage({
             Timeline
           </h2>
           <CustomerTimeline customerId={customer.id} entries={entries} />
+          <h2 className="mt-10 mb-4 font-termina text-xs uppercase tracking-wide text-text-muted">
+            Consent forms
+          </h2>
+          <ConsentForms records={consentRecords} />
         </section>
         <aside>
           <CustomerActions

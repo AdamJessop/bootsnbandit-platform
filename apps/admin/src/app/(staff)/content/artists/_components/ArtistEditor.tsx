@@ -31,7 +31,9 @@ export interface ArtistEditorProps {
   styles: StyleOption[];
   createAction: (fd: FormData) => Promise<void>;
   updateAction: (fd: FormData) => Promise<void>;
-  deleteAction: (fd: FormData) => Promise<void>;
+  /** Resolves with `{ error }` when the delete is refused (e.g. the artist
+   *  has signed consent forms on file) — shown inline above the roster. */
+  deleteAction: (fd: FormData) => Promise<void | { error: string }>;
 }
 
 export function ArtistEditor({
@@ -44,6 +46,7 @@ export function ArtistEditor({
   const [editing, setEditing] = useState<"new" | string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [pending, startTransition] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const isNew = editing === "new";
 
@@ -76,8 +79,10 @@ export function ArtistEditor({
   function remove(id: string) {
     const fd = new FormData();
     fd.set("id", id);
+    setDeleteError(null);
     startTransition(async () => {
-      await deleteAction(fd);
+      const res = await deleteAction(fd);
+      if (res && "error" in res) setDeleteError(res.error);
     });
   }
 
@@ -94,6 +99,15 @@ export function ArtistEditor({
           <Plus className="h-4 w-4" /> Add artist
         </Button>
       </div>
+
+      {deleteError && (
+        <p
+          role="alert"
+          className="rounded-md border border-bb-crimson/40 bg-bb-crimson/10 px-4 py-3 text-sm text-text-primary"
+        >
+          {deleteError}
+        </p>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-border-default">
         <table className="w-full text-sm">
