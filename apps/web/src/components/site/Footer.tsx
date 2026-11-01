@@ -5,10 +5,12 @@ import {
   SITE_NAV,
   type ShellSettings,
 } from "@/lib/site-nav";
+import { LEGAL_NAV } from "@/lib/legal";
 
 /**
  * Four-column heritage footer: brand + socials, Explore links, Visit
- * (address/hours/phone) and Studio address block. `studio` carries the CMS
+ * (address/hours/phone) and Studio address block, over a bottom strip with the
+ * copyright and the legal links (privacy, data deletion). `studio` carries the CMS
  * SiteSettings merged over the hardcoded fallbacks (see mergeShellSettings);
  * omitting it renders the pure fallbacks.
  */
@@ -99,6 +101,13 @@ export function Footer({
           <span>
             © {new Date().getFullYear()} {studio.name}. All rights reserved.
           </span>
+          <nav className="foot-legal" aria-label="Legal">
+            {LEGAL_NAV.map((item) => (
+              <Link key={item.href} href={item.href}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
           <span>Fully licensed studio · Worksop, Nottinghamshire</span>
         </div>
       </div>

@@ -1688,3 +1688,70 @@
     gap: 14px;
   }
 }
+
+/* ---- legal pages (/privacy, /data-deletion) ----
+   Long-form reading column. Plain prose on purpose: these pages are read by
+   customers and by Meta's reviewers, so legibility beats ornament. */
+.legal {
+  max-width: 720px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.7;
+}
+.legal h2 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  color: var(--text-primary);
+  margin: 48px 0 12px;
+  /* Anchor targets (#data-deletion) clear the sticky nav. */
+  scroll-margin-top: calc(var(--nav-h) + 24px);
+}
+.legal h2:first-child {
+  margin-top: 0;
+}
+.legal h3 {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin: 24px 0 6px;
+}
+.legal p,
+.legal ul,
+.legal ol {
+  margin: 0 0 14px;
+}
+.legal ul,
+.legal ol {
+  padding-left: 22px;
+}
+.legal ul {
+  list-style: disc;
+}
+.legal ol {
+  list-style: decimal;
+}
+.legal li {
+  margin-bottom: 6px;
+}
+.legal a {
+  color: var(--bb-gold-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal a:hover {
+  color: var(--text-primary);
+}
+.legal strong {
+  color: var(--text-primary);
+}
+.foot-legal {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.foot-legal a {
+  color: var(--text-muted);
+  transition: color var(--dur-fast);
+}
+.foot-legal a:hover {
+  color: var(--text-primary);
+}

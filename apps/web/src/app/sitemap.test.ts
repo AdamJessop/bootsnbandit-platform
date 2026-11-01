@@ -28,6 +28,8 @@ describe("public sitemap", () => {
     expect(urls).toContain("https://example.test/enquire");
     expect(urls).toContain("https://example.test/inkling");
     expect(urls).toContain("https://example.test/passport");
+    expect(urls).toContain("https://example.test/privacy");
+    expect(urls).toContain("https://example.test/data-deletion");
   });
 
   it("includes artist detail pages from the DB", async () => {

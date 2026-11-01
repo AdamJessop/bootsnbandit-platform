@@ -30,6 +30,14 @@ describe("Footer", () => {
   });
 });
 
+describe("Footer legal links", () => {
+  it("links the privacy policy and data deletion pages", () => {
+    const html = renderToStaticMarkup(<Footer />);
+    expect(html).toContain('href="/privacy"');
+    expect(html).toContain('href="/data-deletion"');
+  });
+});
+
 describe("Footer branding", () => {
   it("renders the bb-logo image", () => {
     const html = renderToStaticMarkup(<Footer />);

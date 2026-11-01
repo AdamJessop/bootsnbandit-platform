@@ -12,6 +12,8 @@ const PUBLIC_PATHS = [
   "/enquire",
   "/inkling",
   "/passport",
+  "/privacy",
+  "/data-deletion",
 ] as const;
 
 /** Active artist slugs for /artists/<slug>; [] when the DB is unavailable. */
